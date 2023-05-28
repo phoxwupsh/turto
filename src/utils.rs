@@ -1,0 +1,137 @@
+use std::error::Error;
+
+use serenity::{
+    client::Context,
+    model::{channel::Message, prelude::{ChannelId, GuildId}}
+};
+use songbird::{
+    input::{Metadata, Restartable},
+    // ytdl, // Use restartable for seeking feature
+    events::{
+        Event as SongbirdEvent,
+        TrackEvent
+    }
+};
+
+use crate::{guild::{
+    playing::Playing,
+    playlist::{
+        Playlists, 
+        Playlist
+    }, volume::Volume
+}, handlers::track_end::PlayNextSong};
+
+pub const MAX_VOL: u32 = 100;
+pub const VOL_STEP: f32 = 100.0;
+pub const DEFAULT_VOL: f32 = 1.0;
+
+pub fn convert_to_emoji(num: i32) -> String {
+    let num_str = num.to_string();
+    let mut emoji_str = String::new();
+
+    for ch in num_str.chars() {
+        let emoji = match ch {
+            '0' => "0️⃣",
+            '1' => "1️⃣",
+            '2' => "2️⃣",
+            '3' => "3️⃣",
+            '4' => "4️⃣",
+            '5' => "5️⃣",
+            '6' => "6️⃣",
+            '7' => "7️⃣",
+            '8' => "8️⃣",
+            '9' => "9️⃣",
+            _ => continue,
+        };
+        emoji_str.push_str(emoji);
+    }
+    emoji_str
+}
+
+pub async fn user_in_voice_channel(ctx: &Context, msg: &Message) -> Option<ChannelId> {
+    let guild = msg.guild(&ctx.cache).unwrap();
+
+    guild.voice_states.get(&msg.author.id)
+        .and_then(|voice_state| voice_state.channel_id)
+}
+
+pub async fn bot_in_voice_channel(ctx: &Context, msg: &Message) -> Option<ChannelId> {
+    let manager = songbird::get(&ctx).await
+        .expect("Songbird Voice client placing in Resource failed.")
+        .clone();
+
+    let guild = msg.guild(ctx).unwrap();
+
+    match manager.get(guild.id) {
+        Some(_) => return guild.voice_states.get(&ctx.cache.current_user_id())
+            .and_then(|voice_state| voice_state.channel_id),
+        None => return None
+    }
+}
+
+pub async fn same_voice_channel(ctx: &Context, msg: &Message) -> bool {
+    let user_channel = user_in_voice_channel(ctx, msg).await;
+    let bot_channel = bot_in_voice_channel(ctx, msg).await;
+
+    user_channel == bot_channel && user_channel.is_some()
+}
+
+pub async fn play_song(ctx: &Context, guild_id: GuildId, url: String) -> Result<Metadata, Box<dyn Error + Send + Sync>> {
+    let manager = songbird::get(ctx).await
+        .expect("Songbird voice client placement in resource map failed.")
+        .clone();
+
+    if let Some(handler_lock) = manager.get(guild_id) {
+        let mut handler = handler_lock.lock().await;
+
+        let source = Restartable::ytdl(url.clone(), true).await?;
+        // let source = ytdl(&url).await?; // Use restartable for seeking feature
+        let song = handler.play_only_source(source.into());
+        let meta = song.metadata().clone();
+
+        let next_song_handler = PlayNextSong { 
+            ctx: ctx.clone(), 
+            guild_id,
+        };
+
+        let _ = song.add_event(SongbirdEvent::Track(TrackEvent::End), next_song_handler);
+
+        let volume_lock = {
+            let data_read = ctx.data.read().await;
+            data_read.get::<Volume>().expect("Expected Playing in TypeMap").clone()
+        };
+        {
+            let mut volume = volume_lock.lock().await;
+            let new_volume = volume.entry(guild_id).or_insert(DEFAULT_VOL);
+            let _ = song.set_volume(*new_volume);
+        }
+
+        // Update the current track
+        let playing_lock = {
+            let data_read = ctx.data.read().await;
+            data_read.get::<Playing>().expect("Expected Playing in TypeMap").clone()
+        };
+        {
+            let mut playing = playing_lock.write().await;
+            let _ = playing.insert(guild_id, song);
+        }
+        return Ok(meta);
+    }
+    Err(String::from("Error playing song while creating handler").into())
+}
+
+pub async fn play_next(ctx: &Context, guild_id: GuildId) -> Result<Metadata, Box<dyn Error + Send + Sync>>  {
+    let data_read = ctx.data.read().await;
+    let playlists = data_read.get::<Playlists>().expect("Expected Playlists in TypeMap.");
+    let mut playlists = playlists.lock().await;
+    let playlist = playlists.entry(guild_id).or_insert_with(Playlist::new);
+
+    match playlist.pop_front() {
+        Some(next_song) =>{
+            return play_song(ctx, guild_id, next_song.source_url.unwrap()).await
+        },
+        None => {
+            return Err("The playlist is empty".into());
+        }
+    }
+}
