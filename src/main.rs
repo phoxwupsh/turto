@@ -17,7 +17,7 @@ use turto_rs::{
     },
     guild::{
         playing::Playing,
-        playlist::Playlists,
+        playlist::{Playlists, Playlist},
         volume::Volume
     },
 };
@@ -29,10 +29,10 @@ use serenity::{
         macros::group, 
         StandardFramework,
     },
-    model::gateway::Ready,
+    model::{gateway::Ready, prelude::GuildId},
     prelude::{GatewayIntents, Context},
 };
-use std::{collections::HashMap, env, sync::Arc};
+use std::{collections::HashMap, env, sync::Arc, fs};
 
 use songbird::SerenityInit;
 
@@ -56,8 +56,7 @@ struct Music;
 #[tokio::main]
 async fn main() {
     let subscriber = tracing_subscriber::fmt().with_max_level(Level::INFO).finish();
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("Tracing initialization failed.");
+    tracing::subscriber::set_global_default(subscriber).expect("Tracing initialization failed.");
 
     dotenv::dotenv().expect("Failed to load .env file");
 
@@ -77,12 +76,61 @@ async fn main() {
         .await
         .expect("Error creating client");
 
+    // Load the data from playlists.json and volume.json
+    let playlists_json = fs::read_to_string("playlists.json").unwrap_or_else(|_| "{}".to_string());
+    let playlists: HashMap<GuildId, Playlist> = serde_json::from_str(&playlists_json).unwrap_or_default();
+
+    let volume_json = fs::read_to_string("volume.json").unwrap_or_else(|_| "{}".to_string());
+    let volume: HashMap<GuildId, f32> = serde_json::from_str(&volume_json).unwrap_or_default();
+
     {
         let mut data = client.data.write().await;
         data.insert::<Playing>(Arc::new(RwLock::new(HashMap::default())));
-        data.insert::<Playlists>(Arc::new(Mutex::new(HashMap::default())));
-        data.insert::<Volume>(Arc::new(Mutex::new(HashMap::default())));
+        data.insert::<Playlists>(Arc::new(Mutex::new(playlists)));
+        data.insert::<Volume>(Arc::new(Mutex::new(volume)));
     }
+
+    let shard_manager = client.shard_manager.clone();
+    let data = client.data.clone();
+
+    tokio::spawn(async move {
+        if let Err(why) = tokio::signal::ctrl_c().await {
+            let log = format!("Client error: {:?}", why);
+            error!(log);
+        }
+        else {
+            { // Shutdown the client first
+                shard_manager.lock().await.shutdown_all().await;
+            }
+
+            // Write Playlists and Volume into json files
+            let playlists_json: String;
+            let volume_json: String;
+            {
+                let data_read = data.read().await;
+                let playlists = data_read.get::<Playlists>().expect("Expected Playlists in TypeMap.").lock().await;
+                let volume = data_read.get::<Volume>().expect("Expected Volume in TypeMap.").lock().await;
+                playlists_json = serde_json::to_string(&*playlists).unwrap_or_else(|_|"{}".to_string());
+                volume_json = serde_json::to_string(&*volume).unwrap_or_else(|_|"{}".to_string());
+            }
+            let playlists_json_size = playlists_json.len();
+            let volume_json_size = volume_json.len();
+            if let Err(why) = fs::write("playlists.json", playlists_json) {
+                let log = format!("Error occured while writing playlists.json: {:?}", why);
+                error!(log);
+            } else {
+                let log = format!("Written {} bytes into playlists.json", playlists_json_size);
+                error!(log);
+            }
+            if let Err(why) = fs::write("volume.json", volume_json) {
+                let log = format!("Error occured while writing volume.json: {:?}", why);
+                error!(log);
+            } else {
+                let log = format!("Written {} bytes into volume.json", volume_json_size);
+                error!(log);
+            }
+        }
+    });
 
     if let Err(why) = client.start().await {
         let log = format!("Client error: {:?}", why);
