@@ -128,7 +128,7 @@ pub async fn play_next(ctx: &Context, guild_id: GuildId) -> Result<Metadata, Box
 
     match playlist.pop_front() {
         Some(next_song) =>{
-            return play_song(ctx, guild_id, next_song.source_url.unwrap()).await
+            return play_song(ctx, guild_id, next_song.source_url.clone().unwrap()).await
         },
         None => {
             return Err("The playlist is empty".into());

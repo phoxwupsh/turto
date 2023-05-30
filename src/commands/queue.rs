@@ -4,7 +4,7 @@ use serenity::{
     prelude::Context,
 };
 
-use crate::guild::playlist::{Playlist, Playlists};
+use crate::guild::playlist::{Playlist, Playlists, Metadata};
 
 #[command]
 #[description = "在播放清單中加入新的項目，`網址`目前只支援YouTube的影片(直播不行)。"]
@@ -31,7 +31,7 @@ async fn queue(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 
         msg.reply(ctx, format!("✅ {}", metadata.title.clone().unwrap()))
             .await?;
-        playlist.push_back(*metadata); // Add song to playlist
+        playlist.push_back(Metadata::from(*metadata)); // Add song to playlist
     }
     Ok(())
 }
