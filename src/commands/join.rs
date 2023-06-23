@@ -4,6 +4,8 @@ use crate::{utils::{
     same_voice_channel
 }, messages::NOT_IN_ANY_VOICE_CHANNEL};
 
+use tracing::error;
+
 use serenity::{
     client::Context,
     model::channel::Message,
@@ -41,6 +43,8 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     }
 
     msg.channel_id.say(ctx, format!("🐢 {}", connect_to.mention())).await?;
-    let _ = manager.join(guild.id, connect_to).await;
+    if let (_, Err(why)) = manager.join(guild.id, connect_to).await {
+        error!("Error join voice channel {}: {:?}", connect_to, why);
+    }
     Ok(())
 }

@@ -1,5 +1,5 @@
 use serenity::{framework::standard::{macros::command, Args, CommandResult}, prelude::Context, model::prelude::Message};
-
+use tracing::error;
 use crate::{guild::{playing::Playing, volume::Volume}, utils::{VOL_STEP, MAX_VOL, convert_to_emoji}};
 
 #[command]
@@ -33,7 +33,9 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     {
         let playing = playing_lock.read().await;
         if let Some(current_track) = playing.get(&msg.guild_id.unwrap()) {
-            let _ = current_track.set_volume(new_volf);
+            if let Err(why) = current_track.set_volume(new_volf) {
+                error!("Error setting volume for track {}: {:?}", current_track.uuid(), why);
+            }
         }
     }
 

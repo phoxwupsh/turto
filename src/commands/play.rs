@@ -13,6 +13,8 @@ use crate::{
     },
 };
 
+use tracing::error;
+
 #[command]
 #[description = "開始播放，如果turto沒有在其他語音頻道的話就會進入你所在的語音頻道，依照狀況不同有以下幾種可能：\n**1** 有輸入`網址`的話，會停止目前正在播放的項目(如果有的話)，並開始播放`網址`，`網址`目前只支援YouTube的影片(直播不行)。。\n**2** 如果沒有輸入網址，且當目前有正在播放的項目被暫停時，會繼續播放該項目。\n**3** 如果沒有輸入網址，目前也沒有暫停的項目，會開始播放播放清單。"]
 #[usage = "網址"]
@@ -88,7 +90,10 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             if let Some(current_track) = playing.get(&guild_id) {
                 if let Ok(current_track_state) = current_track.get_info().await {
                     if current_track_state.playing == PlayMode::Pause {
-                        let _ = current_track.play();
+                        if let Err(why) = current_track.play() {
+                            error!("Error playing song: {:?}", why);
+                            return Ok(());
+                        }
                         return Ok(()); // If there is a paused song then play it
                     }
                 }

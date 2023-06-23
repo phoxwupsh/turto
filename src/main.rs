@@ -43,8 +43,7 @@ struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn ready(&self, _: Context, ready: Ready) {
-        let log = format!("{} is connected with ID {}.", ready.user.name.clone(), ready.user.id.to_string());
-        info!(log);
+        info!("{} is connected with ID {}.", ready.user.name.clone(), ready.user.id.to_string());
     }
 }
 
@@ -95,8 +94,7 @@ async fn main() {
 
     tokio::spawn(async move {
         if let Err(why) = tokio::signal::ctrl_c().await {
-            let log = format!("Client error: {:?}", why);
-            error!(log);
+            error!("Client error: {:?}", why);
         }
         else {
             { // Shutdown the client first
@@ -116,25 +114,20 @@ async fn main() {
             let playlists_json_size = playlists_json.len();
             let volume_json_size = volume_json.len();
             if let Err(why) = fs::write("playlists.json", playlists_json) {
-                let log = format!("Error occured while writing playlists.json: {:?}", why);
-                error!(log);
+                error!("Error occured while writing playlists.json: {:?}", why);
             } else {
-                let log = format!("Written {} bytes into playlists.json", playlists_json_size);
-                error!(log);
+                info!("Written {} bytes into playlists.json", playlists_json_size);
             }
             if let Err(why) = fs::write("volume.json", volume_json) {
-                let log = format!("Error occured while writing volume.json: {:?}", why);
-                error!(log);
+                error!("Error occured while writing volume.json: {:?}", why);
             } else {
-                let log = format!("Written {} bytes into volume.json", volume_json_size);
-                error!(log);
+                info!("Written {} bytes into volume.json", volume_json_size);
             }
         }
     });
 
     if let Err(why) = client.start().await {
-        let log = format!("Client error: {:?}", why);
-        error!(log);
+        error!("Client error: {:?}", why);
     }
 }
 

@@ -4,6 +4,8 @@ use serenity::{
     prelude::{Context, Mentionable},
 };
 
+use tracing::error;
+
 use crate::{
     guild::playing::Playing,
     utils::{bot_in_voice_channel, same_voice_channel}, messages::NOT_PLAYING,
@@ -49,7 +51,10 @@ async fn stop(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
             }
         };
 
-        let _ = current_track.stop();
+        if let Err(why) = current_track.stop() {
+            error!("Error stopping track {}: {:?}", current_track.uuid(), why);
+        }
+
         msg.reply(
             ctx,
             format!("⏹️ {}", current_track.metadata().title.clone().unwrap()),

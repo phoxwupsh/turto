@@ -13,6 +13,8 @@ use songbird::{
     }
 };
 
+use tracing::error;
+
 use crate::{guild::{
     playing::Playing,
     playlist::{
@@ -76,7 +78,9 @@ pub async fn same_voice_channel(ctx: &Context, msg: &Message) -> bool {
     user_channel == bot_channel && user_channel.is_some()
 }
 
-pub async fn play_song(ctx: &Context, guild_id: GuildId, url: String) -> Result<Metadata, Box<dyn Error + Send + Sync>> {
+pub async fn play_song<S>(ctx: &Context, guild_id: GuildId, url: S) -> Result<Metadata, Box<dyn Error + Send + Sync>> where 
+    S: AsRef<str> + Send + Clone + Sync + 'static
+{
     let manager = songbird::get(ctx).await
         .expect("Songbird voice client placement in resource map failed.")
         .clone();
@@ -84,7 +88,8 @@ pub async fn play_song(ctx: &Context, guild_id: GuildId, url: String) -> Result<
     if let Some(handler_lock) = manager.get(guild_id) {
         let mut handler = handler_lock.lock().await;
 
-        let source = Restartable::ytdl(url.clone(), true).await?;
+        handler.stop();
+        let source = Restartable::ytdl(url, true).await?;
         // let source = ytdl(&url).await?; // Use restartable for seeking feature
         let song = handler.play_only_source(source.into());
         let meta = song.metadata().clone();
@@ -94,7 +99,9 @@ pub async fn play_song(ctx: &Context, guild_id: GuildId, url: String) -> Result<
             guild_id,
         };
 
-        let _ = song.add_event(SongbirdEvent::Track(TrackEvent::End), next_song_handler);
+        if let Err(why) = song.add_event(SongbirdEvent::Track(TrackEvent::End), next_song_handler) {
+            error!("Error adding next song handler for track {}: {:?}", song.uuid(), why);
+        }
 
         let volume_lock = {
             let data_read = ctx.data.read().await;
@@ -103,7 +110,9 @@ pub async fn play_song(ctx: &Context, guild_id: GuildId, url: String) -> Result<
         {
             let mut volume = volume_lock.lock().await;
             let new_volume = volume.entry(guild_id).or_insert(DEFAULT_VOL);
-            let _ = song.set_volume(*new_volume);
+            if let Err(why) = song.set_volume(*new_volume) {
+                error!("Error setting volume of track {}: {:?}", song.uuid(), why);
+            }
         }
 
         // Update the current track
