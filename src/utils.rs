@@ -20,12 +20,8 @@ use crate::{guild::{
     playlist::{
         Playlists, 
         Playlist
-    }, volume::Volume
+    }, volume::{Volume, GuildVolume}
 }, handlers::track_end::PlayNextSong};
-
-pub const MAX_VOL: u32 = 100;
-pub const VOL_STEP: f32 = 100.0;
-pub const DEFAULT_VOL: f32 = 1.0;
 
 pub fn convert_to_emoji(num: i32) -> String {
     let num_str = num.to_string();
@@ -109,8 +105,8 @@ pub async fn play_song<S>(ctx: &Context, guild_id: GuildId, url: S) -> Result<Me
         };
         {
             let mut volume = volume_lock.lock().await;
-            let new_volume = volume.entry(guild_id).or_insert(DEFAULT_VOL);
-            if let Err(why) = song.set_volume(*new_volume) {
+            let new_volume = volume.entry(guild_id).or_insert(GuildVolume::default());
+            if let Err(why) = song.set_volume(**new_volume) {
                 error!("Error setting volume of track {}: {:?}", song.uuid(), why);
             }
         }

@@ -18,7 +18,7 @@ use turto_rs::{
     guild::{
         playing::Playing,
         playlist::{Playlists, Playlist},
-        volume::Volume
+        volume::{Volume, GuildVolume}
     },
 };
 
@@ -80,7 +80,7 @@ async fn main() {
     let playlists: HashMap<GuildId, Playlist> = serde_json::from_str(&playlists_json).unwrap_or_default();
 
     let volume_json = fs::read_to_string("volume.json").unwrap_or_else(|_| "{}".to_string());
-    let volume: HashMap<GuildId, f32> = serde_json::from_str(&volume_json).unwrap_or_default();
+    let volume: HashMap<GuildId, GuildVolume> = serde_json::from_str(&volume_json).unwrap_or_default();
 
     {
         let mut data = client.data.write().await;

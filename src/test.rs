@@ -4,7 +4,7 @@ mod tests {
 
     use crate::{
         utils::{convert_to_emoji},
-        guild::playlist::Metadata,
+        guild::{playlist::Metadata,volume::GuildVolume}
     };
     use songbird::input::Metadata as SongbirdMetadata;
 
@@ -54,4 +54,19 @@ mod tests {
         let meta = Metadata::from(sb_meta);
         assert_eq!(serde_json::to_string(&meta).unwrap(), meta_string);
     }
+
+    #[test]
+    fn test_guildvolume_serialize(){
+        let gv_string = "0.13";
+        let gv = GuildVolume::try_from(0.13_f32).unwrap();
+        assert_eq!(serde_json::from_str::<GuildVolume>(gv_string).unwrap(), gv)
+    }
+
+    #[test]
+    fn test_guildvolume_deserialize(){
+        let gv = GuildVolume::try_from(0.13_f32).unwrap();
+        let gv_string = "0.13";
+        assert_eq!(serde_json::to_string(&gv).unwrap(), gv_string)
+    }
+
 }
