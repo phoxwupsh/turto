@@ -82,12 +82,15 @@ pub async fn play_song<S>(ctx: &Context, guild_id: GuildId, url: S) -> Result<Me
         .clone();
 
     if let Some(handler_lock) = manager.get(guild_id) {
-        let mut handler = handler_lock.lock().await;
-
-        handler.stop();
         let source = Restartable::ytdl(url, true).await?;
         // let source = ytdl(&url).await?; // Use restartable for seeking feature
-        let song = handler.play_only_source(source.into());
+
+        let song = {
+            let mut handler = handler_lock.lock().await;
+            handler.stop(); 
+            handler.play_only_source(source.into())
+        };
+        
         let meta = song.metadata().clone();
 
         let next_song_handler = PlayNextSong { 

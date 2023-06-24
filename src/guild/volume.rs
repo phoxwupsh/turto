@@ -48,7 +48,7 @@ impl TryFrom<u32> for GuildVolume {
 
 impl Into<i32> for GuildVolume {
     fn into(self) -> i32 {
-        self.0 as i32
+        (self.0 * 100.0_f32) as i32
     }
 }
 
