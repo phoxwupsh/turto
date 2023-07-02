@@ -2,6 +2,8 @@ use std::ops::{Deref, DerefMut};
 
 use serde::{Serialize, Deserialize};
 
+use crate::error::TurtoError;
+
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy)]
 pub struct  GuildVolume(f32);
 
@@ -25,17 +27,17 @@ impl DerefMut for GuildVolume {
 }
 
 impl TryFrom<f32> for GuildVolume {
-    type Error = ();
+    type Error = TurtoError;
     fn try_from(value: f32) -> Result<Self, Self::Error> {
         if value > 1.0_f32 || value < 0.0_f32 {
-            return Err(());
+            return Err(TurtoError::VolumeError);
         }
         Ok(GuildVolume(value))
     }
 }
 
 impl TryFrom<u32> for GuildVolume {
-    type Error = ();
+    type Error = TurtoError;
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         let vf = (value as f32) / 100.0_f32;
         Self::try_from(vf)

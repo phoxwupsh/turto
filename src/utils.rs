@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use serenity::{
     client::Context,
     model::{channel::Message, prelude::{ChannelId, GuildId}}
@@ -15,11 +13,19 @@ use songbird::{
 
 use tracing::error;
 
-use crate::{guild::{
-    playing::Playing,
-    playlist::Playlists,
-    setting::Settings
-}, handlers::track_end::TrackEndHandler, models::{setting::GuildSetting, playlist::Playlist}};
+use crate::{
+    guild::{
+        playing::Playing,
+        playlist::Playlists,
+        setting::Settings
+    }, 
+    handlers::track_end::TrackEndHandler,
+    models::{
+        setting::GuildSetting, 
+        playlist::Playlist
+    },
+    error::TurtoError
+};
 
 pub fn convert_to_emoji(num: i32) -> String {
     let num_str = num.to_string();
@@ -72,7 +78,7 @@ pub async fn same_voice_channel(ctx: &Context, msg: &Message) -> bool {
     user_channel == bot_channel && user_channel.is_some()
 }
 
-pub async fn play_song<S>(ctx: &Context, guild_id: GuildId, url: S) -> Result<Metadata, Box<dyn Error + Send + Sync>> where 
+pub async fn play_song<S>(ctx: &Context, guild_id: GuildId, url: S) -> Result<Metadata, TurtoError> where 
     S: AsRef<str> + Send + Clone + Sync + 'static
 {
     let manager = songbird::get(ctx).await
@@ -80,7 +86,10 @@ pub async fn play_song<S>(ctx: &Context, guild_id: GuildId, url: S) -> Result<Me
         .clone();
 
     if let Some(handler_lock) = manager.get(guild_id) {
-        let source = Restartable::ytdl(url, true).await?;
+        let source = match Restartable::ytdl(url, true).await {
+            Ok(s) => s,
+            Err(e) => return Err(TurtoError::InputError(e))
+        };
         // let source = ytdl(&url).await?; // Use restartable for seeking feature
 
         let song = {
@@ -98,6 +107,7 @@ pub async fn play_song<S>(ctx: &Context, guild_id: GuildId, url: S) -> Result<Me
 
         if let Err(why) = song.add_event(SongbirdEvent::Track(TrackEvent::End), next_song_handler) {
             error!("Error adding next song handler for track {}: {:?}", song.uuid(), why);
+            return Err(TurtoError::TrackError(why));
         }
 
         let settings_lock = {
@@ -109,6 +119,7 @@ pub async fn play_song<S>(ctx: &Context, guild_id: GuildId, url: S) -> Result<Me
             let setting = settings.entry(guild_id).or_insert_with(GuildSetting::default);
             if let Err(why) = song.set_volume(*setting.volume) {
                 error!("Error setting volume of track {}: {:?}", song.uuid(), why);
+                return Err(TurtoError::TrackError(why));
             }
         }
 
@@ -123,10 +134,10 @@ pub async fn play_song<S>(ctx: &Context, guild_id: GuildId, url: S) -> Result<Me
         }
         return Ok(meta);
     }
-    Err(String::from("Error playing song while creating handler").into())
+    Err(TurtoError::InternalError("Error playing song while creating handler"))
 }
 
-pub async fn play_next(ctx: &Context, guild_id: GuildId) -> Result<Metadata, Box<dyn Error + Send + Sync>>  {
+pub async fn play_next(ctx: &Context, guild_id: GuildId) -> Result<Metadata, TurtoError>  {
     let data_read = ctx.data.read().await;
     let playlists = data_read.get::<Playlists>().expect("Expected Playlists in TypeMap.");
     let mut playlists = playlists.lock().await;
@@ -137,7 +148,7 @@ pub async fn play_next(ctx: &Context, guild_id: GuildId) -> Result<Metadata, Box
             return play_song(ctx, guild_id, next_song.source_url.clone().unwrap()).await
         },
         None => {
-            return Err("The playlist is empty".into());
+            return Err(TurtoError::EmptyPlaylist);
         }
     }
 }
