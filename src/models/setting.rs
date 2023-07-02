@@ -1,7 +1,7 @@
 use super::volume::GuildVolume;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct GuildSetting {
     pub auto_leave: bool,
     pub volume: GuildVolume,

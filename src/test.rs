@@ -3,7 +3,7 @@ mod tests {
     use std::time::Duration;
 
     use crate::{
-        models::{metadata::Metadata, volume::GuildVolume},
+        models::{metadata::Metadata, volume::GuildVolume, setting::GuildSetting},
         utils::convert_to_emoji,
     };
     use songbird::input::Metadata as SongbirdMetadata;
@@ -60,16 +60,24 @@ mod tests {
     }
 
     #[test]
-    fn test_guildvolume_serialize() {
+    fn test_guildvolume_serialization() {
         let gv_string = "0.13";
         let gv = GuildVolume::try_from(0.13_f32).unwrap();
-        assert_eq!(serde_json::from_str::<GuildVolume>(gv_string).unwrap(), gv)
+        assert_eq!(serde_json::from_str::<GuildVolume>(gv_string).unwrap(), gv);
+        assert_eq!(serde_json::to_string(&gv).unwrap(), gv_string);
     }
 
     #[test]
-    fn test_guildvolume_deserialize() {
-        let gv = GuildVolume::try_from(0.13_f32).unwrap();
-        let gv_string = "0.13";
-        assert_eq!(serde_json::to_string(&gv).unwrap(), gv_string)
+    fn test_guildsetting_serialization(){
+        let gs_string = r#"{"auto_leave":true,"volume":0.33}"#;
+        let gs = GuildSetting{
+            auto_leave: true,
+            volume: GuildVolume::try_from(0.33_f32).unwrap()
+        };
+        assert_eq!(serde_json::from_str::<GuildSetting>(gs_string).unwrap(), gs);
+        assert_eq!(serde_json::to_string(&gs).unwrap(), gs_string);
     }
+
+
+
 }
