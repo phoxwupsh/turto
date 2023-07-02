@@ -1,4 +1,10 @@
 {
+    "autoleave": {
+        "command_name": "autoleave",
+        "description": "啟用(`on`)或停用(`off`)自動離開，如果自動離開有啟用，當播放結束或被停止時播放清單是空的，turto就會自動離開語音頻道。",
+        "usage": "`autoleave on|off]",
+        "example": ["`autoleave on`", "`autoleave off`"]
+    },
     "join": {
         "command_name": "join",
         "description": "turto會加入你所在的語音頻道，如果turto已經在別的語音頻道就沒有作用。",

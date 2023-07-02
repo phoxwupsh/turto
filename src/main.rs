@@ -13,7 +13,8 @@ use turto_rs::{
         queue::QUEUE_COMMAND,
         remove::REMOVE_COMMAND,
         seek::SEEK_COMMAND,
-        help::HELP_COMMAND
+        help::HELP_COMMAND,
+        autoleave::AUTOLEAVE_COMMAND
     },
     guild::{
         playing::Playing,
@@ -50,7 +51,7 @@ impl EventHandler for Handler {
 }
 
 #[group]
-#[commands(play, pause, playwhat, stop, volume, playlist, queue, remove, join, leave, skip, seek, help)]
+#[commands(play, pause, playwhat, stop, volume, playlist, queue, remove, join, leave, skip, seek, help, autoleave)]
 #[only_in(guilds)]
 struct Music;
 
