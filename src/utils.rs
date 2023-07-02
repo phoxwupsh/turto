@@ -20,8 +20,8 @@ use crate::{guild::{
     playlist::{
         Playlists, 
         Playlist
-    }, volume::{Volume, GuildVolume}
-}, handlers::track_end::TrackEndHandler};
+    }, setting::Settings
+}, handlers::track_end::TrackEndHandler, models::setting::GuildSetting};
 
 pub fn convert_to_emoji(num: i32) -> String {
     let num_str = num.to_string();
@@ -102,14 +102,14 @@ pub async fn play_song<S>(ctx: &Context, guild_id: GuildId, url: S) -> Result<Me
             error!("Error adding next song handler for track {}: {:?}", song.uuid(), why);
         }
 
-        let volume_lock = {
+        let settings_lock = {
             let data_read = ctx.data.read().await;
-            data_read.get::<Volume>().expect("Expected Playing in TypeMap").clone()
+            data_read.get::<Settings>().expect("Expected Playing in TypeMap").clone()
         };
         {
-            let mut volume = volume_lock.lock().await;
-            let new_volume = volume.entry(guild_id).or_insert(GuildVolume::default());
-            if let Err(why) = song.set_volume(**new_volume) {
+            let mut settings = settings_lock.lock().await;
+            let setting = settings.entry(guild_id).or_insert_with(GuildSetting::default);
+            if let Err(why) = song.set_volume(*setting.volume) {
                 error!("Error setting volume of track {}: {:?}", song.uuid(), why);
             }
         }

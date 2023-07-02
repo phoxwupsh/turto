@@ -1,6 +1,6 @@
 use serenity::{framework::standard::{macros::command, Args, CommandResult}, prelude::Context, model::prelude::Message};
 use tracing::error;
-use crate::{guild::{playing::Playing, volume::{Volume, GuildVolume}}, utils::{convert_to_emoji}};
+use crate::{{guild::{playing::Playing, setting::Settings}}, utils::{convert_to_emoji}, models::{volume::GuildVolume, setting::GuildSetting}};
 
 #[command]
 async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
@@ -37,13 +37,14 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     }
 
     // Update the volume setting of guild
-    let volume_lock = {
+    let settings_lock = {
         let data_read = ctx.data.read().await;
-        data_read.get::<Volume>().expect("Expected Playing in TypeMap").clone()
+        data_read.get::<Settings>().expect("Expected Playing in TypeMap").clone()
     };
     {
-        let mut volume = volume_lock.lock().await;
-        let _ = volume.insert(msg.guild_id.unwrap(), new_vol);
+        let mut settings = settings_lock.lock().await;
+        let mut setting = settings.entry(msg.guild_id.unwrap()).or_insert_with(GuildSetting::default);
+        setting.volume = new_vol;
     }
 
     msg.reply(ctx, format!("🔊{}", convert_to_emoji(new_vol.into()))).await?;

@@ -18,8 +18,8 @@ use turto_rs::{
     guild::{
         playing::Playing,
         playlist::{Playlists, Playlist},
-        volume::{Volume, GuildVolume}
-    },
+        setting::Settings
+    }, models::setting::GuildSetting,
 };
 
 use serenity::{
@@ -76,18 +76,18 @@ async fn main() {
         .await
         .expect("Error creating client");
 
-    // Load the data from playlists.json and volume.json
+    // Load the data from playlists.json and settings.json
     let playlists_json = fs::read_to_string("playlists.json").unwrap_or_else(|_| "{}".to_string());
     let playlists: HashMap<GuildId, Playlist> = serde_json::from_str(&playlists_json).unwrap_or_default();
 
-    let volume_json = fs::read_to_string("volume.json").unwrap_or_else(|_| "{}".to_string());
-    let volume: HashMap<GuildId, GuildVolume> = serde_json::from_str(&volume_json).unwrap_or_default();
+    let settings_json = fs::read_to_string("settings.json").unwrap_or_else(|_| "{}".to_string());
+    let settings: HashMap<GuildId, GuildSetting> = serde_json::from_str(&settings_json).unwrap_or_default();
 
     {
         let mut data = client.data.write().await;
         data.insert::<Playing>(Arc::new(RwLock::new(HashMap::default())));
         data.insert::<Playlists>(Arc::new(Mutex::new(playlists)));
-        data.insert::<Volume>(Arc::new(Mutex::new(volume)));
+        data.insert::<Settings>(Arc::new(Mutex::new(settings)));
     }
 
     let shard_manager = client.shard_manager.clone();
@@ -102,27 +102,27 @@ async fn main() {
                 shard_manager.lock().await.shutdown_all().await;
             }
 
-            // Write Playlists and Volume into json files
+            // Write Playlists and Settings into json files
             let playlists_json: String;
-            let volume_json: String;
+            let settings_json: String;
             {
                 let data_read = data.read().await;
                 let playlists = data_read.get::<Playlists>().expect("Expected Playlists in TypeMap.").lock().await;
-                let volume = data_read.get::<Volume>().expect("Expected Volume in TypeMap.").lock().await;
+                let settings = data_read.get::<Settings>().expect("Expected Settings in TypeMap.").lock().await;
                 playlists_json = serde_json::to_string(&*playlists).unwrap_or_else(|_|"{}".to_string());
-                volume_json = serde_json::to_string(&*volume).unwrap_or_else(|_|"{}".to_string());
+                settings_json = serde_json::to_string(&*settings).unwrap_or_else(|_|"{}".to_string());
             }
             let playlists_json_size = playlists_json.len();
-            let volume_json_size = volume_json.len();
+            let settings_json_size = settings_json.len();
             if let Err(why) = fs::write("playlists.json", playlists_json) {
                 error!("Error occured while writing playlists.json: {:?}", why);
             } else {
                 info!("Written {} bytes into playlists.json", playlists_json_size);
             }
-            if let Err(why) = fs::write("volume.json", volume_json) {
-                error!("Error occured while writing volume.json: {:?}", why);
+            if let Err(why) = fs::write("settings.json", settings_json) {
+                error!("Error occured while writing settings.json: {:?}", why);
             } else {
-                info!("Written {} bytes into volume.json", volume_json_size);
+                info!("Written {} bytes into settings.json", settings_json_size);
             }
         }
     });

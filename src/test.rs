@@ -4,7 +4,7 @@ mod tests {
 
     use crate::{
         utils::{convert_to_emoji},
-        guild::{playlist::Metadata,volume::GuildVolume}
+        guild::{playlist::Metadata}, models::volume::GuildVolume
     };
     use songbird::input::Metadata as SongbirdMetadata;
 

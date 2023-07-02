@@ -1,10 +1,6 @@
-use std::{sync::Arc, collections::HashMap, ops::{Deref, DerefMut}};
+use std::ops::{Deref, DerefMut};
 
-use serenity::{prelude::TypeMapKey, model::prelude::GuildId};
-use tokio::sync::Mutex;
 use serde::{Serialize, Deserialize};
-
-pub struct Volume;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy)]
 pub struct  GuildVolume(f32);
@@ -50,8 +46,4 @@ impl Into<i32> for GuildVolume {
     fn into(self) -> i32 {
         (self.0 * 100.0_f32) as i32
     }
-}
-
-impl TypeMapKey for Volume {
-    type Value = Arc<Mutex<HashMap<GuildId, GuildVolume>>>;
 }
