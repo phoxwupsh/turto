@@ -12,8 +12,6 @@ use crate::{
 };
 
 #[command]
-#[description = "暫停正在播放中的的項目。"]
-#[usage = ""]
 async fn pause(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;

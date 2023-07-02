@@ -6,9 +6,6 @@ use songbird::tracks::PlayMode;
 use crate::{guild::playing::Playing, messages::NOT_PLAYING};
 
 #[command]
-#[description = "如果目前有正在播放或暫停中的的項目，跳轉到第`秒數`秒，`秒數`應該要是一個大於0的數字。"]
-#[usage = "秒數"]
-#[example = "42"]
 async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let sec = match args.parse::<u64>() {
         Ok(s) => s,

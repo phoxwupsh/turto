@@ -13,8 +13,6 @@ use serenity::{
 use crate::{utils::{user_in_voice_channel, bot_in_voice_channel, same_voice_channel, play_next}, messages::NOT_PLAYING};
 
 #[command]
-#[description = "跳過目前正在播放的項目，並開始播放播放清單中的下一個項目(如果有的話)。"]
-#[usage = ""]
 async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;

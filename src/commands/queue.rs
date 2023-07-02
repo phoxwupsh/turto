@@ -7,10 +7,6 @@ use serenity::{
 use crate::guild::playlist::{Playlist, Playlists, Metadata};
 
 #[command]
-#[description = "在播放清單中加入新的項目，`網址`目前只支援YouTube的影片(直播不行)。"]
-#[usage = "網址"]
-#[example = "https://youtu.be/dQw4w9WgXcQ"]
-#[example = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"]
 async fn queue(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let url = args.rest();
     let source = songbird::input::ytdl(&url).await?;

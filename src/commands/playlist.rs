@@ -10,9 +10,6 @@ use crate::{
 };
 
 #[command]
-#[description = "顯示目前的播放清單，整個伺服器共用同一個播放清單。"]
-#[usage = "網址"]
-#[example = "https://youtu.be/dQw4w9WgXcQ"]
 async fn playlist(ctx: &Context, msg: &Message) -> CommandResult {
     let data_read = ctx.data.read().await;
     let playlists = data_read

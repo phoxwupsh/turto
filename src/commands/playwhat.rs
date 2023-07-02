@@ -8,8 +8,6 @@ use songbird::tracks::PlayMode;
 use crate::{guild::playing::Playing, messages::NOT_PLAYING};
 
 #[command]
-#[description = "顯示目前正在播放的項目。"]
-#[usage = ""]
 async fn playwhat(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;

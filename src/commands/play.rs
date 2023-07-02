@@ -16,11 +16,6 @@ use crate::{
 use tracing::error;
 
 #[command]
-#[description = "開始播放，如果turto沒有在其他語音頻道的話就會進入你所在的語音頻道，依照狀況不同有以下幾種可能：\n**1** 有輸入`網址`的話，會停止目前正在播放的項目(如果有的話)，並開始播放`網址`，`網址`目前只支援YouTube的影片(直播不行)。。\n**2** 如果沒有輸入網址，且當目前有正在播放的項目被暫停時，會繼續播放該項目。\n**3** 如果沒有輸入網址，目前也沒有暫停的項目，會開始播放播放清單。"]
-#[usage = "網址"]
-#[example = ""]
-#[example = "https://youtu.be/dQw4w9WgXcQ"]
-#[example = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"]
 async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;

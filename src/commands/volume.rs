@@ -3,9 +3,6 @@ use tracing::error;
 use crate::{guild::{playing::Playing, volume::{Volume, GuildVolume}}, utils::{convert_to_emoji}};
 
 #[command]
-#[description = "調整音量，`音量`要界於0到100之間，整個伺服器共用同一個音量。"]
-#[usage = "音量"]
-#[example = "50"]
 async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let new_vol_u32 = match args.parse::<u32>() {
         Ok(vol_u32) => vol_u32,

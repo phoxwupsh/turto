@@ -13,7 +13,7 @@ use turto_rs::{
         queue::QUEUE_COMMAND,
         remove::REMOVE_COMMAND,
         seek::SEEK_COMMAND,
-        help::MY_HELP
+        help::HELP_COMMAND
     },
     guild::{
         playing::Playing,
@@ -43,12 +43,14 @@ struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn ready(&self, _: Context, ready: Ready) {
-        info!("{} is connected with ID {}.", ready.user.name.clone(), ready.user.id.to_string());
+        let name = ready.user.name.clone();
+        let id = ready.user.id.to_string();
+        info!("{} is connected with ID {}.", name, id);
     }
 }
 
 #[group]
-#[commands(play, pause, playwhat, stop, volume, playlist, queue, remove, join, leave, skip, seek)]
+#[commands(play, pause, playwhat, stop, volume, playlist, queue, remove, join, leave, skip, seek, help)]
 #[only_in(guilds)]
 struct Music;
 
@@ -63,8 +65,7 @@ async fn main() {
 
     let framework = StandardFramework::new()
         .configure(|c| c.prefix("!")) // Set the command prefix to "!"
-        .group(&MUSIC_GROUP)
-        .help(&MY_HELP);
+        .group(&MUSIC_GROUP);
 
     let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
     let mut client = Client::builder(&token, intents)

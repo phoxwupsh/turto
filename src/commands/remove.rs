@@ -7,9 +7,6 @@ use serenity::{
 use crate::guild::playlist::{Playlist, Playlists};
 
 #[command]
-#[description = "刪除播放清單中的第`index`個項目，`index`是一個1或以上的整數。"]
-#[usage = "index"]
-#[example = "2"]
 async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let mut index =  match args.parse::<usize>() { // Check arg is number
         Ok(i) => {
