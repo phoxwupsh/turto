@@ -21,7 +21,7 @@ use crate::{guild::{
         Playlists, 
         Playlist
     }, volume::{Volume, GuildVolume}
-}, handlers::track_end::PlayNextSong};
+}, handlers::track_end::TrackEndHandler};
 
 pub fn convert_to_emoji(num: i32) -> String {
     let num_str = num.to_string();
@@ -93,7 +93,7 @@ pub async fn play_song<S>(ctx: &Context, guild_id: GuildId, url: S) -> Result<Me
         
         let meta = song.metadata().clone();
 
-        let next_song_handler = PlayNextSong { 
+        let next_song_handler = TrackEndHandler { 
             ctx: ctx.clone(), 
             guild_id,
         };
