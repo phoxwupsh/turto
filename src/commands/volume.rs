@@ -1,6 +1,6 @@
 use serenity::{framework::standard::{macros::command, Args, CommandResult}, prelude::Context, model::prelude::Message};
 use tracing::error;
-use crate::{{guild::{playing::Playing, setting::Settings}}, utils::{convert_to_emoji}, models::{volume::GuildVolume, setting::GuildSetting}};
+use crate::{{guild::{playing::Playing, setting::Settings}}, utils::{i32_to_emoji}, models::{volume::GuildVolume, setting::GuildSetting}};
 
 #[command]
 async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
@@ -47,7 +47,7 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         setting.volume = new_vol;
     }
 
-    msg.reply(ctx, format!("🔊{}", convert_to_emoji(new_vol.into()))).await?;
+    msg.reply(ctx, format!("🔊{}", i32_to_emoji(new_vol.into()))).await?;
 
     Ok(())
 }

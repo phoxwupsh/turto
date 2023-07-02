@@ -27,9 +27,13 @@ use crate::{
     error::TurtoError
 };
 
-pub fn convert_to_emoji(num: i32) -> String {
+pub fn i32_to_emoji(num: i32) -> String {
     let num_str = num.to_string();
     let mut emoji_str = String::new();
+
+    if num < 0 {
+        emoji_str.push_str("➖");
+    }
 
     for ch in num_str.chars() {
         let emoji = match ch {

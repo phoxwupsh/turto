@@ -4,15 +4,16 @@ mod tests {
 
     use crate::{
         models::{metadata::Metadata, volume::GuildVolume, setting::GuildSetting},
-        utils::convert_to_emoji,
+        utils::i32_to_emoji,
     };
     use songbird::input::Metadata as SongbirdMetadata;
 
     #[test]
-    fn test_convert_to_emoji() {
-        assert_eq!(convert_to_emoji(42), "4️⃣2️⃣");
-        assert_eq!(convert_to_emoji(123), "1️⃣2️⃣3️⃣");
-        assert_eq!(convert_to_emoji(56789), "5️⃣6️⃣7️⃣8️⃣9️⃣");
+    fn test_i32_to_emoji() {
+        assert_eq!(i32_to_emoji(42), "4️⃣2️⃣");
+        assert_eq!(i32_to_emoji(123), "1️⃣2️⃣3️⃣");
+        assert_eq!(i32_to_emoji(56789), "5️⃣6️⃣7️⃣8️⃣9️⃣");
+        assert_eq!(i32_to_emoji(-999), "➖9️⃣9️⃣9️⃣")
     }
 
     #[test]
