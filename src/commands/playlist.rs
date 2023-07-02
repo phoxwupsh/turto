@@ -5,8 +5,8 @@ use serenity::{
 };
 
 use crate::{
-    guild::playlist::{Playlist, Playlists},
-    utils::convert_to_emoji,
+    guild::playlist::Playlists,
+    utils::convert_to_emoji, models::playlist::Playlist,
 };
 
 #[command]

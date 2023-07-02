@@ -4,7 +4,7 @@ use serenity::{
     prelude::Context,
 };
 
-use crate::guild::playlist::{Playlist, Playlists};
+use crate::{guild::playlist::Playlists, models::playlist::Playlist};
 
 #[command]
 async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {

@@ -4,7 +4,10 @@ use serenity::{
     prelude::Context,
 };
 
-use crate::guild::playlist::{Playlist, Playlists, Metadata};
+use crate::{
+    guild::playlist::Playlists,
+    models::{metadata::Metadata, playlist::Playlist},
+};
 
 #[command]
 async fn queue(ctx: &Context, msg: &Message, args: Args) -> CommandResult {

@@ -17,11 +17,9 @@ use tracing::error;
 
 use crate::{guild::{
     playing::Playing,
-    playlist::{
-        Playlists, 
-        Playlist
-    }, setting::Settings
-}, handlers::track_end::TrackEndHandler, models::setting::GuildSetting};
+    playlist::Playlists,
+    setting::Settings
+}, handlers::track_end::TrackEndHandler, models::{setting::GuildSetting, playlist::Playlist}};
 
 pub fn convert_to_emoji(num: i32) -> String {
     let num_str = num.to_string();

@@ -17,9 +17,9 @@ use turto_rs::{
     },
     guild::{
         playing::Playing,
-        playlist::{Playlists, Playlist},
+        playlist::Playlists,
         setting::Settings
-    }, models::setting::GuildSetting,
+    }, models::{setting::GuildSetting, playlist::Playlist},
 };
 
 use serenity::{
