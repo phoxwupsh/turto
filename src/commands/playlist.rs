@@ -4,38 +4,40 @@ use serenity::{
     prelude::Context,
 };
 
-use crate::{
-    guild::playlist::Playlists,
-    utils::i32_to_emoji, models::playlist::Playlist,
-};
+use crate::{guild::playlist::Playlists, models::playlist::Playlist, utils::i32_to_emoji};
 
 #[command]
 async fn playlist(ctx: &Context, msg: &Message) -> CommandResult {
-    let data_read = ctx.data.read().await;
-    let playlists = data_read
+    let playlists_lock = ctx
+        .data
+        .read()
+        .await
         .get::<Playlists>()
-        .expect("Expected Playlists in TypeMap.");
-    let mut playlists = playlists.lock().await;
-    let playlist = playlists
-        .entry(msg.guild_id.expect("Expected guild_id"))
-        .or_insert_with(Playlist::new);
+        .expect("Expected Playlists in TypeMap.")
+        .clone();
 
-    let titles: Vec<String> = playlist
-        .iter()
-        .enumerate()
-        .map(|(index, metadata)| {
-            // Index each titles
-            let index = (index as i32) + 1; // Index start from 1
-            let mut line = i32_to_emoji(index);
-            line.push_str(&metadata.title.clone().unwrap());
-            line
-        })
-        .collect();
+    let titles = {
+        let mut playlists = playlists_lock.lock().await;
+        let playlist = playlists
+            .entry(msg.guild_id.expect("Expected guild_id"))
+            .or_insert_with(Playlist::new);
+        playlist
+            .iter()
+            .enumerate()
+            .map(|(index, metadata)| {
+                // Index each titles
+                let index = (index as i32) + 1; // Index start from 1
+                let mut line = i32_to_emoji(index);
+                line.push_str(&metadata.title.clone().unwrap());
+                line
+            })
+            .collect::<Vec<String>>()
+    };
+
     let response = {
         if titles.len() > 0 {
             titles.join("\n")
-        }
-        else {
+        } else {
             "🈳".to_string()
         }
     };

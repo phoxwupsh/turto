@@ -4,28 +4,33 @@ use serenity::{
     prelude::Context,
 };
 
-use crate::{
-    guild::setting::Settings, models::setting::GuildSetting
-};
-
+use crate::{guild::setting::Settings, models::setting::GuildSetting};
 
 #[command]
 async fn autoleave(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
+    let repl: String;
     let toggle = match args.rest() {
-         "on" => true,
-         "off" => false,
-         _ => {
-            msg.reply(ctx, "Please specify to turn on or off autoleave").await?;
+        "on" => {
+            repl = "✅".to_string();
+            true
+        }
+        "off" => {
+            repl = "❎".to_string();
+            false
+        }
+        _ => {
+            msg.reply(ctx, "Please specify to turn on or off autoleave")
+                .await?;
             return Ok(());
-         }
+        }
     };
-    let settings_lock = {
-        let data_read = ctx.data.read().await;
-        data_read
-            .get::<Settings>()
-            .expect("Expected Playlists in TypeMap.")
-            .clone()
-    };
+    let settings_lock = ctx
+        .data
+        .read()
+        .await
+        .get::<Settings>()
+        .expect("Expected Playlists in TypeMap.")
+        .clone();
     {
         let mut settings = settings_lock.lock().await;
         let setting = settings
@@ -33,11 +38,6 @@ async fn autoleave(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             .or_insert_with(GuildSetting::default);
         setting.auto_leave = toggle;
     }
-    if toggle {
-        msg.reply(ctx, "Auto leave: ✅").await?;
-    }
-    else {
-        msg.reply(ctx, "Auto leave: ❎").await?;
-    }
+    msg.reply(ctx, format!("Auto leave: {}", repl)).await?;
     Ok(())
 }

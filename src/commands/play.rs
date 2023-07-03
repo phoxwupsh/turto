@@ -71,13 +71,13 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         msg.reply(ctx, format!("▶️ {}", meta.title.unwrap())).await?;
     } else {
         // If no url provided, check if there is a paused track or there is any song in the playlist
-        let playing_lock = {
-            let data_read = ctx.data.read().await;
-            data_read
-                .get::<Playing>()
-                .expect("Expected Playing in TypeMap")
-                .clone()
-        };
+        let playing_lock = ctx
+            .data
+            .read()
+            .await
+            .get::<Playing>()
+            .expect("Expected Playing in TypeMap")
+            .clone();
         {
             let playing = playing_lock.read().await;
             // Get the current track handle

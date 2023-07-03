@@ -15,13 +15,13 @@ async fn queue(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let source = songbird::input::ytdl(&url).await?;
     let metadata = source.metadata.clone();
 
-    let playlists_lock = {
-        let data_read = ctx.data.read().await;
-        data_read
-            .get::<Playlists>()
-            .expect("Expected Playlists in TypeMap.")
-            .clone()
-    };
+    let playlists_lock = ctx
+        .data
+        .read()
+        .await
+        .get::<Playlists>()
+        .expect("Expected Playlists in TypeMap.")
+        .clone();
     {
         let mut playlists = playlists_lock.lock().await;
         let playlist = playlists

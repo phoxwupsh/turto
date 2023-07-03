@@ -8,7 +8,8 @@ use tracing::error;
 
 use crate::{
     guild::playing::Playing,
-    utils::{bot_in_voice_channel, same_voice_channel}, messages::NOT_PLAYING,
+    messages::NOT_PLAYING,
+    utils::{bot_in_voice_channel, same_voice_channel},
 };
 
 #[command]
@@ -32,13 +33,13 @@ async fn stop(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
         return Ok(());
     }
 
-    let playing_lock = {
-        let data_read = ctx.data.read().await;
-        data_read
-            .get::<Playing>()
-            .expect("Expected Playing in TypeMap")
-            .clone()
-    };
+    let playing_lock = ctx
+        .data
+        .read()
+        .await
+        .get::<Playing>()
+        .expect("Expected Playing in TypeMap")
+        .clone();
     {
         let playing = playing_lock.read().await;
         let current_track = match playing.get(&guild_id) {

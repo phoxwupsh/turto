@@ -1,43 +1,27 @@
-use tokio::sync::{RwLock, Mutex};
+use tokio::sync::{Mutex, RwLock};
 use turto_rs::{
     commands::{
-        join::JOIN_COMMAND, 
-        leave::LEAVE_COMMAND, 
-        pause::PAUSE_COMMAND, 
-        play::PLAY_COMMAND,
-        playlist::PLAYLIST_COMMAND, 
-        skip::SKIP_COMMAND, 
-        stop::STOP_COMMAND,
-        playwhat::PLAYWHAT_COMMAND,
-        volume::VOLUME_COMMAND,
-        queue::QUEUE_COMMAND,
-        remove::REMOVE_COMMAND,
-        seek::SEEK_COMMAND,
-        help::HELP_COMMAND,
-        autoleave::AUTOLEAVE_COMMAND
+        autoleave::AUTOLEAVE_COMMAND, help::HELP_COMMAND, join::JOIN_COMMAND, leave::LEAVE_COMMAND,
+        pause::PAUSE_COMMAND, play::PLAY_COMMAND, playlist::PLAYLIST_COMMAND,
+        playwhat::PLAYWHAT_COMMAND, queue::QUEUE_COMMAND, remove::REMOVE_COMMAND,
+        seek::SEEK_COMMAND, skip::SKIP_COMMAND, stop::STOP_COMMAND, volume::VOLUME_COMMAND,
     },
-    guild::{
-        playing::Playing,
-        playlist::Playlists,
-        setting::Settings
-    }, models::{setting::GuildSetting, playlist::Playlist},
+    guild::{playing::Playing, playlist::Playlists, setting::Settings},
+    models::{playlist::Playlist, setting::GuildSetting},
 };
 
 use serenity::{
     async_trait,
     client::{Client, EventHandler},
-    framework::standard::{
-        macros::group, 
-        StandardFramework,
-    },
+    framework::standard::{macros::group, StandardFramework},
     model::{gateway::Ready, prelude::GuildId},
-    prelude::{GatewayIntents, Context},
+    prelude::{Context, GatewayIntents},
 };
-use std::{collections::HashMap, env, sync::Arc, fs};
+use std::{collections::HashMap, env, fs, sync::Arc};
 
 use songbird::SerenityInit;
 
-use tracing::{info, error, Level};
+use tracing::{error, info, Level};
 
 struct Handler;
 
@@ -51,13 +35,18 @@ impl EventHandler for Handler {
 }
 
 #[group]
-#[commands(play, pause, playwhat, stop, volume, playlist, queue, remove, join, leave, skip, seek, help, autoleave)]
+#[commands(
+    play, pause, playwhat, stop, volume, playlist, queue, remove, join, leave, skip, seek, help,
+    autoleave
+)]
 #[only_in(guilds)]
 struct Music;
 
 #[tokio::main]
 async fn main() {
-    let subscriber = tracing_subscriber::fmt().with_max_level(Level::INFO).finish();
+    let subscriber = tracing_subscriber::fmt()
+        .with_max_level(Level::INFO)
+        .finish();
     tracing::subscriber::set_global_default(subscriber).expect("Tracing initialization failed.");
 
     dotenv::dotenv().expect("Failed to load .env file");
@@ -79,10 +68,12 @@ async fn main() {
 
     // Load the data from playlists.json and settings.json
     let playlists_json = fs::read_to_string("playlists.json").unwrap_or_else(|_| "{}".to_string());
-    let playlists: HashMap<GuildId, Playlist> = serde_json::from_str(&playlists_json).unwrap_or_default();
+    let playlists: HashMap<GuildId, Playlist> =
+        serde_json::from_str(&playlists_json).unwrap_or_default();
 
     let settings_json = fs::read_to_string("settings.json").unwrap_or_else(|_| "{}".to_string());
-    let settings: HashMap<GuildId, GuildSetting> = serde_json::from_str(&settings_json).unwrap_or_default();
+    let settings: HashMap<GuildId, GuildSetting> =
+        serde_json::from_str(&settings_json).unwrap_or_default();
 
     {
         let mut data = client.data.write().await;
@@ -97,9 +88,9 @@ async fn main() {
     tokio::spawn(async move {
         if let Err(why) = tokio::signal::ctrl_c().await {
             error!("Client error: {:?}", why);
-        }
-        else {
-            { // Shutdown the client first
+        } else {
+            {
+                // Shutdown the client first
                 shard_manager.lock().await.shutdown_all().await;
             }
 
@@ -108,10 +99,20 @@ async fn main() {
             let settings_json: String;
             {
                 let data_read = data.read().await;
-                let playlists = data_read.get::<Playlists>().expect("Expected Playlists in TypeMap.").lock().await;
-                let settings = data_read.get::<Settings>().expect("Expected Settings in TypeMap.").lock().await;
-                playlists_json = serde_json::to_string(&*playlists).unwrap_or_else(|_|"{}".to_string());
-                settings_json = serde_json::to_string(&*settings).unwrap_or_else(|_|"{}".to_string());
+                let playlists = data_read
+                    .get::<Playlists>()
+                    .expect("Expected Playlists in TypeMap.")
+                    .lock()
+                    .await;
+                let settings = data_read
+                    .get::<Settings>()
+                    .expect("Expected Settings in TypeMap.")
+                    .lock()
+                    .await;
+                playlists_json =
+                    serde_json::to_string(&*playlists).unwrap_or_else(|_| "{}".to_string());
+                settings_json =
+                    serde_json::to_string(&*settings).unwrap_or_else(|_| "{}".to_string());
             }
             let playlists_json_size = playlists_json.len();
             let settings_json_size = settings_json.len();
@@ -132,4 +133,3 @@ async fn main() {
         error!("Client error: {:?}", why);
     }
 }
-
