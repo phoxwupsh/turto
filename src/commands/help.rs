@@ -2,7 +2,10 @@ use std::time::Duration;
 
 use serenity::{
     framework::standard::{macros::command, CommandResult},
-    model::{application::interaction::InteractionResponseType, prelude::Message},
+    model::{
+        application::interaction::InteractionResponseType,
+        prelude::Message,
+    },
     prelude::Context,
 };
 
@@ -13,20 +16,23 @@ async fn help(ctx: &Context, msg: &Message) -> CommandResult {
     let waiting = msg
         .channel_id
         .send_message(ctx, |message| {
-            message.content(&HELPS.help_msg).components(|components| {
-                components.create_action_row(|row| {
-                    row.create_select_menu(|menu| {
-                        menu.custom_id("help")
-                            .placeholder(&HELPS.placeholder)
-                            .options(|options| {
-                                for k in HELPS.command_helps.keys() {
-                                    options.create_option(|o| o.label(k).value(k));
-                                }
-                                options
-                            })
+            message
+                .reference_message(msg)
+                .content(&HELPS.help_msg)
+                .components(|components| {
+                    components.create_action_row(|row| {
+                        row.create_select_menu(|menu| {
+                            menu.custom_id("help")
+                                .placeholder(&HELPS.placeholder)
+                                .options(|options| {
+                                    for k in HELPS.command_helps.keys() {
+                                        options.create_option(|o| o.label(k).value(k));
+                                    }
+                                    options
+                                })
+                        })
                     })
                 })
-            })
         })
         .await?;
 
