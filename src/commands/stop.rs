@@ -41,8 +41,8 @@ async fn stop(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
         .expect("Expected Playing in TypeMap")
         .clone();
     {
-        let playing = playing_lock.read().await;
-        let current_track = match playing.get(&guild_id) {
+        let mut playing = playing_lock.write().await;
+        let current_track = match playing.remove(&guild_id) {
             Some(track) => track,
             None => {
                 msg.reply(ctx, NOT_PLAYING).await?;
