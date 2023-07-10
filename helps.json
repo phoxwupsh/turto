@@ -44,12 +44,14 @@
         "play": {
             "help_msg": "以下是`play`的使用方式：",
             "command_name": "play",
-            "description": "開始播放，如果turto沒有在其他語音頻道的話就會進入你所在的語音頻道，依照狀況不同有以下幾種可能：\n1. 有輸入網址(`url`)的話，會停止目前正在播放的項目(如果有的話)，並開始播放該網址的內容，目前只支援YouTube的影片(直播不行)。\n2. 如果沒有輸入網址(`url`)，且當目前有正在播放的項目被暫停時，會繼續播放該項目。\n3. 如果沒有輸入網址(`url`)，目前也沒有暫停的項目，會從頭開始播放播放清單。",
+            "description": "開始播放，如果turto沒有在其他語音頻道的話就會進入你所在的語音頻道，依照狀況不同有以下幾種可能：\n1. 有輸入網址(`url`)的話，會停止目前正在播放的項目(如果有的話)，並開始播放該網址的內容，目前支援YouTube、Bilibili的影片(直播不行)，和Soundcloud的音樂。\n2. 如果沒有輸入網址(`url`)，且當目前有正在播放的項目被暫停時，會繼續播放該項目。\n3. 如果沒有輸入網址(`url`)，目前也沒有暫停的項目，會從頭開始播放播放清單。",
             "usage": "`play [url]`",
             "example": [
                 "`play`",
                 "`play https://youtu.be/dQw4w9WgXcQ`",
-                "`play https://www.youtube.com/watch?v=dQw4w9WgXcQ`"
+                "`play https://www.youtube.com/watch?v=dQw4w9WgXcQ`",
+                "`play https://soundcloud.com/kivawu/the-beautiful-ones`",
+                "`play https://www.bilibili.com/video/BV178411Y7QB/`"
             ]
         },
         "playlist": {
@@ -73,11 +75,13 @@
         "queue": {
             "help_msg": "以下是`queue`的使用方式：",
             "command_name": "queue",
-            "description": "在播放清單中加入新的網址(`url`)，目前只支援YouTube的影片(直播不行)。",
+            "description": "在播放清單中加入新的網址(`url`)，目前支援YouTube、Bilibili的影片(直播不行)，和Soundcloud的音樂。",
             "usage": "`queue url`",
             "example": [
                 "`queue https://youtu.be/dQw4w9WgXcQ`",
-                "`queue https://www.youtube.com/watch?v=dQw4w9WgXcQ`"
+                "`queue https://www.youtube.com/watch?v=dQw4w9WgXcQ`",
+                "`queue https://soundcloud.com/kivawu/the-beautiful-ones`",
+                "`queue https://www.bilibili.com/video/BV178411Y7QB/`"
             ]
         },
         "remove": {
