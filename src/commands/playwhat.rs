@@ -51,12 +51,14 @@ async fn playwhat(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
 
         msg.channel_id
             .send_message(ctx, |m| {
-                m.content(String::default()).embed(|e| {
-                    e.title(response)
-                        .url(current_track.metadata().source_url.clone().unwrap())
-                        .description(current_track.metadata().channel.clone().unwrap())
-                        .image(current_track.metadata().thumbnail.clone().unwrap())
-                })
+                m.content(String::default())
+                    .reference_message(msg)
+                    .embed(|e| {
+                        e.title(response)
+                            .url(current_track.metadata().source_url.clone().unwrap())
+                            .description(current_track.metadata().artist.clone().unwrap())
+                            .image(current_track.metadata().thumbnail.clone().unwrap())
+                    })
             })
             .await?;
     }
