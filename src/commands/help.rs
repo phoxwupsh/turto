@@ -43,7 +43,7 @@ async fn help(ctx: &Context, msg: &Message) -> CommandResult {
     {
         Some(x) => x,
         None => {
-            msg.delete(ctx).await?;
+            waiting.delete(ctx).await?;
             return Ok(());
         }
     };
