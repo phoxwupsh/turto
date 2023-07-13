@@ -13,6 +13,7 @@ use serenity::{
 use crate::{utils::{user_in_voice_channel, bot_in_voice_channel, same_voice_channel, play_next}, messages::NOT_PLAYING};
 
 #[command]
+#[bucket = "music"]
 async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;

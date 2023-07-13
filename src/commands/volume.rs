@@ -11,6 +11,7 @@ use serenity::{
 use tracing::error;
 
 #[command]
+#[bucket = "music"]
 async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let new_vol_u32 = match args.parse::<u32>() {
         Ok(vol_u32) => vol_u32,

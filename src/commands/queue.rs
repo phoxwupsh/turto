@@ -10,6 +10,7 @@ use crate::{
 };
 
 #[command]
+#[bucket = "music"]
 async fn queue(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let url = args.rest();
     let source = songbird::input::ytdl(&url).await?;

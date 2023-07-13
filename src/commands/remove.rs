@@ -7,6 +7,7 @@ use serenity::{
 use crate::{guild::playlist::Playlists, models::playlist::Playlist};
 
 #[command]
+#[bucket = "music"]
 async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let mut index = match args.parse::<usize>() {
         // Check arg is number

@@ -7,6 +7,7 @@ use serenity::{
 use crate::{guild::playlist::Playlists, models::playlist::Playlist, utils::i32_to_emoji};
 
 #[command]
+#[bucket = "music"]
 async fn playlist(ctx: &Context, msg: &Message) -> CommandResult {
     let playlists_lock = ctx
         .data

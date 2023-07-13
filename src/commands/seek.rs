@@ -11,6 +11,7 @@ use tracing::error;
 use crate::{guild::playing::Playing, messages::NOT_PLAYING};
 
 #[command]
+#[bucket = "music"]
 async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let sec = match args.parse::<u64>() {
         Ok(s) => s,

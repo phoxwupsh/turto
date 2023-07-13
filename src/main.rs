@@ -13,7 +13,7 @@ use turto_rs::{
 use serenity::{
     async_trait,
     client::{Client, EventHandler},
-    framework::standard::{macros::group, StandardFramework},
+    framework::standard::{macros::group, StandardFramework, buckets::LimitedFor},
     model::{gateway::Ready, prelude::GuildId},
     prelude::{Context, GatewayIntents},
 };
@@ -55,6 +55,12 @@ async fn main() {
 
     let framework = StandardFramework::new()
         .configure(|c| c.prefix("!")) // Set the command prefix to "!"
+        .bucket("music", |bucket| {
+            bucket.delay(1)
+                .await_ratelimits(1)
+                .limit_for(LimitedFor::Guild)
+        })
+        .await
         .group(&MUSIC_GROUP);
 
     let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;

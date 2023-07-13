@@ -13,6 +13,7 @@ use serenity::{
 };
 
 #[command]
+#[bucket = "music"]
 async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     let guild = msg.guild(&ctx.cache).unwrap();
 

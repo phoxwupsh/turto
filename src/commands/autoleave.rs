@@ -7,6 +7,7 @@ use serenity::{
 use crate::{guild::setting::Settings, models::setting::GuildSetting};
 
 #[command]
+#[bucket = "music"]
 async fn autoleave(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let repl: String;
     let toggle = match args.rest() {

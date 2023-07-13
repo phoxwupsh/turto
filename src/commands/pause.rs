@@ -13,6 +13,7 @@ use crate::{
 };
 
 #[command]
+#[bucket = "music"]
 async fn pause(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
