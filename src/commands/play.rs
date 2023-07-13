@@ -47,7 +47,7 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         }
     } else {
         let (_handler_lock, success) = manager.join(guild_id, user_voice_channel_id).await;
-        if let Ok(_) = success {
+        if success.is_ok() {
             msg.channel_id
                 .say(ctx, format!("🐢{}", user_voice_channel_id.mention()))
                 .await?;
@@ -59,7 +59,7 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     // Check if url is provided
     if !url.is_empty() {
         // Validate the URL
-        if !Url::parse(&url).is_ok() {
+        if Url::parse(&url).is_err() {
             msg.reply(ctx, "You must provide a valid YouTube URL.")
                 .await?;
             return Ok(());

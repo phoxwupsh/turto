@@ -35,7 +35,7 @@ async fn playlist(ctx: &Context, msg: &Message) -> CommandResult {
     };
 
     let response = {
-        if titles.len() > 0 {
+        if !titles.is_empty() {
             titles.join("\n")
         } else {
             "🈳".to_string()

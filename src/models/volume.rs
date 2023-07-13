@@ -29,7 +29,7 @@ impl DerefMut for GuildVolume {
 impl TryFrom<f32> for GuildVolume {
     type Error = TurtoError;
     fn try_from(value: f32) -> Result<Self, Self::Error> {
-        if value > 1.0_f32 || value < 0.0_f32 {
+        if !(0.0_f32..=1.0_f32).contains(&value) {
             return Err(TurtoError::VolumeError);
         }
         Ok(GuildVolume(value))
@@ -44,8 +44,8 @@ impl TryFrom<u32> for GuildVolume {
     }
 }
 
-impl Into<i32> for GuildVolume {
-    fn into(self) -> i32 {
-        (self.0 * 100.0_f32) as i32
+impl From<GuildVolume> for i32 {
+    fn from(val: GuildVolume) -> Self {
+        (val.0 * 100.0_f32) as i32
     }
 }

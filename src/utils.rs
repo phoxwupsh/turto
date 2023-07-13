@@ -25,7 +25,7 @@ pub fn i32_to_emoji(num: i32) -> String {
     let mut emoji_str = String::new();
 
     if num < 0 {
-        emoji_str.push_str("➖");
+        emoji_str.push('➖');
     }
 
     for ch in num_str.chars() {
@@ -57,10 +57,9 @@ pub async fn user_in_voice_channel(ctx: &Context, msg: &Message) -> Option<Chann
 }
 
 pub async fn bot_in_voice_channel(ctx: &Context, msg: &Message) -> Option<ChannelId> {
-    let manager = songbird::get(&ctx)
+    let manager = songbird::get(ctx)
         .await
-        .expect("Songbird Voice client placing in Resource failed.")
-        .clone();
+        .expect("Songbird Voice client placing in Resource failed.");
 
     let guild = msg.guild(ctx).unwrap();
 
@@ -71,7 +70,7 @@ pub async fn bot_in_voice_channel(ctx: &Context, msg: &Message) -> Option<Channe
                 .get(&ctx.cache.current_user_id())
                 .and_then(|voice_state| voice_state.channel_id)
         }
-        None => return None,
+        None => None,
     }
 }
 
@@ -169,10 +168,10 @@ pub async fn play_next(ctx: &Context, guild_id: GuildId) -> Result<Metadata, Tur
 
     match playlist.pop_front() {
         Some(next_song) => {
-            return play_song(ctx, guild_id, next_song.source_url.clone().unwrap()).await
+            play_song(ctx, guild_id, next_song.source_url.clone().unwrap()).await
         }
         None => {
-            return Err(TurtoError::EmptyPlaylist);
+            Err(TurtoError::EmptyPlaylist)
         }
     }
 }
