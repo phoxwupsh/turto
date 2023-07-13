@@ -43,7 +43,7 @@ async fn help(ctx: &Context, msg: &Message) -> CommandResult {
     {
         Some(x) => x,
         None => {
-            msg.reply(ctx, "Timed out").await?;
+            msg.delete(ctx).await?;
             return Ok(());
         }
     };
