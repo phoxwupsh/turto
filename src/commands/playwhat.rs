@@ -31,7 +31,11 @@ async fn playwhat(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
             }
         };
 
-        let title = current_track.metadata().title.clone().unwrap();
+        let title = current_track
+            .metadata()
+            .title
+            .clone()
+            .unwrap_or_else(|| "Unknown".to_string());
 
         let mut response = match current_track.get_info().await {
             Ok(track_state) => match track_state.playing {
@@ -54,11 +58,18 @@ async fn playwhat(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
             .send_message(ctx, |m| {
                 m.content(String::default())
                     .reference_message(msg)
-                    .embed(|e| {
-                        e.title(response)
-                            .url(current_track.metadata().source_url.clone().unwrap())
-                            .description(current_track.metadata().artist.clone().unwrap())
-                            .image(current_track.metadata().thumbnail.clone().unwrap())
+                    .embed(|embed| {
+                        embed.title(response);
+                        if let Some(url) = current_track.metadata().source_url.clone() {
+                            embed.url(url);
+                        }
+                        if let Some(artist) = current_track.metadata().artist.clone() {
+                            embed.description(artist);
+                        }
+                        if let Some(thumbnail) = current_track.metadata().thumbnail.clone() {
+                            embed.thumbnail(thumbnail);
+                        }
+                        embed
                     })
             })
             .await?;
