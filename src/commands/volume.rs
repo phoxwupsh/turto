@@ -59,7 +59,7 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         .clone();
     {
         let mut settings = settings_lock.lock().await;
-        let mut setting = settings
+        let setting = settings
             .entry(msg.guild_id.unwrap())
             .or_insert_with(GuildSetting::default);
         setting.volume = new_vol;
