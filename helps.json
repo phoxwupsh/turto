@@ -75,7 +75,7 @@
         "queue": {
             "help_msg": "以下是`queue`的使用方式：",
             "command_name": "queue",
-            "description": "在播放清單中加入新的網址(`url`)，目前支援YouTube、Bilibili的影片(直播不行)，和Soundcloud的音樂。",
+            "description": "在播放清單中加入新的網址(`url`)，目前支援YouTube、Bilibili的影片(直播不行)，和Soundcloud的音樂。你可以一次性加入多個項目，每個項目中間用半形空格(` `)即可。",
             "usage": "`queue url`",
             "example": [
                 "`queue https://youtu.be/dQw4w9WgXcQ`",
