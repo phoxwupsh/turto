@@ -168,7 +168,7 @@ pub async fn play_next(ctx: &Context, guild_id: GuildId) -> Result<Metadata, Tur
 
     match playlist.pop_front() {
         Some(next_song) => {
-            play_song(ctx, guild_id, next_song.source_url.clone().unwrap()).await
+            play_song(ctx, guild_id, next_song.url).await
         }
         None => {
             Err(TurtoError::EmptyPlaylist)

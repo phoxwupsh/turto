@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
 
-use super::metadata::Metadata;
+use super::playlist_item::PlaylistItem;
 
-pub type Playlist = VecDeque<Metadata>;
+pub type Playlist = VecDeque<PlaylistItem>;

@@ -25,11 +25,11 @@ async fn playlist(ctx: &Context, msg: &Message) -> CommandResult {
         playlist
             .iter()
             .enumerate()
-            .map(|(index, metadata)| {
+            .map(|(index, playlist_item)| {
                 // Index each titles
                 let index = (index as i32) + 1; // Index start from 1
                 let mut line = i32_to_emoji(index);
-                line.push_str(&metadata.title.clone().unwrap());
+                line.push_str(&playlist_item.title);
                 line
             })
             .collect::<Vec<String>>()
