@@ -79,7 +79,7 @@ async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                 }
             }
             RemoveType::Range { from, to } => {
-                let playlist_range = 0..playlist.len();
+                let playlist_range = 0..=playlist.len();
                 if playlist_range.contains(&from) && playlist_range.contains(&to) && from < to {
                     let drained = playlist.drain(from..to);
                     let response = drained
