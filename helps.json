@@ -87,10 +87,11 @@
         "remove": {
             "help_msg": "以下是`remove`的使用方式：",
             "command_name": "remove",
-            "description": "刪除播放清單中的第`index`個項目，`index`必須是一個1或以上的整數。",
-            "usage": "`remove index`",
+            "description": "刪除播放清單中的某些項目，有兩種用法，你可以用`remove index`刪除第`index`個項目，或是用`remove from~to`刪除從第`from`到第`to`之間的所有項目，`index`、`from`、`to`都必須是一個1或以上的整數。",
+            "usage": "`remove index|from~to`",
             "example": [
-                "`remove 2`"
+                "`remove 2`",
+                "`remove 2~4`"
             ]
         },
         "seek": {
