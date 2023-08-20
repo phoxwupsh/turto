@@ -1,6 +1,6 @@
 use crate::{
     messages::NOT_IN_ANY_VOICE_CHANNEL,
-    utils::{bot_in_voice_channel, same_voice_channel, user_in_voice_channel},
+    utils::guild::GuildUtil,
 };
 
 use tracing::error;
@@ -15,9 +15,9 @@ use serenity::{
 #[command]
 #[bucket = "music"]
 async fn join(ctx: &Context, msg: &Message) -> CommandResult {
-    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild = msg.guild(ctx).unwrap();
 
-    let connect_to = match user_in_voice_channel(ctx, msg).await {
+    let connect_to = match guild.get_user_voice_channel(&msg.author.id) {
         Some(channel) => channel,
         None => {
             msg.reply(ctx, NOT_IN_ANY_VOICE_CHANNEL).await?;
@@ -25,23 +25,24 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
         }
     };
 
-    let manager = songbird::get(ctx)
-        .await
-        .expect("Songbird Voice client placing in Resource failed.")
-        .clone();
-
     // Check if the bot is already in another voice channel or not
-    if let Some(current_bot_voice_channel) = bot_in_voice_channel(ctx, msg).await {
-        if !same_voice_channel(ctx, msg).await {
+    if let Some(bot_voice_channel) = guild.get_user_voice_channel(&ctx.cache.current_user_id()) {
+        if Some(bot_voice_channel) != guild.get_user_voice_channel(&msg.author.id) {
             // Notify th user if they are in different voice channel
             msg.reply(
                 ctx,
-                format!("I'm currently in {}.", current_bot_voice_channel.mention()),
+                format!("I'm currently in {}.", bot_voice_channel.mention()),
             )
             .await?;
             return Ok(());
         }
     }
+    
+    let manager = songbird::get(ctx)
+        .await
+        .expect("Songbird Voice client placing in Resource failed.")
+        .clone();
+
 
     msg.channel_id
         .say(ctx, format!("🐢 {}", connect_to.mention()))

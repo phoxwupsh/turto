@@ -4,15 +4,15 @@ mod tests {
 
     use crate::{
         models::{playlist_item::PlaylistItem, volume::GuildVolume, setting::GuildSetting, url_type::UrlType},
-        utils::i32_to_emoji,
+        utils::misc::ToEmoji,
     };
 
     #[test]
     fn test_i32_to_emoji() {
-        assert_eq!(i32_to_emoji(42), "4️⃣2️⃣");
-        assert_eq!(i32_to_emoji(123), "1️⃣2️⃣3️⃣");
-        assert_eq!(i32_to_emoji(56789), "5️⃣6️⃣7️⃣8️⃣9️⃣");
-        assert_eq!(i32_to_emoji(-999), "➖9️⃣9️⃣9️⃣")
+        assert_eq!(42_i32.to_emoji(), "4️⃣2️⃣");
+        assert_eq!(123_i32.to_emoji(), "1️⃣2️⃣3️⃣");
+        assert_eq!(56789_i32.to_emoji(), "5️⃣6️⃣7️⃣8️⃣9️⃣");
+        assert_eq!((-999_i32).to_emoji(), "➖9️⃣9️⃣9️⃣")
     }
 
     #[test]

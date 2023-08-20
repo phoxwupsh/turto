@@ -3,7 +3,9 @@ use songbird::events::{Event, EventContext, EventHandler};
 use tracing::error;
 
 use crate::{
-    error::TurtoError, guild::setting::Settings, models::setting::GuildSetting, utils::play_next,
+    guild::setting::Settings,
+    models::setting::GuildSetting,
+    utils::play::{play_next, PlayError},
 };
 
 pub struct TrackEndHandler {
@@ -14,7 +16,7 @@ pub struct TrackEndHandler {
 #[async_trait]
 impl EventHandler for TrackEndHandler {
     async fn act(&self, _ctx: &EventContext<'_>) -> Option<Event> {
-        if let Err(TurtoError::EmptyPlaylist) = play_next(&self.ctx, self.guild_id).await {
+        if let Err(PlayError::EmptyPlaylist(_guild)) = play_next(&self.ctx, self.guild_id).await {
             let settings_lock = {
                 let data_lock = self.ctx.data.read().await;
                 let data = data_lock

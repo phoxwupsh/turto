@@ -1,4 +1,4 @@
-use crate::utils::{bot_in_voice_channel, same_voice_channel};
+use crate::utils::guild::GuildUtil;
 use serenity::{
     framework::standard::{macros::command, CommandResult},
     model::prelude::Message,
@@ -8,11 +8,12 @@ use serenity::{
 #[command]
 #[bucket = "music"]
 async fn leave(ctx: &Context, msg: &Message) -> CommandResult {
-    if let Some(bot_current_voice_channel) = bot_in_voice_channel(ctx, msg).await {
-        if !same_voice_channel(ctx, msg).await {
+    let guild = msg.guild(ctx).unwrap();
+    if let Some(bot_voice_channel) = guild.get_user_voice_channel(&ctx.cache.current_user_id()) {
+        if  Some(bot_voice_channel) != guild.get_user_voice_channel(&msg.author.id) {
             msg.reply(
                 ctx,
-                format!("You are not in {}", bot_current_voice_channel.mention()),
+                format!("You are not in {}", bot_voice_channel.mention()),
             )
             .await?;
             return Ok(());

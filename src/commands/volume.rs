@@ -1,7 +1,7 @@
 use crate::{
     guild::{playing::Playing, setting::Settings},
     models::{setting::GuildSetting, volume::GuildVolume},
-    utils::i32_to_emoji,
+    utils::misc::ToEmoji,
 };
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
@@ -65,8 +65,7 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         setting.volume = new_vol;
     }
 
-    msg.reply(ctx, format!("🔊{}", i32_to_emoji(new_vol.into())))
-        .await?;
+    msg.reply(ctx, format!("🔊{}", new_vol.to_emoji())).await?;
 
     Ok(())
 }

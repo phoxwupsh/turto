@@ -4,7 +4,7 @@ use serenity::{
     prelude::Context,
 };
 
-use crate::{guild::playlist::Playlists, models::playlist::Playlist, utils::i32_to_emoji};
+use crate::{guild::playlist::Playlists, models::playlist::Playlist, utils::misc::ToEmoji};
 
 #[command]
 #[bucket = "music"]
@@ -28,7 +28,7 @@ async fn playlist(ctx: &Context, msg: &Message) -> CommandResult {
             .map(|(index, playlist_item)| {
                 // Index each titles
                 let index = (index as i32) + 1; // Index start from 1
-                let mut line = i32_to_emoji(index);
+                let mut line = index.to_emoji();
                 line.push_str(&playlist_item.title);
                 line
             })

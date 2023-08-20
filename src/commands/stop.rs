@@ -9,22 +9,21 @@ use tracing::error;
 use crate::{
     guild::playing::Playing,
     messages::NOT_PLAYING,
-    utils::{bot_in_voice_channel, same_voice_channel},
+    utils::guild::GuildUtil,
 };
 
 #[command]
 #[bucket = "music"]
 async fn stop(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
-    let guild = msg.guild(&ctx.cache).unwrap();
-    let guild_id = guild.id;
+    let guild = msg.guild(ctx).unwrap();
 
     // Check if the bot and the user is in a channel or not
-    if let Some(current_bot_voice_channel) = bot_in_voice_channel(ctx, msg).await {
-        if !same_voice_channel(ctx, msg).await {
+    if let Some(bot_voice_channel) = guild.get_user_voice_channel(&ctx.cache.current_user_id()) {
+        if Some(bot_voice_channel) != guild.get_user_voice_channel(&msg.author.id) {
             // Notify th user if they are in different voice channel
             msg.reply(
                 ctx,
-                format!("You are not in {}.", current_bot_voice_channel.mention()),
+                format!("You are not in {}.", bot_voice_channel.mention()),
             )
             .await?;
             return Ok(());
@@ -43,7 +42,7 @@ async fn stop(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
         .clone();
     {
         let mut playing = playing_lock.write().await;
-        let current_track = match playing.remove(&guild_id) {
+        let current_track = match playing.remove(&guild.id) {
             Some(track) => track,
             None => {
                 msg.reply(ctx, NOT_PLAYING).await?;

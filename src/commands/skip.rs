@@ -1,24 +1,23 @@
 use serenity::{
-    prelude::Context, 
-    model::prelude::{
-        Message, 
-        Mentionable
-    }, 
-    framework::standard::{
-        CommandResult, 
-        macros::command
-    }
+    framework::standard::{macros::command, CommandResult},
+    model::prelude::{Mentionable, Message},
+    prelude::Context,
 };
 
-use crate::{utils::{user_in_voice_channel, bot_in_voice_channel, same_voice_channel, play_next}, messages::NOT_PLAYING};
+use crate::{
+    messages::NOT_PLAYING,
+    utils::{
+        guild::GuildUtil,
+        play::play_next,
+    },
+};
 
 #[command]
 #[bucket = "music"]
 async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
-    let guild = msg.guild(&ctx.cache).unwrap();
-    let guild_id = guild.id;
+    let guild = msg.guild(ctx).unwrap();
 
-    let user_voice_channel = match user_in_voice_channel(ctx, msg).await {
+    let user_voice_channel = match guild.get_user_voice_channel(&msg.author.id) {
         Some(channel) => channel,
         None => {
             msg.reply(ctx, "Not in a voice channel").await?;
@@ -27,46 +26,42 @@ async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
     };
 
     // Get the Songbird instance
-    let manager = songbird::get(ctx).await
+    let manager = songbird::get(ctx)
+        .await
         .expect("Songbird Voice client placed in at initialization.")
         .clone();
 
-    if let Some(current_channel_id) = bot_in_voice_channel(ctx, msg).await {
-        if !same_voice_channel(ctx, msg).await {
-            msg.reply(ctx, format!("You are not in {}.", current_channel_id.mention())).await?;
-            return Ok(())
-        }
-    }
-    else {
-        msg.reply(ctx, NOT_PLAYING).await?;
-        return Ok(())
-    }
-
-    let handler_lock = match manager.get(guild_id) {
-        Some(handler_lock) => { // If the bot is already in a voice channel
-            let current_channel_id = guild.voice_states.get(&ctx.cache.current_user_id())
-                .and_then(|voice_state| voice_state.channel_id)
-                .unwrap();
-
-            if current_channel_id != user_voice_channel {
-            // The bot is in another channel
-                msg.reply(ctx, format!("You are not in {}.", current_channel_id.mention())).await?;
+    match guild.get_user_voice_channel(&ctx.cache.current_user_id()) {
+        Some(bot_voice_channel) => {
+            if user_voice_channel != bot_voice_channel { // If the bot is in another channel
+                msg.reply(
+                    ctx,
+                    format!("You are not in {}.", bot_voice_channel.mention()),
+                )
+                .await?;
                 return Ok(());
             }
-            handler_lock
         },
         None => {
             msg.reply(ctx, NOT_PLAYING).await?;
-            return Ok(())
+            return Ok(());
+        }
+    }
+
+    let handler_lock = match manager.get(guild.id) {
+        Some(handler_lock) => handler_lock,
+        None => {
+            msg.reply(ctx, NOT_PLAYING).await?;
+            return Ok(());
         }
     };
     {
         let mut handler = handler_lock.lock().await;
         handler.stop();
     }
-    
     if let Ok(meta) = play_next(ctx, msg.guild_id.unwrap()).await {
-        msg.reply(ctx, format!("⏭️ {}", meta.title.clone().unwrap())).await?;
+        msg.reply(ctx, format!("⏭️ {}", meta.title.clone().unwrap()))
+            .await?;
     }
     Ok(())
 }
