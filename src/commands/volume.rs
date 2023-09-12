@@ -13,7 +13,25 @@ use tracing::error;
 #[command]
 #[bucket = "music"]
 async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-    let new_vol_u32 = match args.parse::<u32>() {
+    if args.rest() == "?" {
+        let curr_vol = ctx
+            .data
+            .read()
+            .await
+            .get::<Settings>()
+            .expect("Expected Playing in TypeMap")
+            .clone()
+            .lock()
+            .await
+            .entry(msg.guild_id.unwrap())
+            .or_insert_with(GuildSetting::default)
+            .volume
+            .to_emoji();
+        let response = "🔊".to_string() + &curr_vol;
+        msg.reply(ctx, response).await?;
+        return Ok(())
+    }
+    let new_vol_u32 = match args.parse::<usize>() {
         Ok(vol_u32) => vol_u32,
         Err(_) => {
             msg.reply(ctx, "enter a number 0 ~ 100").await?;
@@ -65,7 +83,8 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         setting.volume = new_vol;
     }
 
-    msg.reply(ctx, format!("🔊{}", new_vol.to_emoji())).await?;
+    let response = "🔊".to_string() + &new_vol.to_emoji();
+    msg.reply(ctx, response).await?;
 
     Ok(())
 }
