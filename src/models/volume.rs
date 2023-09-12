@@ -36,47 +36,27 @@ impl TryFrom<f32> for GuildVolume {
     }
 }
 
-impl TryFrom<u32> for GuildVolume {
+impl TryFrom<usize> for GuildVolume {
     type Error = VolumeError;
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        if !(0_usize..=100_usize).contains(&value) {
+            return Err(VolumeError::OutOfRange);
+        }
         let vf = (value as f32) / 100.0_f32;
         Self::try_from(vf)
     }
 }
 
-impl From<GuildVolume> for i32 {
+impl From<GuildVolume> for usize {
     fn from(val: GuildVolume) -> Self {
-        (val.0 * 100.0_f32) as i32
+        (val.0 * 100.0_f32) as usize
     }
 }
 
 impl ToEmoji for GuildVolume {
     fn to_emoji(&self) -> String {
-        let num = i32::from(*self);
-        let num_str = num.to_string();
-        let mut emoji_str = String::new();
-
-        if num < 0 {
-            emoji_str.push('➖');
-        }
-
-        for ch in num_str.chars() {
-            let emoji = match ch {
-                '0' => "0️⃣",
-                '1' => "1️⃣",
-                '2' => "2️⃣",
-                '3' => "3️⃣",
-                '4' => "4️⃣",
-                '5' => "5️⃣",
-                '6' => "6️⃣",
-                '7' => "7️⃣",
-                '8' => "8️⃣",
-                '9' => "9️⃣",
-                _ => continue,
-            };
-            emoji_str.push_str(emoji);
-        }
-        emoji_str
+        let num = usize::from(*self);
+        num.to_emoji()
     }
 }
 
