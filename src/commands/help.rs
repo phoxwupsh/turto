@@ -1,12 +1,12 @@
-use std::time::Duration;
+use std::{time::Duration, sync::Arc};
 
 use serenity::{
     framework::standard::{macros::command, CommandResult},
     model::{
         application::interaction::InteractionResponseType,
-        prelude::Message,
+        prelude::{Message, interaction::message_component::MessageComponentInteraction},
     },
-    prelude::Context,
+    prelude::Context, futures::StreamExt,
 };
 
 use crate::models::help::HELPS;
@@ -36,16 +36,28 @@ async fn help(ctx: &Context, msg: &Message) -> CommandResult {
         })
         .await?;
 
-    let interaction = match waiting
-        .await_component_interaction(ctx)
-        .timeout(Duration::from_secs(60 * 3))
-        .await
-    {
-        Some(x) => x,
-        None => {
-            waiting.delete(ctx).await?;
-            return Ok(());
+    let mut interactions = waiting
+        .await_component_interactions(ctx)
+        .timeout(Duration::from_secs(60))
+        .build();
+    
+    let interaction = {
+        let res: Arc<MessageComponentInteraction>;
+        loop {
+            match interactions.next().await {
+                Some(interaction) => {
+                    if interaction.user == msg.author { // response only if the interaction is send by the user who invoke the help command
+                        res = interaction;
+                        break;
+                    }
+                },
+                None => { // if there is no interaction sended, delete the select menu
+                    waiting.delete(ctx).await?;
+                    return Ok(());
+                }
+            }
         }
+        res
     };
 
     let command_name = &interaction.data.values[0];
