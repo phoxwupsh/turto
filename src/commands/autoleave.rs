@@ -4,24 +4,16 @@ use serenity::{
     prelude::Context,
 };
 
-use crate::{guild::setting::Settings, models::setting::GuildSetting};
+use crate::{guild::setting::Settings, messages::TurtoMessage, models::setting::GuildSetting};
 
 #[command]
 #[bucket = "music"]
 async fn autoleave(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-    let repl: String;
     let toggle = match args.rest() {
-        "on" => {
-            repl = "✅".to_string();
-            true
-        }
-        "off" => {
-            repl = "❎".to_string();
-            false
-        }
+        "on" => true,
+        "off" => false,
         _ => {
-            msg.reply(ctx, "Please specify to turn on or off autoleave")
-                .await?;
+            msg.reply(ctx, TurtoMessage::SetAutoleave(Err(()))).await?;
             return Ok(());
         }
     };
@@ -39,6 +31,6 @@ async fn autoleave(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             .or_insert_with(GuildSetting::default);
         setting.auto_leave = toggle;
     }
-    msg.reply(ctx, format!("Auto leave: {}", repl)).await?;
+    msg.reply(ctx, TurtoMessage::SetAutoleave(Ok(toggle))).await?;
     Ok(())
 }

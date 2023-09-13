@@ -42,6 +42,7 @@ async fn playlist(ctx: &Context, msg: &Message) -> CommandResult {
                 .enumerate()
                 .map(|(index, playlist_item)| {
                     let mut line = (index + 1).to_emoji();
+                    line.push(' ');
                     line.push_str(&playlist_item.title);
                     line
                 })
@@ -118,6 +119,7 @@ async fn playlist(ctx: &Context, msg: &Message) -> CommandResult {
                     .filter(|(index, _playlist_item)| index / 10 == page_index)
                     .map(|(index, playlist_item)| {
                         let mut line = (index + 1).to_emoji();
+                        line.push(' ');
                         line.push_str(&playlist_item.title);
                         line
                     })

@@ -1,14 +1,14 @@
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
     model::prelude::Message,
-    prelude::{Context, Mentionable},
+    prelude::Context,
 };
 
 use tracing::error;
 
 use crate::{
     guild::playing::Playing,
-    messages::NOT_PLAYING,
+    messages::{TurtoMessage, NOT_PLAYING},
     utils::guild::{GuildUtil, VoiceChannelState},
 };
 
@@ -19,14 +19,15 @@ async fn pause(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
 
     match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
         VoiceChannelState::None | VoiceChannelState::OnlySecond(_) => {
-            msg.reply(ctx, "Currently not in a voice channel").await?;
-            return Ok(())
-        },
+            msg.reply(ctx, TurtoMessage::BotNotInVoiceChannel).await?;
+            return Ok(());
+        }
         VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
-            msg.reply(ctx, format!("You are not in {}", bot_vc.mention())).await?;
-            return Ok(())
-        },
-        VoiceChannelState::Same(_) => ()
+            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: &bot_vc })
+                .await?;
+            return Ok(());
+        }
+        VoiceChannelState::Same(_) => (),
     }
 
     let playing_lock = ctx
@@ -52,7 +53,9 @@ async fn pause(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
 
         msg.reply(
             ctx,
-            format!("⏸️ {}", current_track.metadata().title.clone().unwrap()),
+            TurtoMessage::Pause {
+                title: current_track.metadata().title.as_ref().unwrap(),
+            },
         )
         .await?;
     }

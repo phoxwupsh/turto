@@ -1,4 +1,4 @@
-use crate::utils::guild::{GuildUtil, VoiceChannelState};
+use crate::{utils::guild::{GuildUtil, VoiceChannelState}, messages::TurtoMessage};
 
 use serenity::{
     client::Context,
@@ -14,11 +14,11 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
 
     match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
         VoiceChannelState::Different(bot_vc, _) => {
-            msg.reply(ctx, format!("I'm currently in {}.", bot_vc.mention())).await?;
+            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: &bot_vc }).await?;
             return Ok(());
         }
         VoiceChannelState::None | VoiceChannelState::OnlyFirst(_) => {
-            msg.reply(ctx, "You are not in a voice channel").await?;
+            msg.reply(ctx, TurtoMessage::UserNotInVoiceChannel).await?;
             return Ok(());
         }
         VoiceChannelState::OnlySecond(user_vc) => {

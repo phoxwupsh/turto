@@ -6,7 +6,7 @@ use serenity::{
 use songbird::tracks::PlayMode;
 use tracing::error;
 
-use crate::{guild::playing::Playing, messages::NOT_PLAYING};
+use crate::{guild::playing::Playing, messages::{NOT_PLAYING, TurtoMessage}};
 
 #[command]
 #[bucket = "music"]
@@ -36,12 +36,12 @@ async fn playwhat(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
             .clone()
             .unwrap_or_else(|| "Unknown".to_string());
 
-        let mut response = match current_track.get_info().await {
+        let response = match current_track.get_info().await {
             Ok(track_state) => match track_state.playing {
-                PlayMode::Play => "▶️ ".to_string(),
-                PlayMode::Pause => "⏸️ ".to_string(),
+                PlayMode::Play => TurtoMessage::Play { title: &title },
+                PlayMode::Pause => TurtoMessage::Pause { title: &title },
                 _ => {
-                    msg.reply(ctx, NOT_PLAYING).await?;
+                    msg.reply(ctx, TurtoMessage::NotPlaying).await?;
                     return Ok(());
                 }
             },
@@ -50,8 +50,6 @@ async fn playwhat(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
                 return Ok(());
             }
         };
-
-        response.push_str(&title);
 
         msg.channel_id
             .send_message(ctx, |m| {
