@@ -51,6 +51,16 @@ async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                     msg.reply(ctx, NOT_PLAYING).await?;
                     return Ok(());
                 }
+                if track_state.position.as_secs() + 600 < sec {
+                    // Seeking is expensive, currently set the seek limitation to 10 mins
+                    msg.reply(ctx, "Too long to seek.").await?;
+                    return Ok(());
+                }
+                if track_state.position.as_secs() > sec {
+                    // Backward seeking is more expensive so currently disable it
+                    msg.reply(ctx, "Backward is not support").await?;
+                    return Ok(());
+                }
             }
 
             let track_sec = current_track.metadata().duration.unwrap().as_secs();
