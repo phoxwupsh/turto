@@ -9,7 +9,7 @@ use tracing::error;
 use crate::{
     guild::playing::Playing,
     messages::NOT_PLAYING,
-    utils::guild::GuildUtil,
+    utils::guild::{GuildUtil, VoiceChannelState},
 };
 
 #[command]
@@ -17,20 +17,16 @@ use crate::{
 async fn stop(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
     let guild = msg.guild(ctx).unwrap();
 
-    // Check if the bot and the user is in a channel or not
-    if let Some(bot_voice_channel) = guild.get_user_voice_channel(&ctx.cache.current_user_id()) {
-        if Some(bot_voice_channel) != guild.get_user_voice_channel(&msg.author.id) {
-            // Notify th user if they are in different voice channel
-            msg.reply(
-                ctx,
-                format!("You are not in {}.", bot_voice_channel.mention()),
-            )
-            .await?;
+    match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
+        VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
+            msg.reply(ctx, format!("You are not in {}", bot_vc.mention())).await?;
             return Ok(());
         }
-    } else {
-        msg.reply(ctx, NOT_PLAYING).await?;
-        return Ok(());
+        VoiceChannelState::OnlySecond(_) | VoiceChannelState::None => {
+            msg.reply(ctx, "Currently not in a voice channel").await?;
+            return Ok(());
+        }
+        VoiceChannelState::Same(_) => (),
     }
 
     let playing_lock = ctx

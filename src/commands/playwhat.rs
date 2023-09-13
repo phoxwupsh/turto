@@ -12,7 +12,6 @@ use crate::{guild::playing::Playing, messages::NOT_PLAYING};
 #[bucket = "music"]
 async fn playwhat(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
     let guild = msg.guild(&ctx.cache).unwrap();
-    let guild_id = guild.id;
 
     let playing_lock = ctx
         .data
@@ -23,7 +22,7 @@ async fn playwhat(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
         .clone();
     {
         let playing = playing_lock.read().await;
-        let current_track = match playing.get(&guild_id) {
+        let current_track = match playing.get(&guild.id) {
             Some(track) => track,
             None => {
                 msg.reply(ctx, NOT_PLAYING).await?;

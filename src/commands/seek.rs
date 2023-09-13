@@ -3,16 +3,30 @@ use std::time::Duration;
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
     model::prelude::Message,
-    prelude::Context,
+    prelude::{Context, Mentionable},
 };
 use songbird::tracks::PlayMode;
 use tracing::error;
 
-use crate::{guild::playing::Playing, messages::NOT_PLAYING};
+use crate::{guild::playing::Playing, messages::NOT_PLAYING, utils::guild::{GuildUtil, VoiceChannelState}};
 
 #[command]
 #[bucket = "music"]
 async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
+    let guild = msg.guild(ctx).unwrap();
+
+    match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
+        VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
+            msg.reply(ctx, format!("You are not in {}", bot_vc.mention())).await?;
+            return Ok(());
+        },
+        VoiceChannelState::OnlySecond(_) | VoiceChannelState::None => {
+            msg.reply(ctx, "Currently not in a voice channel").await?;
+            return Ok(());
+        },
+        VoiceChannelState::Same(_) => ()
+    }
+
     let sec = match args.parse::<u64>() {
         Ok(s) => s,
         Err(_) => {

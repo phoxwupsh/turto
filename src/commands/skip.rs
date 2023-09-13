@@ -7,7 +7,7 @@ use serenity::{
 use crate::{
     messages::NOT_PLAYING,
     utils::{
-        guild::GuildUtil,
+        guild::{GuildUtil, VoiceChannelState},
         play::play_next,
     },
 };
@@ -17,38 +17,23 @@ use crate::{
 async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
     let guild = msg.guild(ctx).unwrap();
 
-    let user_voice_channel = match guild.get_user_voice_channel(&msg.author.id) {
-        Some(channel) => channel,
-        None => {
-            msg.reply(ctx, "Not in a voice channel").await?;
+    match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
+        VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
+            msg.reply(ctx, format!("You are not in {}", bot_vc.mention())).await?;
             return Ok(());
         }
-    };
-
-    // Get the Songbird instance
-    let manager = songbird::get(ctx)
-        .await
-        .expect("Songbird Voice client placed in at initialization.")
-        .clone();
-
-    match guild.get_user_voice_channel(&ctx.cache.current_user_id()) {
-        Some(bot_voice_channel) => {
-            if user_voice_channel != bot_voice_channel { // If the bot is in another channel
-                msg.reply(
-                    ctx,
-                    format!("You are not in {}.", bot_voice_channel.mention()),
-                )
-                .await?;
-                return Ok(());
-            }
-        },
-        None => {
-            msg.reply(ctx, NOT_PLAYING).await?;
+        VoiceChannelState::OnlySecond(_) | VoiceChannelState::None => {
+            msg.reply(ctx, "Currently not in a voice channel").await?;
             return Ok(());
         }
+        VoiceChannelState::Same(_) => (),
     }
 
-    let handler_lock = match manager.get(guild.id) {
+    let handler_lock = match songbird::get(ctx)
+        .await
+        .expect("Songbird Voice client placed in at initialization.")
+        .get(guild.id)
+    {
         Some(handler_lock) => handler_lock,
         None => {
             msg.reply(ctx, NOT_PLAYING).await?;

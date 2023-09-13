@@ -9,29 +9,24 @@ use tracing::error;
 use crate::{
     guild::playing::Playing,
     messages::NOT_PLAYING,
-    utils::guild::GuildUtil,
+    utils::guild::{GuildUtil, VoiceChannelState},
 };
 
 #[command]
 #[bucket = "music"]
 async fn pause(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
     let guild = msg.guild(ctx).unwrap();
-    let guild_id = guild.id;
 
-    // Check if the bot and the user is in a channel or not
-    if let Some(bot_voice_channel) = guild.get_user_voice_channel(&ctx.cache.current_user_id()) {
-        if Some(bot_voice_channel) != guild.get_user_voice_channel(&msg.author.id) {
-            // Notify th user if they are in different voice channel
-            msg.reply(
-                ctx,
-                format!("You are not in {}.", bot_voice_channel.mention()),
-            )
-            .await?;
-            return Ok(());
-        }
-    } else {
-        msg.reply(ctx, NOT_PLAYING).await?;
-        return Ok(());
+    match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
+        VoiceChannelState::None | VoiceChannelState::OnlySecond(_) => {
+            msg.reply(ctx, "Currently not in a voice channel").await?;
+            return Ok(())
+        },
+        VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
+            msg.reply(ctx, format!("You are not in {}", bot_vc.mention())).await?;
+            return Ok(())
+        },
+        VoiceChannelState::Same(_) => ()
     }
 
     let playing_lock = ctx
@@ -43,7 +38,7 @@ async fn pause(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
         .clone();
     {
         let playing = playing_lock.read().await;
-        let current_track = match playing.get(&guild_id) {
+        let current_track = match playing.get(&guild.id) {
             Some(track) => track,
             None => {
                 msg.reply(ctx, NOT_PLAYING).await?;
