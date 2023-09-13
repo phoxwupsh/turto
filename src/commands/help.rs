@@ -9,7 +9,7 @@ use serenity::{
     prelude::Context, futures::StreamExt,
 };
 
-use crate::models::help::HELPS;
+use crate::models::help::{HELPS, COMMAND_LIST};
 
 #[command]
 async fn help(ctx: &Context, msg: &Message) -> CommandResult {
@@ -25,8 +25,8 @@ async fn help(ctx: &Context, msg: &Message) -> CommandResult {
                             menu.custom_id("help")
                                 .placeholder(&HELPS.placeholder)
                                 .options(|options| {
-                                    for k in HELPS.command_helps.keys() {
-                                        options.create_option(|o| o.label(k).value(k));
+                                    for command_name in COMMAND_LIST.iter() {
+                                        options.create_option(|o| o.label(command_name).value(command_name));
                                     }
                                     options
                                 })
@@ -74,9 +74,9 @@ async fn help(ctx: &Context, msg: &Message) -> CommandResult {
                         .components(|components| components)
                         .embed(|embed| {
                             embed
-                                .title(target_help.command_name.clone())
-                                .description(target_help.description.clone())
-                                .field(&HELPS.usage_field, target_help.usage.clone(), true)
+                                .title(&target_help.command_name)
+                                .description(&target_help.description)
+                                .field(&HELPS.usage_field, &target_help.usage, true)
                                 .field(&HELPS.example_field, target_help.example.join("\n"), true)
                         })
                 })
