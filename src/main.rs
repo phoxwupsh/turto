@@ -6,8 +6,8 @@ use turto_rs::{
         playwhat::PLAYWHAT_COMMAND, queue::QUEUE_COMMAND, remove::REMOVE_COMMAND,
         seek::SEEK_COMMAND, skip::SKIP_COMMAND, stop::STOP_COMMAND, volume::VOLUME_COMMAND,
     },
-    guild::{playing::Playing, playlist::Playlists, setting::Settings},
-    models::{playlist::Playlist, setting::GuildSetting},
+    guild::{playing::Playing, playlist::Playlists, setting::GuildSettings},
+    models::{playlist::Playlist, guild_setting::GuildSetting},
 };
 
 use serenity::{
@@ -85,7 +85,7 @@ async fn main() {
         let mut data = client.data.write().await;
         data.insert::<Playing>(Arc::new(RwLock::new(HashMap::default())));
         data.insert::<Playlists>(Arc::new(Mutex::new(playlists)));
-        data.insert::<Settings>(Arc::new(Mutex::new(settings)));
+        data.insert::<GuildSettings>(Arc::new(Mutex::new(settings)));
     }
 
     let shard_manager = client.shard_manager.clone();
@@ -111,7 +111,7 @@ async fn main() {
                     .lock()
                     .await;
                 let settings = data_read
-                    .get::<Settings>()
+                    .get::<GuildSettings>()
                     .expect("Expected Settings in TypeMap.")
                     .lock()
                     .await;

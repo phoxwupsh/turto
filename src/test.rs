@@ -3,7 +3,7 @@ mod tests {
     use std::time::Duration;
 
     use crate::{
-        models::{playlist_item::PlaylistItem, volume::GuildVolume, setting::GuildSetting, url_type::UrlType},
+        models::{playlist_item::PlaylistItem, volume::GuildVolume, guild_setting::GuildSetting, url_type::UrlType},
         utils::misc::ToEmoji,
     };
 

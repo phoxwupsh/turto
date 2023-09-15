@@ -1,6 +1,6 @@
 use crate::{
-    guild::{playing::Playing, setting::Settings},
-    models::{setting::GuildSetting, volume::GuildVolume},
+    guild::{playing::Playing, setting::GuildSettings},
+    models::{guild_setting::GuildSetting, volume::GuildVolume},
     utils::misc::ToEmoji,
 };
 use serenity::{
@@ -18,7 +18,7 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             .data
             .read()
             .await
-            .get::<Settings>()
+            .get::<GuildSettings>()
             .expect("Expected Playing in TypeMap")
             .clone()
             .lock()
@@ -72,7 +72,7 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         .data
         .read()
         .await
-        .get::<Settings>()
+        .get::<GuildSettings>()
         .expect("Expected Playing in TypeMap")
         .clone();
     {

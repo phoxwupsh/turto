@@ -4,7 +4,9 @@ use serenity::{
     prelude::Context,
 };
 
-use crate::{guild::setting::Settings, messages::TurtoMessage, models::setting::GuildSetting};
+use crate::{
+    guild::setting::GuildSettings, messages::TurtoMessage, models::guild_setting::GuildSetting,
+};
 
 #[command]
 #[bucket = "music"]
@@ -21,7 +23,7 @@ async fn autoleave(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         .data
         .read()
         .await
-        .get::<Settings>()
+        .get::<GuildSettings>()
         .expect("Expected Playlists in TypeMap.")
         .clone();
     {
@@ -31,6 +33,7 @@ async fn autoleave(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             .or_insert_with(GuildSetting::default);
         setting.auto_leave = toggle;
     }
-    msg.reply(ctx, TurtoMessage::SetAutoleave(Ok(toggle))).await?;
+    msg.reply(ctx, TurtoMessage::SetAutoleave(Ok(toggle)))
+        .await?;
     Ok(())
 }

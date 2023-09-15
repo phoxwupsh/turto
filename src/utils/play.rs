@@ -9,9 +9,9 @@ use songbird::{
 use tracing::error;
 
 use crate::{
-    guild::{playing::Playing, playlist::Playlists, setting::Settings},
+    guild::{playing::Playing, playlist::Playlists, setting::GuildSettings},
     handlers::track_end::TrackEndHandler,
-    models::{playlist::Playlist, setting::GuildSetting},
+    models::{playlist::Playlist, guild_setting::GuildSetting},
 };
 
 pub async fn play_url<S>(ctx: &Context, guild_id: GuildId, url: S) -> Result<Metadata, PlayError>
@@ -56,7 +56,7 @@ where
         .data
         .read()
         .await
-        .get::<Settings>()
+        .get::<GuildSettings>()
         .expect("Expected Settings in TypeMap")
         .clone();
     {

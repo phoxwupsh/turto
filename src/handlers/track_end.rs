@@ -3,8 +3,8 @@ use songbird::events::{Event, EventContext, EventHandler};
 use tracing::error;
 
 use crate::{
-    guild::setting::Settings,
-    models::setting::GuildSetting,
+    guild::setting::GuildSettings,
+    models::guild_setting::GuildSetting,
     utils::play::{play_next, PlayError},
 };
 
@@ -20,7 +20,7 @@ impl EventHandler for TrackEndHandler {
             let settings_lock = {
                 let data_lock = self.ctx.data.read().await;
                 let data = data_lock
-                    .get::<Settings>()
+                    .get::<GuildSettings>()
                     .expect("Expected Settings in TypeMap")
                     .clone();
                 data
