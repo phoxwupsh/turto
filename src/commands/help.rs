@@ -9,23 +9,25 @@ use serenity::{
     prelude::Context, futures::StreamExt,
 };
 
-use crate::models::help::{HELPS, COMMAND_LIST};
+use crate::models::help::Help;
 
 #[command]
 async fn help(ctx: &Context, msg: &Message) -> CommandResult {
+    let helps = Help::get_helps();
+    let command_list = Help::get_command_list();
     let waiting = msg
         .channel_id
         .send_message(ctx, |message| {
             message
                 .reference_message(msg)
-                .content(&HELPS.help_msg)
+                .content(&helps.help_msg)
                 .components(|components| {
                     components.create_action_row(|row| {
                         row.create_select_menu(|menu| {
                             menu.custom_id("help")
-                                .placeholder(&HELPS.placeholder)
+                                .placeholder(&helps.placeholder)
                                 .options(|options| {
-                                    for command_name in COMMAND_LIST.iter() {
+                                    for command_name in command_list.iter() {
                                         options.create_option(|o| o.label(command_name).value(command_name));
                                     }
                                     options
@@ -61,7 +63,7 @@ async fn help(ctx: &Context, msg: &Message) -> CommandResult {
     };
 
     let command_name = &interaction.data.values[0];
-    let target_help = HELPS
+    let target_help = helps
         .command_helps
         .get(command_name)
         .expect("Error loading command help");
@@ -76,8 +78,8 @@ async fn help(ctx: &Context, msg: &Message) -> CommandResult {
                             embed
                                 .title(&target_help.command_name)
                                 .description(&target_help.description)
-                                .field(&HELPS.usage_field, &target_help.usage, true)
-                                .field(&HELPS.example_field, target_help.example.join("\n"), true)
+                                .field(&helps.usage_field, &target_help.usage, true)
+                                .field(&helps.example_field, target_help.example.join("\n"), true)
                         })
                 })
         })
