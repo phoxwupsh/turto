@@ -1,0 +1,5 @@
+command_prefix = "!"
+allow_seek = true
+allow_backward_seek = false
+seek_limit = 600
+command_delay = 1

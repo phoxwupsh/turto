@@ -6,14 +6,15 @@ use turto_rs::{
         playwhat::PLAYWHAT_COMMAND, queue::QUEUE_COMMAND, remove::REMOVE_COMMAND,
         seek::SEEK_COMMAND, skip::SKIP_COMMAND, stop::STOP_COMMAND, volume::VOLUME_COMMAND,
     },
+    config::TurtoConfig,
     guild::{playing::Playing, playlist::Playlists, setting::GuildSettings},
-    models::{playlist::Playlist, guild_setting::GuildSetting},
+    models::{guild_setting::GuildSetting, playlist::Playlist},
 };
 
 use serenity::{
     async_trait,
     client::{Client, EventHandler},
-    framework::standard::{macros::group, StandardFramework, buckets::LimitedFor},
+    framework::standard::{buckets::LimitedFor, macros::group, StandardFramework},
     model::{gateway::Ready, prelude::GuildId},
     prelude::{Context, GatewayIntents},
 };
@@ -48,15 +49,15 @@ async fn main() {
         .with_max_level(Level::INFO)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("Tracing initialization failed.");
-
     dotenv::dotenv().expect("Failed to load .env file");
-
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
+    let config = TurtoConfig::get_config();
 
     let framework = StandardFramework::new()
-        .configure(|c| c.prefix("!")) // Set the command prefix to "!"
+        .configure(|c| c.prefix(config.command_prefix.clone()))
         .bucket("music", |bucket| {
-            bucket.delay(1)
+            bucket
+                .delay(config.command_delay)
                 .await_ratelimits(1)
                 .limit_for(LimitedFor::Guild)
         })

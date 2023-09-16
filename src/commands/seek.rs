@@ -3,25 +3,31 @@ use std::time::Duration;
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
     model::prelude::Message,
-    prelude::{Context, Mentionable},
+    prelude::Context,
 };
 use songbird::tracks::PlayMode;
 use tracing::error;
 
-use crate::{guild::playing::Playing, messages::NOT_PLAYING, utils::guild::{GuildUtil, VoiceChannelState}};
+use crate::{guild::playing::Playing, messages::TurtoMessage, utils::guild::{GuildUtil, VoiceChannelState}, config::TurtoConfig};
 
 #[command]
 #[bucket = "music"]
 async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let guild = msg.guild(ctx).unwrap();
+    let config = TurtoConfig::get_config();
+
+    if !config.allow_seek {
+        msg.reply(ctx, TurtoMessage::SeekNotAllow).await?;
+        return Ok(())
+    }
 
     match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
         VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
-            msg.reply(ctx, format!("You are not in {}", bot_vc.mention())).await?;
+            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: &bot_vc }).await?;
             return Ok(());
         },
         VoiceChannelState::OnlySecond(_) | VoiceChannelState::None => {
-            msg.reply(ctx, "Currently not in a voice channel").await?;
+            msg.reply(ctx, TurtoMessage::BotNotInVoiceChannel).await?;
             return Ok(());
         },
         VoiceChannelState::Same(_) => ()
@@ -30,7 +36,7 @@ async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let sec = match args.parse::<u64>() {
         Ok(s) => s,
         Err(_) => {
-            msg.reply(ctx, "enter a number").await?;
+            msg.reply(ctx, TurtoMessage::Seek { seek_limit: config.seek_limit }).await?;
             return Ok(());
         }
     };
@@ -48,17 +54,17 @@ async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         if let Some(current_track) = playing.get(&msg.guild_id.unwrap()) {
             if let Ok(track_state) = current_track.get_info().await {
                 if track_state.playing == PlayMode::Stop || track_state.playing == PlayMode::End {
-                    msg.reply(ctx, NOT_PLAYING).await?;
+                    msg.reply(ctx, TurtoMessage::NotPlaying).await?;
                     return Ok(());
                 }
-                if track_state.position.as_secs() + 600 < sec {
+                if track_state.position.as_secs() + config.seek_limit <= sec {
                     // Seeking is expensive, currently set the seek limitation to 10 mins
-                    msg.reply(ctx, "Too long to seek.").await?;
+                    msg.reply(ctx, TurtoMessage::SeekToLong).await?;
                     return Ok(());
                 }
-                if track_state.position.as_secs() > sec {
+                if !config.allow_backward_seek && track_state.position.as_secs() > sec {
                     // Backward seeking is more expensive so currently disable it
-                    msg.reply(ctx, "Backward is not support").await?;
+                    msg.reply(ctx, TurtoMessage::BackwardSeekNotAllow).await?;
                     return Ok(());
                 }
             }
