@@ -5,7 +5,7 @@ use serenity::{
 };
 
 use crate::{
-    messages::NOT_PLAYING,
+    messages::TurtoMessage,
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         play::play_next,
@@ -36,7 +36,7 @@ async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
     {
         Some(handler_lock) => handler_lock,
         None => {
-            msg.reply(ctx, NOT_PLAYING).await?;
+            msg.reply(ctx, TurtoMessage::NotPlaying).await?;
             return Ok(());
         }
     };

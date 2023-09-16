@@ -1,7 +1,7 @@
 use crate::{
     guild::{playing::Playing, setting::GuildSettings},
     models::{guild_setting::GuildSetting, volume::GuildVolume},
-    utils::misc::ToEmoji,
+    messages::TurtoMessage,
 };
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
@@ -25,23 +25,21 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             .await
             .entry(msg.guild_id.unwrap())
             .or_insert_with(GuildSetting::default)
-            .volume
-            .to_emoji();
-        let response = "🔊".to_string() + &curr_vol;
-        msg.reply(ctx, response).await?;
+            .volume;
+        msg.reply(ctx, TurtoMessage::SetVolume(Ok(curr_vol))).await?;
         return Ok(())
     }
     let new_vol_u32 = match args.parse::<usize>() {
         Ok(vol_u32) => vol_u32,
         Err(_) => {
-            msg.reply(ctx, "enter a number 0 ~ 100").await?;
+            msg.reply(ctx, TurtoMessage::SetVolume(Err(()))).await?;
             return Ok(());
         }
     };
     let new_vol = match GuildVolume::try_from(new_vol_u32) {
         Ok(vol) => vol,
         Err(_) => {
-            msg.reply(ctx, "enter a number 0 ~ 100").await?;
+            msg.reply(ctx, TurtoMessage::SetVolume(Err(()))).await?;
             return Ok(());
         }
     };
@@ -83,8 +81,7 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         setting.volume = new_vol;
     }
 
-    let response = "🔊".to_string() + &new_vol.to_emoji();
-    msg.reply(ctx, response).await?;
+    msg.reply(ctx, TurtoMessage::SetVolume(Ok(new_vol))).await?;
 
     Ok(())
 }

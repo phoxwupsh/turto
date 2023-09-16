@@ -6,7 +6,7 @@ use serenity::{
 
 use regex::Regex;
 
-use crate::{guild::playlist::Playlists, models::playlist::Playlist};
+use crate::{guild::playlist::Playlists, models::playlist::Playlist, messages::TurtoMessage};
 
 enum RemoveType {
     All,
@@ -84,7 +84,7 @@ async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                     let drained = playlist.drain(from..to);
                     let response = drained
                         .into_iter()
-                        .map(|drained_item| format!("❎ {}", drained_item.title))
+                        .map(|drained_item| TurtoMessage::Remove { title: &drained_item.title }.to_string())
                         .collect::<Vec<_>>()
                         .join("\n");
                     msg.reply(ctx, response).await?;

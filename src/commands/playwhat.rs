@@ -6,7 +6,7 @@ use serenity::{
 use songbird::tracks::PlayMode;
 use tracing::error;
 
-use crate::{guild::playing::Playing, messages::{NOT_PLAYING, TurtoMessage}};
+use crate::{guild::playing::Playing, messages::TurtoMessage};
 
 #[command]
 #[bucket = "music"]
@@ -25,7 +25,7 @@ async fn playwhat(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
         let current_track = match playing.get(&guild.id) {
             Some(track) => track,
             None => {
-                msg.reply(ctx, NOT_PLAYING).await?;
+                msg.reply(ctx, TurtoMessage::NotPlaying).await?;
                 return Ok(());
             }
         };

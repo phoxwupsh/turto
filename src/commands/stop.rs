@@ -1,14 +1,14 @@
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
     model::prelude::Message,
-    prelude::{Context, Mentionable},
+    prelude::Context,
 };
 
 use tracing::error;
 
 use crate::{
     guild::playing::Playing,
-    messages::NOT_PLAYING,
+    messages::TurtoMessage,
     utils::guild::{GuildUtil, VoiceChannelState},
 };
 
@@ -19,11 +19,12 @@ async fn stop(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
 
     match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
         VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
-            msg.reply(ctx, format!("You are not in {}", bot_vc.mention())).await?;
+            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: &bot_vc })
+                .await?;
             return Ok(());
         }
         VoiceChannelState::OnlySecond(_) | VoiceChannelState::None => {
-            msg.reply(ctx, "Currently not in a voice channel").await?;
+            msg.reply(ctx, TurtoMessage::BotNotInVoiceChannel).await?;
             return Ok(());
         }
         VoiceChannelState::Same(_) => (),
@@ -41,7 +42,7 @@ async fn stop(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
         let current_track = match playing.remove(&guild.id) {
             Some(track) => track,
             None => {
-                msg.reply(ctx, NOT_PLAYING).await?;
+                msg.reply(ctx, TurtoMessage::NotPlaying).await?;
                 return Ok(());
             }
         };
@@ -50,11 +51,8 @@ async fn stop(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
             error!("Error stopping track {}: {:?}", current_track.uuid(), why);
         }
 
-        msg.reply(
-            ctx,
-            format!("⏹️ {}", current_track.metadata().title.clone().unwrap()),
-        )
-        .await?;
+        let title = current_track.metadata().title.clone().unwrap();
+        msg.reply(ctx, TurtoMessage::Stop { title: &title }).await?;
     }
 
     Ok(())

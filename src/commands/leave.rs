@@ -13,7 +13,7 @@ use serenity::{
 async fn leave(ctx: &Context, msg: &Message) -> CommandResult {
     let guild = msg.guild(ctx).unwrap();
 
-    match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
+    let leave_ = match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
         VoiceChannelState::None | VoiceChannelState::OnlySecond(_) => {
             msg.reply(ctx, TurtoMessage::BotNotInVoiceChannel).await?;
             return Ok(());
@@ -22,8 +22,8 @@ async fn leave(ctx: &Context, msg: &Message) -> CommandResult {
             msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: &bot_vc }).await?;
             return Ok(());
         }
-        VoiceChannelState::Same(_) => (),
-    }
+        VoiceChannelState::Same(vc) => vc,
+    };
 
     let guild = msg.guild(ctx).unwrap();
 
@@ -33,5 +33,6 @@ async fn leave(ctx: &Context, msg: &Message) -> CommandResult {
         .clone();
 
     manager.remove(guild.id).await?;
+    msg.reply(ctx, TurtoMessage::Leave(&leave_)).await?;
     Ok(())
 }

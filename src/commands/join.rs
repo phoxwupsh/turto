@@ -3,8 +3,7 @@ use crate::{utils::guild::{GuildUtil, VoiceChannelState}, messages::TurtoMessage
 use serenity::{
     client::Context,
     framework::standard::{macros::command, CommandResult},
-    model::channel::Message,
-    prelude::Mentionable,
+    model::channel::Message
 };
 
 #[command]
@@ -28,7 +27,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
                 .join(guild.id, user_vc)
                 .await;
             if success.is_ok() {
-                msg.reply(ctx, format!("🐢{}", user_vc.mention())).await?;
+                msg.reply(ctx, TurtoMessage::Join(&user_vc)).await?;
             }
         }
         VoiceChannelState::Same(_) => (),

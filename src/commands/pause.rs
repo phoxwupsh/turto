@@ -8,7 +8,7 @@ use tracing::error;
 
 use crate::{
     guild::playing::Playing,
-    messages::{TurtoMessage, NOT_PLAYING},
+    messages::TurtoMessage,
     utils::guild::{GuildUtil, VoiceChannelState},
 };
 
@@ -42,7 +42,7 @@ async fn pause(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
         let current_track = match playing.get(&guild.id) {
             Some(track) => track,
             None => {
-                msg.reply(ctx, NOT_PLAYING).await?;
+                msg.reply(ctx, TurtoMessage::NotPlaying).await?;
                 return Ok(());
             }
         };
