@@ -12,3 +12,5 @@ pub mod remove;
 pub mod seek;
 pub mod help;
 pub mod autoleave;
+pub mod ban;
+pub mod unban;

@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::{time::Duration, collections::HashSet};
+
+    use serenity::model::prelude::UserId;
 
     use crate::{
         models::{playlist_item::PlaylistItem, volume::GuildVolume, guild_setting::GuildSetting, url_type::UrlType},
@@ -38,11 +40,13 @@ mod tests {
 
     #[test]
     fn test_guildsetting_serialization(){
-        let gs_string = r#"{"auto_leave":true,"volume":0.33}"#;
-        let gs = GuildSetting{
+        let gs_string = r#"{"auto_leave":true,"volume":0.33,"banned":["1000005"]}"#;
+        let mut gs = GuildSetting{
             auto_leave: true,
-            volume: GuildVolume::try_from(0.33_f32).unwrap()
+            volume: GuildVolume::try_from(0.33_f32).unwrap(),
+            banned: HashSet::<UserId>::new()
         };
+        gs.banned.insert(UserId(1000005));
         assert_eq!(serde_json::from_str::<GuildSetting>(gs_string).unwrap(), gs);
         assert_eq!(serde_json::to_string(&gs).unwrap(), gs_string);
     }

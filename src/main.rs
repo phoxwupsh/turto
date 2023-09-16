@@ -1,13 +1,15 @@
 use tokio::sync::{Mutex, RwLock};
 use turto_rs::{
     commands::{
-        autoleave::AUTOLEAVE_COMMAND, help::HELP_COMMAND, join::JOIN_COMMAND, leave::LEAVE_COMMAND,
-        pause::PAUSE_COMMAND, play::PLAY_COMMAND, playlist::PLAYLIST_COMMAND,
+        autoleave::AUTOLEAVE_COMMAND, ban::BAN_COMMAND, help::HELP_COMMAND, join::JOIN_COMMAND,
+        leave::LEAVE_COMMAND, pause::PAUSE_COMMAND, play::PLAY_COMMAND, playlist::PLAYLIST_COMMAND,
         playwhat::PLAYWHAT_COMMAND, queue::QUEUE_COMMAND, remove::REMOVE_COMMAND,
-        seek::SEEK_COMMAND, skip::SKIP_COMMAND, stop::STOP_COMMAND, volume::VOLUME_COMMAND,
+        seek::SEEK_COMMAND, skip::SKIP_COMMAND, stop::STOP_COMMAND, unban::UNBAN_COMMAND,
+        volume::VOLUME_COMMAND,
     },
     config::TurtoConfig,
     guild::{playing::Playing, playlist::Playlists, setting::GuildSettings},
+    handlers::before::before_hook,
     models::{guild_setting::GuildSetting, playlist::Playlist},
 };
 
@@ -38,7 +40,7 @@ impl EventHandler for Handler {
 #[group]
 #[commands(
     play, pause, playwhat, stop, volume, playlist, queue, remove, join, leave, skip, seek, help,
-    autoleave
+    autoleave, ban, unban
 )]
 #[only_in(guilds)]
 struct Music;
@@ -62,7 +64,8 @@ async fn main() {
                 .limit_for(LimitedFor::Guild)
         })
         .await
-        .group(&MUSIC_GROUP);
+        .group(&MUSIC_GROUP)
+        .before(before_hook);
 
     let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
     let mut client = Client::builder(&token, intents)

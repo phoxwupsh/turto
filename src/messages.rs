@@ -24,6 +24,11 @@ pub enum TurtoMessage<'a> {
     SeekToLong,
     SeekNotAllow,
     BackwardSeekNotAllow,
+    AdministratorOnly,
+    UserGotBanned(Result<UserId, UserId>),
+    UserGotUnbanned(Result<UserId, UserId>),
+    InvalidUser,
+    BannedUserResponse
 }
 
 impl Display for TurtoMessage<'_> {
@@ -61,6 +66,17 @@ impl Display for TurtoMessage<'_> {
             Self::SeekToLong => f.write_str("data"),
             Self::SeekNotAllow => f.write_str("data"),
             Self::BackwardSeekNotAllow => f.write_str("data"),
+            Self::AdministratorOnly => f.write_str("This command can only be invoked by an adminstrator."),
+            Self::UserGotBanned(user) => match user {
+                Ok(u) => f.write_str(&format!("{} has been banned.", u.mention())),
+                Err(u) => f.write_str(&format!("{} has already been banned.", u.mention()))
+            },
+            Self::UserGotUnbanned(user) => match user {
+                Ok(u) => f.write_str(&format!("{} has been unbanned.", u.mention())),
+                Err(u) => f.write_str(&format!("{} hasn't been banned yet.", u.mention()))
+            },
+            Self::InvalidUser => f.write_str("Invalid member"),
+            Self::BannedUserResponse => f.write_str("You are banned.")
         }
     }
 }
