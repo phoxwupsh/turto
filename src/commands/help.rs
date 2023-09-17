@@ -20,7 +20,7 @@ async fn help(ctx: &Context, msg: &Message) -> CommandResult {
         .send_message(ctx, |message| {
             message
                 .reference_message(msg)
-                .content(&helps.help_msg)
+                .content(&helps.help_message)
                 .components(|components| {
                     components.create_action_row(|row| {
                         row.create_select_menu(|menu| {
@@ -72,14 +72,14 @@ async fn help(ctx: &Context, msg: &Message) -> CommandResult {
         .create_interaction_response(ctx, |resp| {
             resp.kind(InteractionResponseType::UpdateMessage)
                 .interaction_response_data(|data| {
-                    data.content(&target_help.help_msg)
+                    data.content(&target_help.help_message)
                         .components(|components| components)
                         .embed(|embed| {
                             embed
                                 .title(&target_help.command_name)
                                 .description(&target_help.description)
                                 .field(&helps.usage_field, &target_help.usage, true)
-                                .field(&helps.example_field, target_help.example.join("\n"), true)
+                                .field(&helps.example_field, &target_help.example, true)
                         })
                 })
         })
