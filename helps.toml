@@ -81,7 +81,7 @@ help_message = "Here is how to use `remove`:"
 command_name = "remove"
 description = "Delete certain items from the playlist. There are two ways to use it: you can use `remove index` to delete the item at position `index`, or you can use `remove from~to` to delete all items between positions `from` and `to`. `index`, `from`, and `to` must be positive integers. If you just want to simply clear the playlist, use `remove all`"
 usage = "remove index|from~to|all"
-example = [ "remove 2", "remove 2~4" ]
+example = [ "remove 2", "remove 2~4", "remove all" ]
 
 [command_helps.seek]
 help_message = "Here is how to use `seek`:"
@@ -110,3 +110,17 @@ command_name = "volume"
 description = "Adjust the volume, where `vol` can range from 0 (mute) to 100. The volume setting is shared across the entire server. If you want to check the current volume, use `volume ?`"
 usage = "volume vol"
 example = [ "volume 66", "volume ?" ]
+
+[command_helps.ban]
+help_message = "The command `ban` can only be invoked by adminstrators, here is how to use it:"
+command_name = "ban"
+description = "Ban a user, then the banned user won't be able to use any command. You can mention a user (using `@`) to ban that user, you can also use `<@user id>` to specify the user"
+usage = "ban user"
+example = [ "ban <@244448189917298698>" ]
+
+[command_helps.unban]
+help_message = "The command `unban` can only be invoked by adminstrators, here is how to use it:"
+command_name = "unban"
+description = "Unban a user (if banned), then the user will be able to use all commands. You can mention a user (using `@`) to unban that user, you can also use `<@user id>` to specify the user"
+usage = "unban user"
+example = [ "unban <@244448189917298698>" ]
