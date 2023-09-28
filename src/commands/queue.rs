@@ -6,7 +6,7 @@ use serenity::{
 
 use crate::{
     guild::playlist::Playlists,
-    models::{playlist_item::PlaylistItem, playlist::Playlist, url_type::UrlType, queue::Queueing}, messages::TurtoMessage,
+    models::{playlist_item::PlaylistItem, playlist::Playlist, url::ParsedUrl, queue::Queueing}, messages::TurtoMessage,
 };
 
 #[command]
@@ -14,28 +14,32 @@ use crate::{
 async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     while !args.is_empty() {
         let arg = args.single::<String>().unwrap();
-        let Ok(parsed) = arg.parse::<UrlType>() else {
+        let Ok(parsed) = arg.parse::<ParsedUrl>() else {
             msg.reply(ctx, TurtoMessage::InvalidUrl(None)).await?;
             continue;
         };
 
         let queueing = match &parsed {
-            UrlType::Youtube { id: _, time: _ } => {
-                let Ok(source) = songbird::input::ytdl(&parsed.to_string()).await else {
+            ParsedUrl::Youtube(yt_url) => {
+                if let Some(playlist_url) = yt_url.playlist_url() {
+                    let (Some(res), Some(info)) = Playlist::ytdl_playlist(&playlist_url) else {
+                        msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed))).await?;
+                        continue;
+                    };
+                    Queueing::Multiple{playlist: res, playlist_info: info}
+                } else if let Some(video_url) = yt_url.video_url().build() {
+                    let Ok(source) = songbird::input::ytdl(&video_url).await else {
+                        msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed))).await?;
+                        continue;
+                    };
+                    let metadata = source.metadata.clone();
+                    Queueing::Single(PlaylistItem::from(*metadata))
+                } else {
                     msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed))).await?;
                     continue;
-                };
-                let metadata = source.metadata.clone();
-                Queueing::Single(PlaylistItem::from(*metadata))
+                }
             },
-            UrlType::YoutubePlaylist { playlist_id: _ } => {
-                let (Some(res), Some(info)) = Playlist::ytdl_playlist(&parsed.to_string()) else {
-                    msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed))).await?;
-                    continue;
-                };
-                Queueing::Multiple{playlist: res, playlist_info: info}
-            },
-            UrlType::Other(url) => {
+            ParsedUrl::Other(url) => {
                 let Ok(source) = songbird::input::ytdl(url).await else {
                     msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed))).await?;
                     continue;

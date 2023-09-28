@@ -8,7 +8,7 @@ mod tests {
         models::{
             guild::{config::GuildConfig, volume::GuildVolume},
             playlist_item::PlaylistItem,
-            url_type::UrlType,
+            url::{youtube_url::YouTubeUrl, ParsedUrl},
         },
         utils::misc::ToEmoji,
     };
@@ -63,62 +63,81 @@ mod tests {
 
     #[test]
     fn test_parse_ytdl_url() {
-        let short_yt_url = "https://youtu.be/NjdqQyC7Rkc".parse::<UrlType>();
-        let short_yt_url_time = "https://youtu.be/NjdqQyC7Rkc?t=8".parse::<UrlType>();
-        let yt_url = "https://www.youtube.com/watch?v=NjdqQyC7Rkc".parse::<UrlType>();
-        let yt_url_time = "https://www.youtube.com/watch?v=NjdqQyC7Rkc&t=8s".parse::<UrlType>();
+        let short_yt_url = "https://youtu.be/NjdqQyC7Rkc".parse::<ParsedUrl>();
+        let short_yt_url_time = "https://youtu.be/NjdqQyC7Rkc?t=8".parse::<ParsedUrl>();
+        let yt_url = "https://www.youtube.com/watch?v=NjdqQyC7Rkc".parse::<ParsedUrl>();
+        let yt_url_time = "https://www.youtube.com/watch?v=NjdqQyC7Rkc&t=8s".parse::<ParsedUrl>();
         let yt_playlist_only =
             "https://www.youtube.com/playlist?list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj"
-                .parse::<UrlType>();
+                .parse::<ParsedUrl>();
         let yt_url_with_playlist =
             "https://www.youtube.com/watch?v=NjdqQyC7Rkc&list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj"
-                .parse::<UrlType>();
-        let other_url = "https://soundcloud.com/kivawu/the-beautiful-ones".parse::<UrlType>();
-        let invalid_url = "some_invalid_url".parse::<UrlType>();
+                .parse::<ParsedUrl>();
+        let yt_url_with_playlist_and_time =
+            "https://www.youtube.com/watch?v=NjdqQyC7Rkc&list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj&t=8s"
+                .parse::<ParsedUrl>();
+        let other_url = "https://soundcloud.com/kivawu/the-beautiful-ones".parse::<ParsedUrl>();
+        let invalid_url = "some_invalid_url".parse::<ParsedUrl>();
 
         assert_eq!(
             short_yt_url,
-            Ok(UrlType::Youtube {
-                id: "NjdqQyC7Rkc".to_owned(),
-                time: None
-            })
+            Ok(ParsedUrl::Youtube(YouTubeUrl {
+                id: Some("NjdqQyC7Rkc".to_string()),
+                time: None,
+                playlist_id: None
+            }))
         );
         assert_eq!(
             short_yt_url_time,
-            Ok(UrlType::Youtube {
-                id: "NjdqQyC7Rkc".to_owned(),
-                time: Some(8)
-            })
+            Ok(ParsedUrl::Youtube(YouTubeUrl {
+                id: Some("NjdqQyC7Rkc".to_string()),
+                time: Some(8),
+                playlist_id: None
+            }))
         );
         assert_eq!(
             yt_url,
-            Ok(UrlType::Youtube {
-                id: "NjdqQyC7Rkc".to_owned(),
-                time: None
-            })
+            Ok(ParsedUrl::Youtube(YouTubeUrl {
+                id: Some("NjdqQyC7Rkc".to_string()),
+                time: None,
+                playlist_id: None
+            }))
         );
         assert_eq!(
             yt_url_time,
-            Ok(UrlType::Youtube {
-                id: "NjdqQyC7Rkc".to_owned(),
-                time: Some(8)
-            })
+            Ok(ParsedUrl::Youtube(YouTubeUrl {
+                id: Some("NjdqQyC7Rkc".to_string()),
+                time: Some(8),
+                playlist_id: None
+            }))
         );
         assert_eq!(
             yt_playlist_only,
-            Ok(UrlType::YoutubePlaylist {
-                playlist_id: "PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".to_owned()
-            })
+            Ok(ParsedUrl::Youtube(YouTubeUrl {
+                id: None,
+                time: None,
+                playlist_id: Some("PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".to_string())
+            }))
         );
         assert_eq!(
             yt_url_with_playlist,
-            Ok(UrlType::YoutubePlaylist {
-                playlist_id: "PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".to_owned()
-            })
+            Ok(ParsedUrl::Youtube(YouTubeUrl {
+                id: Some("NjdqQyC7Rkc".to_string()),
+                time: None,
+                playlist_id: Some("PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".to_string())
+            }))
+        );
+        assert_eq!(
+            yt_url_with_playlist_and_time,
+            Ok(ParsedUrl::Youtube(YouTubeUrl {
+                id: Some("NjdqQyC7Rkc".to_string()),
+                time: Some(8),
+                playlist_id: Some("PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".to_string())
+            }))
         );
         assert_eq!(
             other_url,
-            Ok(UrlType::Other(
+            Ok(ParsedUrl::Other(
                 "https://soundcloud.com/kivawu/the-beautiful-ones".to_owned()
             ))
         );

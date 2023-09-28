@@ -1,5 +1,5 @@
 use crate::{
-    models::{url_type::UrlType, guild::volume::GuildVolume},
+    models::{url::ParsedUrl, guild::volume::GuildVolume},
     utils::{misc::ToEmoji, template::Template},
 };
 use serenity::{
@@ -21,7 +21,7 @@ pub enum TurtoMessage<'a> {
     Leave(&'a ChannelId),
     Queue { title: &'a str },
     Remove { title: &'a str },
-    InvalidUrl(Option<&'a UrlType>),
+    InvalidUrl(Option<&'a ParsedUrl>),
     SetVolume(Result<GuildVolume, ()>),
     SetAutoleave(Result<bool, ()>),
     InvalidSeek { seek_limit: u64 },
