@@ -42,8 +42,10 @@ impl Help {
     pub fn get_helps() -> &'static Help {
         static HELP: OnceLock<Help> = OnceLock::new();
         HELP.get_or_init(|| {
-            let helps_json = fs::read_to_string("helps.toml").expect("Error loading helps.toml");
-            let helps_file = toml::from_str::<HelpFileModel>(&helps_json).expect("Error parsing helps.toml");
+            let helps_file = fs::read_to_string("helps.toml")
+                .map_err(|err| panic!("Error loading helps.toml: {err}"))
+                .and_then(|helps_json| toml::from_str::<HelpFileModel>(&helps_json))
+                .unwrap_or_else(|err| panic!("Error parsing helps.toml: {err}"));
             Help::from(helps_file)
         })
     }
