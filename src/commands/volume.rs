@@ -1,6 +1,6 @@
 use crate::{
-    guild::{playing::Playing, setting::GuildSettings},
-    models::{guild_setting::GuildSetting, volume::GuildVolume},
+    guild::{playing::Playing, config::GuildConfigs},
+    models::guild::{config::GuildConfig, volume::GuildVolume},
     messages::TurtoMessage,
 };
 use serenity::{
@@ -18,13 +18,13 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             .data
             .read()
             .await
-            .get::<GuildSettings>()
+            .get::<GuildConfigs>()
             .expect("Expected Playing in TypeMap")
             .clone()
             .lock()
             .await
             .entry(msg.guild_id.unwrap())
-            .or_insert_with(GuildSetting::default)
+            .or_insert_with(GuildConfig::default)
             .volume;
         msg.reply(ctx, TurtoMessage::SetVolume(Ok(curr_vol))).await?;
         return Ok(())
@@ -70,14 +70,14 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         .data
         .read()
         .await
-        .get::<GuildSettings>()
+        .get::<GuildConfigs>()
         .expect("Expected Playing in TypeMap")
         .clone();
     {
         let mut settings = settings_lock.lock().await;
         let setting = settings
             .entry(msg.guild_id.unwrap())
-            .or_insert_with(GuildSetting::default);
+            .or_insert_with(GuildConfig::default);
         setting.volume = new_vol;
     }
 

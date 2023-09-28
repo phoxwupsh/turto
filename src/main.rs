@@ -8,9 +8,9 @@ use turto_rs::{
         volume::VOLUME_COMMAND,
     },
     config::TurtoConfig,
-    guild::{playing::Playing, playlist::Playlists, setting::GuildSettings},
+    guild::{playing::Playing, playlist::Playlists, config::GuildConfigs},
     handlers::before::before_hook,
-    models::{guild_setting::GuildSetting, playlist::Playlist},
+    models::{guild::config::GuildConfig, playlist::Playlist},
 };
 
 use serenity::{
@@ -82,14 +82,14 @@ async fn main() {
         serde_json::from_str(&playlists_json).unwrap_or_default();
 
     let settings_json = fs::read_to_string("settings.json").unwrap_or_else(|_| "{}".to_string());
-    let settings: HashMap<GuildId, GuildSetting> =
+    let settings: HashMap<GuildId, GuildConfig> =
         serde_json::from_str(&settings_json).unwrap_or_default();
 
     {
         let mut data = client.data.write().await;
         data.insert::<Playing>(Arc::new(RwLock::new(HashMap::default())));
         data.insert::<Playlists>(Arc::new(Mutex::new(playlists)));
-        data.insert::<GuildSettings>(Arc::new(Mutex::new(settings)));
+        data.insert::<GuildConfigs>(Arc::new(Mutex::new(settings)));
     }
 
     let shard_manager = client.shard_manager.clone();
@@ -115,7 +115,7 @@ async fn main() {
                     .lock()
                     .await;
                 let settings = data_read
-                    .get::<GuildSettings>()
+                    .get::<GuildConfigs>()
                     .expect("Expected Settings in TypeMap.")
                     .lock()
                     .await;

@@ -3,7 +3,7 @@ use serenity::{
     model::prelude::{Message, UserId},
     prelude::Context,
 };
-use crate::{messages::TurtoMessage, guild::setting::GuildSettings, models::guild_setting::GuildSetting};
+use crate::{messages::TurtoMessage, guild::config::GuildConfigs, models::guild::config::GuildConfig};
 
 #[command]
 #[bucket = "music"]
@@ -27,18 +27,18 @@ async fn unban(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         }
     };
 
-    let guild_settings_lock = ctx
+    let guild_configs_lock = ctx
         .data
         .read()
         .await
-        .get::<GuildSettings>()
+        .get::<GuildConfigs>()
         .expect("Expected GuildSettings in TypeMap")
         .clone();
     
     let unban_result = {
-        let mut guild_settings = guild_settings_lock.lock().await;
-        let guild_setting = guild_settings.entry(guild.id).or_insert_with(GuildSetting::default);
-        if guild_setting.banned.remove(&unbanned.user.id) {
+        let mut guild_configs = guild_configs_lock.lock().await;
+        let guild_config = guild_configs.entry(guild.id).or_insert_with(GuildConfig::default);
+        if guild_config.banned.remove(&unbanned.user.id) {
             Ok(unbanned.user.id)
         } else {
             Err(unbanned.user.id)

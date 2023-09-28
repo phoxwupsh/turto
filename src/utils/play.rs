@@ -9,9 +9,9 @@ use songbird::{
 use tracing::error;
 
 use crate::{
-    guild::{playing::Playing, playlist::Playlists, setting::GuildSettings},
+    guild::{playing::Playing, playlist::Playlists, config::GuildConfigs},
     handlers::track_end::TrackEndHandler,
-    models::{playlist::Playlist, guild_setting::GuildSetting},
+    models::{playlist::Playlist, guild::config::GuildConfig},
 };
 
 pub async fn play_url<S>(ctx: &Context, guild_id: GuildId, url: S) -> Result<Metadata, PlayError>
@@ -56,14 +56,14 @@ where
         .data
         .read()
         .await
-        .get::<GuildSettings>()
+        .get::<GuildConfigs>()
         .expect("Expected Settings in TypeMap")
         .clone();
     {
         let mut settings = settings_lock.lock().await;
         let setting = settings
             .entry(guild_id)
-            .or_insert_with(GuildSetting::default);
+            .or_insert_with(GuildConfig::default);
         if let Err(why) = song.set_volume(*setting.volume) {
             error!("Error setting volume of track {}: {:?}", song.uuid(), why);
             return Err(PlayError::TrackError(why));

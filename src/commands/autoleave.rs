@@ -5,7 +5,7 @@ use serenity::{
 };
 
 use crate::{
-    guild::setting::GuildSettings, messages::TurtoMessage, models::guild_setting::GuildSetting,
+    guild::config::GuildConfigs, messages::TurtoMessage, models::guild::config::GuildConfig,
 };
 
 #[command]
@@ -19,19 +19,19 @@ async fn autoleave(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             return Ok(());
         }
     };
-    let settings_lock = ctx
+    let guild_configs_lock = ctx
         .data
         .read()
         .await
-        .get::<GuildSettings>()
+        .get::<GuildConfigs>()
         .expect("Expected Playlists in TypeMap.")
         .clone();
     {
-        let mut settings = settings_lock.lock().await;
-        let setting = settings
+        let mut guild_configs = guild_configs_lock.lock().await;
+        let guild_config = guild_configs
             .entry(msg.guild_id.unwrap())
-            .or_insert_with(GuildSetting::default);
-        setting.auto_leave = toggle;
+            .or_insert_with(GuildConfig::default);
+        guild_config.auto_leave = toggle;
     }
     msg.reply(ctx, TurtoMessage::SetAutoleave(Ok(toggle)))
         .await?;

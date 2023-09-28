@@ -1,5 +1,5 @@
 use crate::{
-    models::{url_type::UrlType, volume::GuildVolume},
+    models::{url_type::UrlType, guild::volume::GuildVolume},
     utils::{misc::ToEmoji, template::Template},
 };
 use serenity::{

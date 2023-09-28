@@ -1,3 +1,3 @@
 pub mod playing;
 pub mod playlist;
-pub mod setting;
+pub mod config;

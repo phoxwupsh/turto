@@ -1,11 +1,15 @@
 #[cfg(test)]
 mod tests {
-    use std::{time::Duration, collections::HashSet};
+    use std::{collections::HashSet, time::Duration};
 
     use serenity::model::prelude::UserId;
 
     use crate::{
-        models::{playlist_item::PlaylistItem, volume::GuildVolume, guild_setting::GuildSetting, url_type::UrlType},
+        models::{
+            guild::{config::GuildConfig, volume::GuildVolume},
+            playlist_item::PlaylistItem,
+            url_type::UrlType,
+        },
         utils::misc::ToEmoji,
     };
 
@@ -26,8 +30,14 @@ mod tests {
             title: "Stellar Stellar / 星街すいせい(official)".to_string(),
             thumbnail: "https://i.ytimg.com/vi_webp/a51VH9BYzZA/maxresdefault.webp".to_string(),
         };
-        assert_eq!(serde_json::from_str::<PlaylistItem>(playlist_item_str).unwrap(), playlist_item);
-        assert_eq!(serde_json::to_string(&playlist_item).unwrap(), playlist_item_str.to_string())
+        assert_eq!(
+            serde_json::from_str::<PlaylistItem>(playlist_item_str).unwrap(),
+            playlist_item
+        );
+        assert_eq!(
+            serde_json::to_string(&playlist_item).unwrap(),
+            playlist_item_str.to_string()
+        )
     }
 
     #[test]
@@ -39,37 +49,79 @@ mod tests {
     }
 
     #[test]
-    fn test_guildsetting_serialization(){
+    fn test_guildsetting_serialization() {
         let gs_string = r#"{"auto_leave":true,"volume":0.33,"banned":["1000005"]}"#;
-        let mut gs = GuildSetting{
+        let mut gs = GuildConfig {
             auto_leave: true,
             volume: GuildVolume::try_from(0.33_f32).unwrap(),
-            banned: HashSet::<UserId>::new()
+            banned: HashSet::<UserId>::new(),
         };
         gs.banned.insert(UserId(1000005));
-        assert_eq!(serde_json::from_str::<GuildSetting>(gs_string).unwrap(), gs);
+        assert_eq!(serde_json::from_str::<GuildConfig>(gs_string).unwrap(), gs);
         assert_eq!(serde_json::to_string(&gs).unwrap(), gs_string);
     }
 
     #[test]
-    fn test_parse_ytdl_url(){
+    fn test_parse_ytdl_url() {
         let short_yt_url = "https://youtu.be/NjdqQyC7Rkc".parse::<UrlType>();
         let short_yt_url_time = "https://youtu.be/NjdqQyC7Rkc?t=8".parse::<UrlType>();
         let yt_url = "https://www.youtube.com/watch?v=NjdqQyC7Rkc".parse::<UrlType>();
         let yt_url_time = "https://www.youtube.com/watch?v=NjdqQyC7Rkc&t=8s".parse::<UrlType>();
-        let yt_playlist_only = "https://www.youtube.com/playlist?list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".parse::<UrlType>();
-        let yt_url_with_playlist = "https://www.youtube.com/watch?v=NjdqQyC7Rkc&list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".parse::<UrlType>();
+        let yt_playlist_only =
+            "https://www.youtube.com/playlist?list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj"
+                .parse::<UrlType>();
+        let yt_url_with_playlist =
+            "https://www.youtube.com/watch?v=NjdqQyC7Rkc&list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj"
+                .parse::<UrlType>();
         let other_url = "https://soundcloud.com/kivawu/the-beautiful-ones".parse::<UrlType>();
         let invalid_url = "some_invalid_url".parse::<UrlType>();
 
-        assert_eq!(short_yt_url, Ok(UrlType::Youtube { id: "NjdqQyC7Rkc".to_owned(), time: None }));
-        assert_eq!(short_yt_url_time, Ok(UrlType::Youtube { id: "NjdqQyC7Rkc".to_owned(), time: Some(8) }));
-        assert_eq!(yt_url, Ok(UrlType::Youtube { id: "NjdqQyC7Rkc".to_owned(), time: None }));
-        assert_eq!(yt_url_time, Ok(UrlType::Youtube { id: "NjdqQyC7Rkc".to_owned(), time: Some(8) }));
-        assert_eq!(yt_playlist_only, Ok(UrlType::YoutubePlaylist { playlist_id: "PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".to_owned() }));
-        assert_eq!(yt_url_with_playlist, Ok(UrlType::YoutubePlaylist { playlist_id: "PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".to_owned() }));
-        assert_eq!(other_url, Ok(UrlType::Other("https://soundcloud.com/kivawu/the-beautiful-ones".to_owned())));
+        assert_eq!(
+            short_yt_url,
+            Ok(UrlType::Youtube {
+                id: "NjdqQyC7Rkc".to_owned(),
+                time: None
+            })
+        );
+        assert_eq!(
+            short_yt_url_time,
+            Ok(UrlType::Youtube {
+                id: "NjdqQyC7Rkc".to_owned(),
+                time: Some(8)
+            })
+        );
+        assert_eq!(
+            yt_url,
+            Ok(UrlType::Youtube {
+                id: "NjdqQyC7Rkc".to_owned(),
+                time: None
+            })
+        );
+        assert_eq!(
+            yt_url_time,
+            Ok(UrlType::Youtube {
+                id: "NjdqQyC7Rkc".to_owned(),
+                time: Some(8)
+            })
+        );
+        assert_eq!(
+            yt_playlist_only,
+            Ok(UrlType::YoutubePlaylist {
+                playlist_id: "PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".to_owned()
+            })
+        );
+        assert_eq!(
+            yt_url_with_playlist,
+            Ok(UrlType::YoutubePlaylist {
+                playlist_id: "PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".to_owned()
+            })
+        );
+        assert_eq!(
+            other_url,
+            Ok(UrlType::Other(
+                "https://soundcloud.com/kivawu/the-beautiful-ones".to_owned()
+            ))
+        );
         assert!(invalid_url.is_err());
     }
-
 }
