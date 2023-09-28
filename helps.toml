@@ -1,7 +1,13 @@
+# The placeholder of the help select menu
 placeholder = "Select a command"
+# The text appear as field name of usage field
 usage_field = "Usage"
+# The text appear as field name of example field
 example_field = "Example"
 
+# Help info for each command, you can format your description text with Discord Markdown syntax
+# usage and examples will be wrapped by code blocks automatically
+# There can be multiple example for each command, use comma to seperate the examples, you can refer to https://toml.io/en/v1.0.0 for more details
 [commands.autoleave]
 description = "Enable (`on`) or disable (`off`) automatic leaving. When automatic leave is enabled, Turto will leave the voice channel automatically when the playlist is empty after playback ends or is stopped."
 usage = "autoleave on|off"

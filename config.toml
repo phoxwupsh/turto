@@ -1,5 +1,14 @@
+# The prefix of your commands, for example, when you set it to "!" then you have to input !join to invoke the command join
 command_prefix = "!"
+
+# Seeking can be "expensive", and causing the bot lagging, generally it can be controlled with limiting the seeking duration, set to false to disable seeking
 allow_seek = true
-allow_backward_seek = false
+
+# The duration limitation of seeking, denoted by seconds
 seek_limit = 600
+
+# Backward seeking is usually more "expensive", depends on the duration of the item being played, set it to true to enable backward seeking
+allow_backward_seek = false
+
+# The delay of command invoking, denoted by seconds, it means "there is only one command can be invoked in command_delay seconds", time for each guild is calculated separately
 command_delay = 1
