@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, str::FromStr, fmt::Display};
 
 use url::{Url, ParseError};
 
@@ -9,18 +9,26 @@ pub enum UrlType {
     Other(String)
 }
 
-impl ToString for UrlType {
-    fn to_string(&self) -> String {
+impl Display for UrlType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Youtube { id, time } => {
-                let mut res = format!("https://www.youtube.com/watch?v={}", id);
+                let mut res = String::with_capacity(172);
+                res.push_str("https://www.youtube.com/watch?v=");
+                res.push_str(id);
                 if let Some(t) = time {
-                    res.push_str(&format!("&t={}", t));
+                    res.push_str("&t=");
+                    res.push_str(t.to_string().as_str());
                 }
-                res
+                f.write_str(&res)
             }
-            Self::YoutubePlaylist { playlist_id } => format!("https://www.youtube.com/playlist?list={}", playlist_id),
-            Self::Other(url) => url.to_owned()
+            Self::YoutubePlaylist { playlist_id } => {
+                let mut res = String::with_capacity(288);
+                res.push_str("https://www.youtube.com/playlist?list=");
+                res.push_str(playlist_id);
+                f.write_str(&res)
+            },
+            Self::Other(url) => f.write_str(url)
         }   
     }
 }
