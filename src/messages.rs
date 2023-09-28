@@ -32,6 +32,8 @@ pub enum TurtoMessage<'a> {
     UserGotUnbanned(Result<UserId, UserId>),
     InvalidUser,
     BannedUserResponse,
+    Help,
+    CommandHelp { command_name: &'a str },
 }
 
 impl Display for TurtoMessage<'_> {
@@ -206,6 +208,17 @@ impl Display for TurtoMessage<'_> {
                     .get_renderer()
                     .render_string(),
             ),
+            Self::Help => f.write_str(
+                &TurtoMessageTemplates::get_template("help")
+                    .get_renderer()
+                    .render_string(),
+            ),
+            Self::CommandHelp { command_name } => f.write_str(
+                &TurtoMessageTemplates::get_template("command_help")
+                    .get_renderer()
+                    .add_arg("command_name", command_name)
+                    .render_string(),
+            ),
         }
     }
 }
@@ -231,7 +244,6 @@ impl TurtoMessageTemplates {
                         let template = Template::parse(template_str)
                             .map_err(|err| panic!("Error parsing template \"{k}\": {err}"))
                             .unwrap();
-                        println!("k: {} template: {:?}", k, template);
                         (k, template)
                     })
                     .collect::<HashMap<_, _>>()

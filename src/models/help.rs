@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub struct Help {
-    pub help_message: String,
     pub placeholder: String,
     pub usage_field: String,
     pub example_field: String,
@@ -13,17 +12,15 @@ pub struct Help {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct HelpFileModel {
-    help_message: String,
     placeholder: String,
     usage_field: String,
     example_field: String,
+    #[serde(rename = "commands")]
     command_helps: HashMap<String, CommandHelpFileModel>,
 }
 
 #[derive(Debug)]
 pub struct CommandHelp {
-    pub help_message: String,
-    pub command_name: String,
     pub description: String,
     pub usage: String,
     pub example: String,
@@ -31,8 +28,6 @@ pub struct CommandHelp {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct CommandHelpFileModel {
-    help_message: String,
-    command_name: String,
     description: String,
     usage: String,
     example: Vec<String>,
@@ -71,7 +66,6 @@ impl From<HelpFileModel> for Help {
             .map(|(k, v)| (k, CommandHelp::from(v)))
             .collect::<HashMap<_, _>>();
         Help {
-            help_message: value.help_message,
             placeholder: value.placeholder,
             usage_field: value.usage_field,
             example_field: value.example_field,
@@ -97,8 +91,6 @@ impl From<CommandHelpFileModel> for CommandHelp {
         }
         let _ = examples_str.trim_end();
         CommandHelp {
-            help_message: value.help_message,
-            command_name: value.command_name,
             description: value.description,
             usage: usage_str,
             example: examples_str,

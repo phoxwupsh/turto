@@ -1,39 +1,28 @@
-help_message = "Here are all the available commands. You can use the menu below to see detailed usage for each command. Remember to prefix any command with an exclamation mark (`!`)."
 placeholder = "Select a command"
 usage_field = "Usage"
 example_field = "Example"
 
-[command_helps.autoleave]
-help_message = "Here is how to use `autoleave`:"
-command_name = "autoleave"
+[commands.autoleave]
 description = "Enable (`on`) or disable (`off`) automatic leaving. When automatic leave is enabled, Turto will leave the voice channel automatically when the playlist is empty after playback ends or is stopped."
 usage = "autoleave on|off"
 example = [ "autoleave on", "autoleave off" ]
 
-[command_helps.join]
-help_message = "Here is how to use `join`:"
-command_name = "join"
+[commands.join]
 description = "Turto will join the voice channel you are in. It has no effect if Turto is already in another voice channel."
 usage = "join"
 example = [ "join" ]
 
-[command_helps.leave]
-help_message = "Here is how to use `leave`:"
-command_name = "leave"
+[commands.leave]
 description = "Make Turto leave the current voice channel."
 usage = "leave"
 example = [ "leave" ]
 
-[command_helps.pause]
-help_message = "Here is how to use `pause`:"
-command_name = "pause"
+[commands.pause]
 description = "Pause the currently playing item."
 usage = "pause"
 example = [ "pause" ]
 
-[command_helps.play]
-help_message = "Here is how to use `play`:"
-command_name = "play"
+[commands.play]
 description = """
 Start playback. If Turto is not in another voice channel, it will join your current one. Depending on the situation, there are several possibilities:
 1. If you provide a URL (`url`), it will stop the current item (if any) and start playing the content from that URL. Supported sources include YouTube, Bilibili videos (no live streams), and Soundcloud music.
@@ -48,23 +37,17 @@ example = [
   "play https://www.bilibili.com/video/BV178411Y7QB/"
 ]
 
-[command_helps.playlist]
-help_message = "Here is how to use `playlist`:"
-command_name = "playlist"
+[commands.playlist]
 description = "Display the current playlist, which is shared across the entire server."
 usage = "playlist"
 example = [ "playlist" ]
 
-[command_helps.playwhat]
-help_message = "Here is how to use `playwhat`:"
-command_name = "playwhat"
+[commands.playwhat]
 description = "Display the currently playing item."
 usage = "playwhat"
 example = [ "playwhat" ]
 
-[command_helps.queue]
-help_message = "Here is how to use `queue`:"
-command_name = "queue"
+[commands.queue]
 description = "Add new URLs (`url`) to the playlist. Supported sources include YouTube, Bilibili videos (no live streams), and Soundcloud music. You can add multiple items at once, separating them with spaces (` `). Additionally, you can directly add entire YouTube playlists, and playlist URLs will be prioritized."
 usage = "queue url"
 example = [
@@ -76,51 +59,37 @@ example = [
   "queue https://www.youtube.com/watch?v=NjdqQyC7Rkc&list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj"
 ]
 
-[command_helps.remove]
-help_message = "Here is how to use `remove`:"
-command_name = "remove"
+[commands.remove]
 description = "Delete certain items from the playlist. There are two ways to use it: you can use `remove index` to delete the item at position `index`, or you can use `remove from~to` to delete all items between positions `from` and `to`. `index`, `from`, and `to` must be positive integers. If you just want to simply clear the playlist, use `remove all`"
 usage = "remove index|from~to|all"
 example = [ "remove 2", "remove 2~4", "remove all" ]
 
-[command_helps.seek]
-help_message = "Here is how to use `seek`:"
-command_name = "seek"
+[commands.seek]
 description = "If there is a currently playing or paused item, jump to the specified `time` in seconds. `time` must be a positive number."
 usage = "seek time"
 example = [ "seek 42" ]
 
-[command_helps.skip]
-help_message = "Here is how to use `skip`:"
-command_name = "skip"
+[commands.skip]
 description = "Skip the currently playing item and start playing the next item in the playlist (if available)."
 usage = "skip"
 example = [ "skip" ]
 
-[command_helps.stop]
-help_message = "Here is how to use `stop`:"
-command_name = "stop"
+[commands.stop]
 description = "Stop the currently playing item."
 usage = "stop"
 example = [ "stop" ]
 
-[command_helps.volume]
-help_message = "Here is how to use `volume`:"
-command_name = "volume"
+[commands.volume]
 description = "Adjust the volume, where `vol` can range from 0 (mute) to 100. The volume setting is shared across the entire server. If you want to check the current volume, use `volume ?`"
 usage = "volume vol"
 example = [ "volume 66", "volume ?" ]
 
-[command_helps.ban]
-help_message = "The command `ban` can only be invoked by adminstrators, here is how to use it:"
-command_name = "ban"
+[commands.ban]
 description = "Ban a user, then the banned user won't be able to use any command. You can mention a user (using `@`) to ban that user, you can also use `<@user id>` to specify the user"
 usage = "ban user"
 example = [ "ban <@244448189917298698>" ]
 
-[command_helps.unban]
-help_message = "The command `unban` can only be invoked by adminstrators, here is how to use it:"
-command_name = "unban"
+[commands.unban]
 description = "Unban a user (if banned), then the user will be able to use all commands. You can mention a user (using `@`) to unban that user, you can also use `<@user id>` to specify the user"
 usage = "unban user"
 example = [ "unban <@244448189917298698>" ]
