@@ -36,7 +36,7 @@ async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let sec = match args.parse::<u64>() {
         Ok(s) => s,
         Err(_) => {
-            msg.reply(ctx, TurtoMessage::Seek { seek_limit: config.seek_limit }).await?;
+            msg.reply(ctx, TurtoMessage::InvalidSeek { seek_limit: config.seek_limit }).await?;
             return Ok(());
         }
     };
@@ -58,12 +58,10 @@ async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                     return Ok(());
                 }
                 if track_state.position.as_secs() + config.seek_limit <= sec {
-                    // Seeking is expensive, currently set the seek limitation to 10 mins
-                    msg.reply(ctx, TurtoMessage::SeekToLong).await?;
+                    msg.reply(ctx, TurtoMessage::InvalidSeek { seek_limit: config.seek_limit }).await?;
                     return Ok(());
                 }
                 if !config.allow_backward_seek && track_state.position.as_secs() > sec {
-                    // Backward seeking is more expensive so currently disable it
                     msg.reply(ctx, TurtoMessage::BackwardSeekNotAllow).await?;
                     return Ok(());
                 }
