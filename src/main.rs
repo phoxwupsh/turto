@@ -8,7 +8,7 @@ use turto_rs::{
         volume::VOLUME_COMMAND,
     },
     config::TurtoConfig,
-    guild::{playing::Playing, playlist::Playlists, config::GuildConfigs},
+    guild::{config::GuildConfigs, playing::Playing, playlist::Playlists},
     handlers::before::before_hook,
     models::{guild::config::GuildConfig, playlist::Playlist},
 };
@@ -31,8 +31,8 @@ struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn ready(&self, _: Context, ready: Ready) {
-        let name = ready.user.name.clone();
-        let id = ready.user.id.to_string();
+        let name = &ready.user.name;
+        let id = &ready.user.id;
         info!("{} is connected with ID {}.", name, id);
     }
 }
@@ -76,20 +76,19 @@ async fn main() {
         .await
         .expect("Error creating client");
 
-    // Load the data from playlists.json and settings.json
-    let playlists_json = fs::read_to_string("playlists.json").unwrap_or_else(|_| "{}".to_string());
+    let playlists_json = fs::read_to_string("playlists.json").unwrap_or("{}".to_owned());
     let playlists: HashMap<GuildId, Playlist> =
         serde_json::from_str(&playlists_json).unwrap_or_default();
 
-    let settings_json = fs::read_to_string("settings.json").unwrap_or_else(|_| "{}".to_string());
-    let settings: HashMap<GuildId, GuildConfig> =
-        serde_json::from_str(&settings_json).unwrap_or_default();
+    let guild_configs_json = fs::read_to_string("guilds.json").unwrap_or("{}".to_owned());
+    let guild_configs: HashMap<GuildId, GuildConfig> =
+        serde_json::from_str(&guild_configs_json).unwrap_or_default();
 
     {
         let mut data = client.data.write().await;
         data.insert::<Playing>(Arc::new(RwLock::new(HashMap::default())));
         data.insert::<Playlists>(Arc::new(Mutex::new(playlists)));
-        data.insert::<GuildConfigs>(Arc::new(Mutex::new(settings)));
+        data.insert::<GuildConfigs>(Arc::new(Mutex::new(guild_configs)));
     }
 
     let shard_manager = client.shard_manager.clone();
@@ -100,13 +99,11 @@ async fn main() {
             error!("Client error: {:?}", why);
         } else {
             {
-                // Shutdown the client first
                 shard_manager.lock().await.shutdown_all().await;
             }
 
-            // Write Playlists and Settings into json files
             let playlists_json: String;
-            let settings_json: String;
+            let guild_configs_json: String;
             {
                 let data_read = data.read().await;
                 let playlists = data_read
@@ -114,32 +111,32 @@ async fn main() {
                     .expect("Expected Playlists in TypeMap.")
                     .lock()
                     .await;
-                let settings = data_read
+                let guild_configs = data_read
                     .get::<GuildConfigs>()
                     .expect("Expected Settings in TypeMap.")
                     .lock()
                     .await;
                 playlists_json =
-                    serde_json::to_string(&*playlists).unwrap_or_else(|_| "{}".to_string());
-                settings_json =
-                    serde_json::to_string(&*settings).unwrap_or_else(|_| "{}".to_string());
+                    serde_json::to_string(&*playlists).unwrap_or("{}".to_owned());
+                guild_configs_json =
+                    serde_json::to_string(&*guild_configs).unwrap_or("{}".to_owned());
             }
             let playlists_json_size = playlists_json.len();
-            let settings_json_size = settings_json.len();
+            let guild_configs_json_size = guild_configs_json.len();
             if let Err(why) = fs::write("playlists.json", playlists_json) {
-                error!("Error occured while writing playlists.json: {:?}", why);
+                error!("Error occured while writing playlists.json: {}", why);
             } else {
                 info!("Written {} bytes into playlists.json", playlists_json_size);
             }
-            if let Err(why) = fs::write("settings.json", settings_json) {
-                error!("Error occured while writing settings.json: {:?}", why);
+            if let Err(why) = fs::write("guilds.json", guild_configs_json) {
+                error!("Error occured while writing guilds.json: {}", why);
             } else {
-                info!("Written {} bytes into settings.json", settings_json_size);
+                info!("Written {} bytes into guilds.json", guild_configs_json_size);
             }
         }
     });
 
     if let Err(why) = client.start().await {
-        error!("Client error: {:?}", why);
+        error!("Client error: {}", why);
     }
 }

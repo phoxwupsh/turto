@@ -16,4 +16,4 @@ Cargo.lock
 .env
 .vscode
 playlists.json
-settings.json
+guilds.json
