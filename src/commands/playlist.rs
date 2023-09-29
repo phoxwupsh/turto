@@ -20,7 +20,7 @@ async fn playlist(ctx: &Context, msg: &Message) -> CommandResult {
         .read()
         .await
         .get::<Playlists>()
-        .expect("Expected Playlists in TypeMap.")
+        .unwrap()
         .clone();
 
     let waiting: Option<Message>;

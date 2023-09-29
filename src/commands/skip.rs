@@ -31,7 +31,7 @@ async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
 
     let handler_lock = match songbird::get(ctx)
         .await
-        .expect("Songbird Voice client placed in at initialization.")
+        .unwrap()
         .get(guild.id)
     {
         Some(handler_lock) => handler_lock,

@@ -23,7 +23,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
         VoiceChannelState::OnlySecond(user_vc) => {
             let (_handler_lock, success) = songbird::get(ctx)
                 .await
-                .expect("Songbird Voice client placed in at initialization.")
+                .unwrap()
                 .join(guild.id, user_vc)
                 .await;
             if success.is_ok() {

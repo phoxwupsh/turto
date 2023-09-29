@@ -58,7 +58,7 @@ async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         .read()
         .await
         .get::<Playlists>()
-        .expect("Expected Playlists in TypeMap.")
+        .unwrap()
         .clone();
     {
         let mut playlists = playlists_lock.lock().await;

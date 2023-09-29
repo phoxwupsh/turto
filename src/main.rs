@@ -51,8 +51,9 @@ async fn main() {
         .with_max_level(Level::INFO)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("Tracing initialization failed.");
-    dotenv::dotenv().expect("Failed to load .env file");
-    let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
+    dotenv::dotenv().unwrap_or_else(|err| panic!("Error loading .env file: {}", err));
+    let token = env::var("DISCORD_TOKEN")
+        .unwrap_or_else(|err| panic!("Error loading DISCORD_TOKEN in the environment: {}", err));
     let config = TurtoConfigProvider::get();
 
     let framework = StandardFramework::new()
@@ -74,7 +75,7 @@ async fn main() {
         .intents(intents)
         .register_songbird()
         .await
-        .expect("Error creating client");
+        .unwrap_or_else(|err| panic!("Error creating client: {}", err));
 
     let playlists_json = fs::read_to_string("playlists.json").unwrap_or("{}".to_owned());
     let playlists: HashMap<GuildId, Playlist> =
@@ -106,18 +107,9 @@ async fn main() {
             let guild_configs_json: String;
             {
                 let data_read = data.read().await;
-                let playlists = data_read
-                    .get::<Playlists>()
-                    .expect("Expected Playlists in TypeMap.")
-                    .lock()
-                    .await;
-                let guild_configs = data_read
-                    .get::<GuildConfigs>()
-                    .expect("Expected Settings in TypeMap.")
-                    .lock()
-                    .await;
-                playlists_json =
-                    serde_json::to_string(&*playlists).unwrap_or("{}".to_owned());
+                let playlists = data_read.get::<Playlists>().unwrap().lock().await;
+                let guild_configs = data_read.get::<GuildConfigs>().unwrap().lock().await;
+                playlists_json = serde_json::to_string(&*playlists).unwrap_or("{}".to_owned());
                 guild_configs_json =
                     serde_json::to_string(&*guild_configs).unwrap_or("{}".to_owned());
             }

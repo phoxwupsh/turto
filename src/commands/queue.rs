@@ -55,12 +55,12 @@ async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
             .read()
             .await
             .get::<Playlists>()
-            .expect("Expected Playlists in TypeMap.")
+            .unwrap()
             .clone();
         {
             let mut playlists = playlists_lock.lock().await;
             let playlist = playlists
-                .entry(msg.guild_id.expect("Expected guild_id"))
+                .entry(msg.guild_id.unwrap())
                 .or_insert_with(Playlist::new);
 
             match queueing {

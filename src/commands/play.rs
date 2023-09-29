@@ -33,7 +33,7 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         VoiceChannelState::OnlySecond(user_vc) => {
             let (_handler_lock, success) = songbird::get(ctx)
                 .await
-                .expect("Songbird Voice client placed in at initialization.")
+                .unwrap()
                 .join(guild.id, user_vc)
                 .await;
             if success.is_ok() {
@@ -64,7 +64,7 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             .read()
             .await
             .get::<Playing>()
-            .expect("Expected Playing in TypeMap")
+            .unwrap()
             .clone();
         {
             let playing = playing_lock.read().await;

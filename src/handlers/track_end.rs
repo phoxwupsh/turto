@@ -21,7 +21,7 @@ impl EventHandler for TrackEndHandler {
                 let data_lock = self.ctx.data.read().await;
                 let data = data_lock
                     .get::<GuildConfigs>()
-                    .expect("Expected Settings in TypeMap")
+                    .unwrap()
                     .clone();
                 data
             };
@@ -35,7 +35,7 @@ impl EventHandler for TrackEndHandler {
             if auto_leave {
                 let manager = songbird::get(&self.ctx)
                     .await
-                    .expect("Songbird Voice client placing in Resource failed.")
+                    .unwrap()
                     .clone();
 
                 if let Err(e) = manager.remove(self.guild_id).await {

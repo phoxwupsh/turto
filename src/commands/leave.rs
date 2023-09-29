@@ -29,7 +29,7 @@ async fn leave(ctx: &Context, msg: &Message) -> CommandResult {
 
     let manager = songbird::get(ctx)
         .await
-        .expect("Songbird Voice client placing in Resource failed.")
+        .unwrap()
         .clone();
 
     manager.remove(guild.id).await?;

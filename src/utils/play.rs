@@ -20,7 +20,7 @@ where
 {
     let manager = songbird::get(ctx)
         .await
-        .expect("Songbird voice client placement in resource map failed.")
+        .unwrap()
         .clone();
 
     let handler_lock = manager.get(guild_id).unwrap(); // When this method is called the bot must be in a voice channel
@@ -57,7 +57,7 @@ where
         .read()
         .await
         .get::<GuildConfigs>()
-        .expect("Expected Settings in TypeMap")
+        .unwrap()
         .clone();
     {
         let mut settings = settings_lock.lock().await;
@@ -76,7 +76,7 @@ where
         .read()
         .await
         .get::<Playing>()
-        .expect("Expected Playing in TypeMap")
+        .unwrap()
         .clone();
     {
         let _track = playing_lock.write().await.insert(guild_id, song);
@@ -90,7 +90,7 @@ pub async fn play_next(ctx: &Context, guild_id: GuildId) -> Result<Metadata, Pla
         .read()
         .await
         .get::<Playlists>()
-        .expect("Expected Playlists in TypeMap.")
+        .unwrap()
         .clone();
     let mut playlists = playlist_lock.lock().await;
     let playlist = playlists.entry(guild_id).or_insert_with(Playlist::new);

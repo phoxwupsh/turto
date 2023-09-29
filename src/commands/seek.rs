@@ -47,7 +47,7 @@ async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         .read()
         .await
         .get::<Playing>()
-        .expect("Expected Playing in TypeMap")
+        .unwrap()
         .clone();
     {
         let playing = playing_lock.read().await;

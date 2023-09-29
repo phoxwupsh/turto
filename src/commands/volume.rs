@@ -19,7 +19,7 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             .read()
             .await
             .get::<GuildConfigs>()
-            .expect("Expected Playing in TypeMap")
+            .unwrap()
             .clone()
             .lock()
             .await
@@ -50,7 +50,7 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         .read()
         .await
         .get::<Playing>()
-        .expect("Expected Playing in TypeMap")
+        .unwrap()
         .clone();
     {
         let playing = playing_lock.read().await;
@@ -71,7 +71,7 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         .read()
         .await
         .get::<GuildConfigs>()
-        .expect("Expected Playing in TypeMap")
+        .unwrap()
         .clone();
     {
         let mut settings = settings_lock.lock().await;

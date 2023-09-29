@@ -32,7 +32,7 @@ async fn ban(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         .read()
         .await
         .get::<GuildConfigs>()
-        .expect("Expected GuildSettings in TypeMap")
+        .unwrap()
         .clone();
     
     let ban_result = {

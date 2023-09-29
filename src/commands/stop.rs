@@ -35,7 +35,7 @@ async fn stop(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
         .read()
         .await
         .get::<Playing>()
-        .expect("Expected Playing in TypeMap")
+        .unwrap()
         .clone();
     {
         let mut playing = playing_lock.write().await;

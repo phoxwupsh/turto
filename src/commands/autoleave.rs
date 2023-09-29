@@ -24,7 +24,7 @@ async fn autoleave(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         .read()
         .await
         .get::<GuildConfigs>()
-        .expect("Expected Playlists in TypeMap.")
+        .unwrap()
         .clone();
     {
         let mut guild_configs = guild_configs_lock.lock().await;
