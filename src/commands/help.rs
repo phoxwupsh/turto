@@ -1,20 +1,21 @@
-use std::{time::Duration, sync::Arc};
+use std::{sync::Arc, time::Duration};
 
 use serenity::{
     framework::standard::{macros::command, CommandResult},
+    futures::StreamExt,
     model::{
         application::interaction::InteractionResponseType,
-        prelude::{Message, interaction::message_component::MessageComponentInteraction},
+        prelude::{interaction::message_component::MessageComponentInteraction, Message},
     },
-    prelude::Context, futures::StreamExt,
+    prelude::Context,
 };
 
-use crate::{models::help::Help, messages::TurtoMessage};
+use crate::{config::help::HelpConfigProvider, messages::TurtoMessage};
 
 #[command]
 async fn help(ctx: &Context, msg: &Message) -> CommandResult {
-    let helps = Help::get_helps();
-    let command_list = Help::get_command_list();
+    let helps = HelpConfigProvider::get();
+    let command_list = HelpConfigProvider::command_list();
     let waiting = msg
         .channel_id
         .send_message(ctx, |message| {
@@ -28,7 +29,9 @@ async fn help(ctx: &Context, msg: &Message) -> CommandResult {
                                 .placeholder(&helps.placeholder)
                                 .options(|options| {
                                     for command_name in command_list.iter() {
-                                        options.create_option(|o| o.label(command_name).value(command_name));
+                                        options.create_option(|o| {
+                                            o.label(command_name).value(command_name)
+                                        });
                                     }
                                     options
                                 })
@@ -42,18 +45,20 @@ async fn help(ctx: &Context, msg: &Message) -> CommandResult {
         .await_component_interactions(ctx)
         .timeout(Duration::from_secs(60))
         .build();
-    
+
     let interaction = {
         let res: Arc<MessageComponentInteraction>;
         loop {
             match interactions.next().await {
                 Some(interaction) => {
-                    if interaction.user == msg.author { // response only if the interaction is send by the user who invoke the help command
+                    if interaction.user == msg.author {
+                        // response only if the interaction is send by the user who invoke the help command
                         res = interaction;
                         break;
                     }
-                },
-                None => { // if there is no interaction sended, delete the select menu
+                }
+                None => {
+                    // if there is no interaction sended, delete the select menu
                     waiting.delete(ctx).await?;
                     return Ok(());
                 }
@@ -63,10 +68,12 @@ async fn help(ctx: &Context, msg: &Message) -> CommandResult {
     };
 
     let command_name = &interaction.data.values[0];
-    let target_help = helps
-        .command_helps
-        .get(command_name)
-        .expect("Error loading command help");
+    let target_help = helps.commands.get(command_name).unwrap_or_else(|| {
+        panic!(
+            "Can't find help configuration of the command \"{}\" in help.toml",
+            command_name
+        )
+    });
 
     interaction
         .create_interaction_response(ctx, |resp| {

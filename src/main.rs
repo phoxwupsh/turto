@@ -7,7 +7,7 @@ use turto_rs::{
         seek::SEEK_COMMAND, skip::SKIP_COMMAND, stop::STOP_COMMAND, unban::UNBAN_COMMAND,
         volume::VOLUME_COMMAND,
     },
-    config::TurtoConfig,
+    config::TurtoConfigProvider,
     guild::{config::GuildConfigs, playing::Playing, playlist::Playlists},
     handlers::before::before_hook,
     models::{guild::config::GuildConfig, playlist::Playlist},
@@ -53,7 +53,7 @@ async fn main() {
     tracing::subscriber::set_global_default(subscriber).expect("Tracing initialization failed.");
     dotenv::dotenv().expect("Failed to load .env file");
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
-    let config = TurtoConfig::get_config();
+    let config = TurtoConfigProvider::get();
 
     let framework = StandardFramework::new()
         .configure(|c| c.prefix(config.command_prefix.clone()))

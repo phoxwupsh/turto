@@ -8,13 +8,13 @@ use serenity::{
 use songbird::tracks::PlayMode;
 use tracing::error;
 
-use crate::{guild::playing::Playing, messages::TurtoMessage, utils::guild::{GuildUtil, VoiceChannelState}, config::TurtoConfig};
+use crate::{guild::playing::Playing, messages::TurtoMessage, utils::guild::{GuildUtil, VoiceChannelState}, config::TurtoConfigProvider};
 
 #[command]
 #[bucket = "music"]
 async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let guild = msg.guild(ctx).unwrap();
-    let config = TurtoConfig::get_config();
+    let config = TurtoConfigProvider::get();
 
     if !config.allow_seek {
         msg.reply(ctx, TurtoMessage::SeekNotAllow).await?;
