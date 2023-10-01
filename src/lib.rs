@@ -1,10 +1,10 @@
-pub mod utils;
 pub mod commands;
-pub mod guild;
+pub mod config;
 pub mod handlers;
 pub mod messages;
 pub mod models;
-pub mod config;
+pub mod typemap;
+pub mod utils;
 
 #[cfg(test)]
-pub  mod test;
+pub mod test;

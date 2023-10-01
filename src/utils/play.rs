@@ -9,7 +9,7 @@ use songbird::{
 use tracing::error;
 
 use crate::{
-    guild::{playing::Playing, playlist::Playlists, config::GuildConfigs},
+    typemap::{playing::Playing, playlist::Playlists, config::GuildConfigs},
     handlers::track_end::TrackEndHandler,
     models::{playlist::Playlist, guild::config::GuildConfig},
 };

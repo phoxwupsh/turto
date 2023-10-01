@@ -6,7 +6,7 @@ use serenity::{
 use songbird::tracks::PlayMode;
 use tracing::error;
 
-use crate::{guild::playing::Playing, messages::TurtoMessage};
+use crate::{typemap::playing::Playing, messages::TurtoMessage};
 
 #[command]
 #[bucket = "music"]

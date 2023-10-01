@@ -3,7 +3,7 @@ use songbird::events::{Event, EventContext, EventHandler};
 use tracing::error;
 
 use crate::{
-    guild::config::GuildConfigs,
+    typemap::config::GuildConfigs,
     models::guild::config::GuildConfig,
     utils::play::{play_next, PlayError},
 };

@@ -8,7 +8,7 @@ use turto::{
         volume::VOLUME_COMMAND,
     },
     config::TurtoConfigProvider,
-    guild::{config::GuildConfigs, playing::Playing, playlist::Playlists},
+    typemap::{config::GuildConfigs, playing::Playing, playlist::Playlists},
     handlers::before::before_hook,
     models::{guild::config::GuildConfig, playlist::Playlist},
 };

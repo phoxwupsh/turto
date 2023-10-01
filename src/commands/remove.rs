@@ -6,7 +6,7 @@ use serenity::{
 
 use regex::Regex;
 
-use crate::{guild::playlist::Playlists, models::playlist::Playlist, messages::TurtoMessage};
+use crate::{typemap::playlist::Playlists, models::playlist::Playlist, messages::TurtoMessage};
 
 enum RemoveType {
     All,

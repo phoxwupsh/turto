@@ -3,7 +3,7 @@ use serenity::{
     model::prelude::{Message, UserId},
     prelude::Context,
 };
-use crate::{messages::TurtoMessage, guild::config::GuildConfigs, models::guild::config::GuildConfig};
+use crate::{messages::TurtoMessage, typemap::config::GuildConfigs, models::guild::config::GuildConfig};
 
 #[command]
 #[bucket = "music"]

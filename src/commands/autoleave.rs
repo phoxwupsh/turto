@@ -5,7 +5,7 @@ use serenity::{
 };
 
 use crate::{
-    guild::config::GuildConfigs, messages::TurtoMessage, models::guild::config::GuildConfig,
+    typemap::config::GuildConfigs, messages::TurtoMessage, models::guild::config::GuildConfig,
 };
 
 #[command]

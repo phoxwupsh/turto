@@ -5,7 +5,7 @@ use serenity::{
 };
 
 use crate::{
-    guild::playlist::Playlists,
+    typemap::playlist::Playlists,
     models::{playlist_item::PlaylistItem, playlist::Playlist, url::ParsedUrl, queue::Queueing}, messages::TurtoMessage,
 };
 

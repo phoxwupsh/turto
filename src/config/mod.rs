@@ -1,8 +1,8 @@
 pub mod help;
 pub mod message_template;
 
-use std::{fs, sync::OnceLock};
 use crate::models::config::TurtoConfig;
+use std::{fs, sync::OnceLock};
 
 pub struct TurtoConfigProvider;
 

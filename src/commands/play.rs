@@ -7,7 +7,7 @@ use songbird::tracks::PlayMode;
 use url::Url;
 
 use crate::{
-    guild::playing::Playing,
+    typemap::playing::Playing,
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         play::{play_next, play_url},

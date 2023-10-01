@@ -1,7 +1,7 @@
 use serenity::{framework::standard::macros::hook, model::prelude::Message, prelude::Context};
 
 use crate::{
-    guild::config::GuildConfigs, messages::TurtoMessage, models::guild::config::GuildConfig,
+    typemap::config::GuildConfigs, messages::TurtoMessage, models::guild::config::GuildConfig,
 };
 
 #[hook]

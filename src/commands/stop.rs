@@ -7,7 +7,7 @@ use serenity::{
 use tracing::error;
 
 use crate::{
-    guild::playing::Playing,
+    typemap::playing::Playing,
     messages::TurtoMessage,
     utils::guild::{GuildUtil, VoiceChannelState},
 };

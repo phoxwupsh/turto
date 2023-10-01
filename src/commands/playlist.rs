@@ -10,7 +10,7 @@ use serenity::{
     prelude::Context,
 };
 
-use crate::{guild::playlist::Playlists, models::playlist::Playlist, utils::misc::ToEmoji};
+use crate::{typemap::playlist::Playlists, models::playlist::Playlist, utils::misc::ToEmoji};
 
 #[command]
 #[bucket = "music"]

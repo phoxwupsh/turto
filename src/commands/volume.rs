@@ -1,5 +1,5 @@
 use crate::{
-    guild::{playing::Playing, config::GuildConfigs},
+    typemap::{playing::Playing, config::GuildConfigs},
     models::guild::{config::GuildConfig, volume::GuildVolume},
     messages::TurtoMessage,
 };
