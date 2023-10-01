@@ -1,5 +1,5 @@
 use tokio::sync::{Mutex, RwLock};
-use turto_rs::{
+use turto::{
     commands::{
         autoleave::AUTOLEAVE_COMMAND, ban::BAN_COMMAND, help::HELP_COMMAND, join::JOIN_COMMAND,
         leave::LEAVE_COMMAND, pause::PAUSE_COMMAND, play::PLAY_COMMAND, playlist::PLAYLIST_COMMAND,
