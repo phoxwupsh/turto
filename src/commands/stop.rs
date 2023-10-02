@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[command]
-#[bucket = "music"]
+#[bucket = "turto"]
 async fn stop(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
     let guild = msg.guild(ctx).unwrap();
 

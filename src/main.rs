@@ -1,49 +1,20 @@
-use tokio::sync::{Mutex, RwLock};
-use turto::{
-    commands::{
-        autoleave::AUTOLEAVE_COMMAND, ban::BAN_COMMAND, help::HELP_COMMAND, join::JOIN_COMMAND,
-        leave::LEAVE_COMMAND, pause::PAUSE_COMMAND, play::PLAY_COMMAND, playlist::PLAYLIST_COMMAND,
-        playwhat::PLAYWHAT_COMMAND, queue::QUEUE_COMMAND, remove::REMOVE_COMMAND,
-        seek::SEEK_COMMAND, skip::SKIP_COMMAND, stop::STOP_COMMAND, unban::UNBAN_COMMAND,
-        volume::VOLUME_COMMAND,
-    },
-    config::TurtoConfigProvider,
-    typemap::{config::GuildConfigs, playing::Playing, playlist::Playlists},
-    handlers::before::before_hook,
-    models::{guild::config::GuildConfig, playlist::Playlist},
-};
-
 use serenity::{
-    async_trait,
-    client::{Client, EventHandler},
-    framework::standard::{buckets::LimitedFor, macros::group, StandardFramework},
-    model::{gateway::Ready, prelude::GuildId},
-    prelude::{Context, GatewayIntents},
+    client::Client,
+    framework::standard::{buckets::LimitedFor, StandardFramework},
+    model::prelude::GuildId,
+    prelude::GatewayIntents,
 };
-use std::{collections::HashMap, env, fs, sync::Arc};
-
 use songbird::SerenityInit;
-
+use std::{collections::HashMap, env, fs, sync::Arc};
+use tokio::sync::{Mutex, RwLock};
 use tracing::{error, info, Level};
-
-struct Handler;
-
-#[async_trait]
-impl EventHandler for Handler {
-    async fn ready(&self, _: Context, ready: Ready) {
-        let name = &ready.user.name;
-        let id = &ready.user.id;
-        info!("{} is connected with ID {}.", name, id);
-    }
-}
-
-#[group]
-#[commands(
-    play, pause, playwhat, stop, volume, playlist, queue, remove, join, leave, skip, seek, help,
-    autoleave, ban, unban
-)]
-#[only_in(guilds)]
-struct Music;
+use turto::{
+    commands::TURTOCOMMANDS_GROUP,
+    config::TurtoConfigProvider,
+    handlers::{before::before_hook, SerenityEventHandler},
+    models::{guild::config::GuildConfig, playlist::Playlist},
+    typemap::{config::GuildConfigs, playing::Playing, playlist::Playlists},
+};
 
 #[tokio::main]
 async fn main() {
@@ -66,19 +37,19 @@ async fn main() {
 
     let framework = StandardFramework::new()
         .configure(|c| c.prefix(config.command_prefix.clone()))
-        .bucket("music", |bucket| {
+        .bucket("turto", |bucket| {
             bucket
                 .delay(config.command_delay)
                 .await_ratelimits(1)
                 .limit_for(LimitedFor::Guild)
         })
         .await
-        .group(&MUSIC_GROUP)
+        .group(&TURTOCOMMANDS_GROUP)
         .before(before_hook);
 
     let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
     let mut client = Client::builder(&token, intents)
-        .event_handler(Handler)
+        .event_handler(SerenityEventHandler)
         .framework(framework)
         .intents(intents)
         .register_songbird()

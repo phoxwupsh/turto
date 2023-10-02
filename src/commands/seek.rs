@@ -16,7 +16,7 @@ use crate::{
 };
 
 #[command]
-#[bucket = "music"]
+#[bucket = "turto"]
 async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let guild = msg.guild(ctx).unwrap();
     let config = TurtoConfigProvider::get();

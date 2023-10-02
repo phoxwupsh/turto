@@ -17,7 +17,7 @@ enum QueueType {
 }
 
 #[command]
-#[bucket = "music"]
+#[bucket = "turto"]
 async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     while !args.is_empty() {
         let arg = args.single::<String>().unwrap();

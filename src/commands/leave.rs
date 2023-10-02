@@ -9,7 +9,7 @@ use serenity::{
 };
 
 #[command]
-#[bucket = "music"]
+#[bucket = "turto"]
 async fn leave(ctx: &Context, msg: &Message) -> CommandResult {
     let guild = msg.guild(ctx).unwrap();
 

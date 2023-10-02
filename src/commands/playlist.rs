@@ -13,7 +13,7 @@ use serenity::{
 use crate::{typemap::playlist::Playlists, utils::misc::ToEmoji};
 
 #[command]
-#[bucket = "music"]
+#[bucket = "turto"]
 async fn playlist(ctx: &Context, msg: &Message) -> CommandResult {
     let playlists_lock = ctx.data.read().await.get::<Playlists>().unwrap().clone();
 

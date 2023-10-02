@@ -6,7 +6,7 @@ use serenity::{
 use crate::{messages::TurtoMessage, typemap::config::GuildConfigs};
 
 #[command]
-#[bucket = "music"]
+#[bucket = "turto"]
 async fn unban(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let guild = msg.guild(ctx).unwrap();
     let member = guild.member(ctx, &msg.author).await?;

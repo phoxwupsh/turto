@@ -15,7 +15,7 @@ enum RemoveType {
 }
 
 #[command]
-#[bucket = "music"]
+#[bucket = "turto"]
 async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let re = Regex::new(r"(?<from>^[1-9]\d*)~(?<to>[1-9]\d*)").unwrap();
     let remove_item = match args.rest() {

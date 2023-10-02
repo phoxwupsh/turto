@@ -9,7 +9,7 @@ use tracing::error;
 use crate::{typemap::playing::Playing, messages::TurtoMessage};
 
 #[command]
-#[bucket = "music"]
+#[bucket = "turto"]
 async fn playwhat(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
     let guild = msg.guild(&ctx.cache).unwrap();
 

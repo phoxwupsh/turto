@@ -17,7 +17,7 @@ use crate::{
 use tracing::error;
 
 #[command]
-#[bucket = "music"]
+#[bucket = "turto"]
 async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let guild = msg.guild(ctx).unwrap();
 

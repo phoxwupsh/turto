@@ -13,6 +13,7 @@ use serenity::{
 use crate::{config::help::HelpConfigProvider, messages::TurtoMessage};
 
 #[command]
+#[bucket = "turto"]
 async fn help(ctx: &Context, msg: &Message) -> CommandResult {
     let helps = HelpConfigProvider::get();
     let command_list = HelpConfigProvider::command_list();

@@ -1,3 +1,11 @@
+use self::{
+    autoleave::AUTOLEAVE_COMMAND, ban::BAN_COMMAND, help::HELP_COMMAND, join::JOIN_COMMAND,
+    leave::LEAVE_COMMAND, pause::PAUSE_COMMAND, play::PLAY_COMMAND, playlist::PLAYLIST_COMMAND,
+    playwhat::PLAYWHAT_COMMAND, queue::QUEUE_COMMAND, remove::REMOVE_COMMAND, seek::SEEK_COMMAND,
+    skip::SKIP_COMMAND, stop::STOP_COMMAND, unban::UNBAN_COMMAND, volume::VOLUME_COMMAND,
+};
+use serenity::framework::standard::macros::group;
+
 pub mod autoleave;
 pub mod ban;
 pub mod help;
@@ -14,3 +22,11 @@ pub mod skip;
 pub mod stop;
 pub mod unban;
 pub mod volume;
+
+#[group]
+#[commands(
+    play, pause, playwhat, stop, volume, playlist, queue, remove, join, leave, skip, seek, help,
+    autoleave, ban, unban
+)]
+#[only_in(guilds)]
+struct TurtoCommands;

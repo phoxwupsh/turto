@@ -9,7 +9,7 @@ use crate::{
 };
 
 #[command]
-#[bucket = "music"]
+#[bucket = "turto"]
 async fn autoleave(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let toggle = match args.rest() {
         "on" => true,

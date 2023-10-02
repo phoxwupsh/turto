@@ -11,7 +11,7 @@ use serenity::{
 use tracing::error;
 
 #[command]
-#[bucket = "music"]
+#[bucket = "turto"]
 async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     if args.rest() == "?" {
         let curr_vol = ctx
