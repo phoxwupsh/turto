@@ -4,7 +4,6 @@ use tracing::error;
 
 use crate::{
     typemap::config::GuildConfigs,
-    models::guild::config::GuildConfig,
     utils::play::{play_next, PlayError},
 };
 
@@ -17,29 +16,24 @@ pub struct TrackEndHandler {
 impl EventHandler for TrackEndHandler {
     async fn act(&self, _ctx: &EventContext<'_>) -> Option<Event> {
         if let Err(PlayError::EmptyPlaylist(_guild)) = play_next(&self.ctx, self.guild_id).await {
-            let settings_lock = {
-                let data_lock = self.ctx.data.read().await;
-                let data = data_lock
-                    .get::<GuildConfigs>()
-                    .unwrap()
-                    .clone();
-                data
-            };
+            let guild_configs_lock = self
+                .ctx
+                .data
+                .read()
+                .await
+                .get::<GuildConfigs>()
+                .unwrap()
+                .clone();
             let auto_leave = {
-                let mut settings = settings_lock.lock().await;
-                let setting = settings
-                    .entry(self.guild_id)
-                    .or_insert_with(GuildConfig::default);
-                setting.auto_leave
+                let mut guild_configs = guild_configs_lock.lock().await;
+                let guild_config = guild_configs.entry(self.guild_id).or_default();
+                guild_config.auto_leave
             };
             if auto_leave {
-                let manager = songbird::get(&self.ctx)
-                    .await
-                    .unwrap()
-                    .clone();
+                let manager = songbird::get(&self.ctx).await.unwrap().clone();
 
                 if let Err(e) = manager.remove(self.guild_id).await {
-                    error!("Error leave voice channel: {:?}", e);
+                    error!("Error leave voice channel: {}", e);
                 }
             }
         }

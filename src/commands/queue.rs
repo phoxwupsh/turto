@@ -4,9 +4,12 @@ use serenity::{
     prelude::Context,
 };
 
+use songbird::input::ytdl;
+
 use crate::{
+    messages::TurtoMessage,
+    models::{playlist::Playlist, playlist_item::PlaylistItem, queue::Queueing, url::ParsedUrl},
     typemap::playlist::Playlists,
-    models::{playlist_item::PlaylistItem, playlist::Playlist, url::ParsedUrl, queue::Queueing}, messages::TurtoMessage,
 };
 
 #[command]
@@ -26,55 +29,64 @@ async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
                         msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed))).await?;
                         continue;
                     };
-                    Queueing::Multiple{playlist: res, playlist_info: info}
+                    Queueing::Multiple {
+                        playlist: res,
+                        playlist_info: info,
+                    }
                 } else if let Some(video_url) = yt_url.video_url().build() {
-                    let Ok(source) = songbird::input::ytdl(&video_url).await else {
+                    let Ok(source) = ytdl(&video_url).await else {
                         msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed))).await?;
                         continue;
                     };
                     let metadata = source.metadata.clone();
                     Queueing::Single(PlaylistItem::from(*metadata))
                 } else {
-                    msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed))).await?;
+                    msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed)))
+                        .await?;
                     continue;
                 }
-            },
+            }
             ParsedUrl::Other(url) => {
-                let Ok(source) = songbird::input::ytdl(url).await else {
+                let Ok(source) = ytdl(url).await else {
                     msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed))).await?;
                     continue;
                 };
                 let metadata = source.metadata.clone();
                 Queueing::Single(PlaylistItem::from(*metadata))
-            },
+            }
         };
-        
 
-        let playlists_lock = ctx
-            .data
-            .read()
-            .await
-            .get::<Playlists>()
-            .unwrap()
-            .clone();
+        let playlists_lock = ctx.data.read().await.get::<Playlists>().unwrap().clone();
         {
             let mut playlists = playlists_lock.lock().await;
-            let playlist = playlists
-                .entry(msg.guild_id.unwrap())
-                .or_insert_with(Playlist::new);
+            let playlist = playlists.entry(msg.guild_id.unwrap()).or_default();
 
             match queueing {
                 Queueing::Single(playlist_item) => {
-                    msg.reply(ctx, TurtoMessage::Queue { title: &playlist_item.title }).await?;
+                    msg.reply(
+                        ctx,
+                        TurtoMessage::Queue {
+                            title: &playlist_item.title,
+                        },
+                    )
+                    .await?;
                     playlist.push_back(playlist_item); // Add song to playlist
-                },
-                Queueing::Multiple{ playlist: queueing_pl, playlist_info } => {
+                }
+                Queueing::Multiple {
+                    playlist: queueing_pl,
+                    playlist_info,
+                } => {
                     playlist.extend(queueing_pl.into_iter());
-                    msg.reply(ctx, TurtoMessage::Queue { title: &playlist_info.playlist_title }).await?;
+                    msg.reply(
+                        ctx,
+                        TurtoMessage::Queue {
+                            title: &playlist_info.playlist_title,
+                        },
+                    )
+                    .await?;
                 }
             }
-            
-        }   
+        }
     }
     Ok(())
 }

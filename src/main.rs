@@ -56,6 +56,14 @@ async fn main() {
         .unwrap_or_else(|err| panic!("Error loading DISCORD_TOKEN in the environment: {}", err));
     let config = TurtoConfigProvider::get();
 
+    let playlists_json = fs::read_to_string("playlists.json").unwrap_or("{}".to_owned());
+    let playlists: HashMap<GuildId, Playlist> =
+        serde_json::from_str(&playlists_json).unwrap_or_default();
+
+    let guild_configs_json = fs::read_to_string("guilds.json").unwrap_or("{}".to_owned());
+    let guild_configs: HashMap<GuildId, GuildConfig> =
+        serde_json::from_str(&guild_configs_json).unwrap_or_default();
+
     let framework = StandardFramework::new()
         .configure(|c| c.prefix(config.command_prefix.clone()))
         .bucket("music", |bucket| {
@@ -74,30 +82,18 @@ async fn main() {
         .framework(framework)
         .intents(intents)
         .register_songbird()
+        .type_map_insert::<Playing>(Arc::new(RwLock::new(HashMap::default())))
+        .type_map_insert::<Playlists>(Arc::new(Mutex::new(playlists)))
+        .type_map_insert::<GuildConfigs>(Arc::new(Mutex::new(guild_configs)))
         .await
         .unwrap_or_else(|err| panic!("Error creating client: {}", err));
-
-    let playlists_json = fs::read_to_string("playlists.json").unwrap_or("{}".to_owned());
-    let playlists: HashMap<GuildId, Playlist> =
-        serde_json::from_str(&playlists_json).unwrap_or_default();
-
-    let guild_configs_json = fs::read_to_string("guilds.json").unwrap_or("{}".to_owned());
-    let guild_configs: HashMap<GuildId, GuildConfig> =
-        serde_json::from_str(&guild_configs_json).unwrap_or_default();
-
-    {
-        let mut data = client.data.write().await;
-        data.insert::<Playing>(Arc::new(RwLock::new(HashMap::default())));
-        data.insert::<Playlists>(Arc::new(Mutex::new(playlists)));
-        data.insert::<GuildConfigs>(Arc::new(Mutex::new(guild_configs)));
-    }
 
     let shard_manager = client.shard_manager.clone();
     let data = client.data.clone();
 
     tokio::spawn(async move {
         if let Err(why) = tokio::signal::ctrl_c().await {
-            error!("Client error: {:?}", why);
+            error!("Client error: {}", why);
         } else {
             {
                 shard_manager.lock().await.shutdown_all().await;

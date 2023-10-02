@@ -1,6 +1,6 @@
 use crate::{
     typemap::{playing::Playing, config::GuildConfigs},
-    models::guild::{config::GuildConfig, volume::GuildVolume},
+    models::guild::volume::GuildVolume,
     messages::TurtoMessage,
 };
 use serenity::{
@@ -24,7 +24,7 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             .lock()
             .await
             .entry(msg.guild_id.unwrap())
-            .or_insert_with(GuildConfig::default)
+            .or_default()
             .volume;
         msg.reply(ctx, TurtoMessage::SetVolume(Ok(curr_vol))).await?;
         return Ok(())
@@ -57,7 +57,7 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         if let Some(current_track) = playing.get(&msg.guild_id.unwrap()) {
             if let Err(why) = current_track.set_volume(*new_vol) {
                 error!(
-                    "Error setting volume for track {}: {:?}",
+                    "Error setting volume for track {}: {}",
                     current_track.uuid(),
                     why
                 );
@@ -66,7 +66,7 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     }
 
     // Update the volume setting of guild
-    let settings_lock = ctx
+    let guild_configs_lock = ctx
         .data
         .read()
         .await
@@ -74,11 +74,11 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         .unwrap()
         .clone();
     {
-        let mut settings = settings_lock.lock().await;
-        let setting = settings
+        let mut guild_configs = guild_configs_lock.lock().await;
+        let guild_config = guild_configs
             .entry(msg.guild_id.unwrap())
-            .or_insert_with(GuildConfig::default);
-        setting.volume = new_vol;
+            .or_default();
+        guild_config.volume = new_vol;
     }
 
     msg.reply(ctx, TurtoMessage::SetVolume(Ok(new_vol))).await?;

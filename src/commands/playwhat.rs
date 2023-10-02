@@ -46,7 +46,7 @@ async fn playwhat(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
                 }
             },
             Err(e) => {
-                error!("Error getting track: {:?}", e);
+                error!("Error getting track: {}", e);
                 return Ok(());
             }
         };

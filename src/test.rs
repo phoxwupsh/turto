@@ -42,23 +42,23 @@ mod tests {
 
     #[test]
     fn test_guildvolume_serialization() {
-        let gv_string = "0.13";
-        let gv = GuildVolume::try_from(0.13_f32).unwrap();
-        assert_eq!(serde_json::from_str::<GuildVolume>(gv_string).unwrap(), gv);
-        assert_eq!(serde_json::to_string(&gv).unwrap(), gv_string);
+        let guild_volume_str = "0.13";
+        let guild_volume = GuildVolume::try_from(0.13_f32).unwrap();
+        assert_eq!(serde_json::from_str::<GuildVolume>(guild_volume_str).unwrap(), guild_volume);
+        assert_eq!(serde_json::to_string(&guild_volume).unwrap(), guild_volume_str);
     }
 
     #[test]
-    fn test_guildsetting_serialization() {
-        let gs_string = r#"{"auto_leave":true,"volume":0.33,"banned":["1000005"]}"#;
-        let mut gs = GuildConfig {
+    fn test_guild_config_serialization() {
+        let guild_config_str = r#"{"auto_leave":true,"volume":0.33,"banned":["1000005"]}"#;
+        let mut guild_config = GuildConfig {
             auto_leave: true,
             volume: GuildVolume::try_from(0.33_f32).unwrap(),
             banned: HashSet::<UserId>::new(),
         };
-        gs.banned.insert(UserId(1000005));
-        assert_eq!(serde_json::from_str::<GuildConfig>(gs_string).unwrap(), gs);
-        assert_eq!(serde_json::to_string(&gs).unwrap(), gs_string);
+        guild_config.banned.insert(UserId(1000005));
+        assert_eq!(serde_json::from_str::<GuildConfig>(guild_config_str).unwrap(), guild_config);
+        assert_eq!(serde_json::to_string(&guild_config).unwrap(), guild_config_str);
     }
 
     #[test]

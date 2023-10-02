@@ -5,7 +5,7 @@ use serenity::{
 };
 
 use crate::{
-    typemap::config::GuildConfigs, messages::TurtoMessage, models::guild::config::GuildConfig,
+    typemap::config::GuildConfigs, messages::TurtoMessage,
 };
 
 #[command]
@@ -30,7 +30,7 @@ async fn autoleave(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         let mut guild_configs = guild_configs_lock.lock().await;
         let guild_config = guild_configs
             .entry(msg.guild_id.unwrap())
-            .or_insert_with(GuildConfig::default);
+            .or_default();
         guild_config.auto_leave = toggle;
     }
     msg.reply(ctx, TurtoMessage::SetAutoleave(Ok(toggle)))

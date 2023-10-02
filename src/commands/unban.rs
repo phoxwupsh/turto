@@ -3,7 +3,7 @@ use serenity::{
     model::prelude::{Message, UserId},
     prelude::Context,
 };
-use crate::{messages::TurtoMessage, typemap::config::GuildConfigs, models::guild::config::GuildConfig};
+use crate::{messages::TurtoMessage, typemap::config::GuildConfigs};
 
 #[command]
 #[bucket = "music"]
@@ -37,7 +37,7 @@ async fn unban(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     
     let unban_result = {
         let mut guild_configs = guild_configs_lock.lock().await;
-        let guild_config = guild_configs.entry(guild.id).or_insert_with(GuildConfig::default);
+        let guild_config = guild_configs.entry(guild.id).or_default();
         if guild_config.banned.remove(&unbanned.user.id) {
             Ok(unbanned.user.id)
         } else {

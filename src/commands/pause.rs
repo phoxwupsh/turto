@@ -48,7 +48,7 @@ async fn pause(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
         };
 
         if let Err(why) = current_track.pause() {
-            error!("Error pausing a track {}: {:?}", current_track.uuid(), why);
+            error!("Error pausing a track {}: {}", current_track.uuid(), why);
         }
 
         msg.reply(

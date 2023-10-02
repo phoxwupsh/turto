@@ -74,8 +74,7 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                 if let Ok(current_track_state) = current_track.get_info().await {
                     if current_track_state.playing == PlayMode::Pause {
                         if let Err(why) = current_track.play() {
-                            error!("Error playing song: {:?}", why);
-                            return Ok(());
+                            error!("Error playing song: {}", why);
                         }
                         return Ok(()); // If there is a paused song then play it
                     }

@@ -6,7 +6,7 @@ use serenity::{
 
 use regex::Regex;
 
-use crate::{typemap::playlist::Playlists, models::playlist::Playlist, messages::TurtoMessage};
+use crate::{messages::TurtoMessage, typemap::playlist::Playlists};
 
 enum RemoveType {
     All,
@@ -32,8 +32,8 @@ async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                 let to = caps.name("to").unwrap().as_str().parse::<usize>().unwrap();
                 RemoveType::Range {
                     from: from - 1, // Index start from 1
-                    to, // to is inclusive thus + 1
-                } 
+                    to,             // to is inclusive thus no need to + 1
+                }
             }
             None => match other.parse::<usize>() {
                 // Check arg is number
@@ -53,18 +53,10 @@ async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         },
     };
 
-    let playlists_lock = ctx
-        .data
-        .read()
-        .await
-        .get::<Playlists>()
-        .unwrap()
-        .clone();
+    let playlists_lock = ctx.data.read().await.get::<Playlists>().unwrap().clone();
     {
         let mut playlists = playlists_lock.lock().await;
-        let playlist = playlists
-            .entry(msg.guild_id.unwrap())
-            .or_insert_with(Playlist::new);
+        let playlist = playlists.entry(msg.guild_id.unwrap()).or_default();
 
         match remove_item {
             RemoveType::All => {
@@ -84,7 +76,12 @@ async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                     let drained = playlist.drain(from..to);
                     let response = drained
                         .into_iter()
-                        .map(|drained_item| TurtoMessage::Remove { title: &drained_item.title }.to_string())
+                        .map(|drained_item| {
+                            TurtoMessage::Remove {
+                                title: &drained_item.title,
+                            }
+                            .to_string()
+                        })
                         .collect::<Vec<_>>()
                         .join("\n");
                     msg.reply(ctx, response).await?;

@@ -48,7 +48,7 @@ async fn stop(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
         };
 
         if let Err(why) = current_track.stop() {
-            error!("Error stopping track {}: {:?}", current_track.uuid(), why);
+            error!("Error stopping track {}: {}", current_track.uuid(), why);
         }
 
         let title = current_track.metadata().title.clone().unwrap();

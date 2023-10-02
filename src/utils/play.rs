@@ -11,7 +11,6 @@ use tracing::error;
 use crate::{
     typemap::{playing::Playing, playlist::Playlists, config::GuildConfigs},
     handlers::track_end::TrackEndHandler,
-    models::{playlist::Playlist, guild::config::GuildConfig},
 };
 
 pub async fn play_url<S>(ctx: &Context, guild_id: GuildId, url: S) -> Result<Metadata, PlayError>
@@ -45,14 +44,14 @@ where
 
     if let Err(why) = song.add_event(Event::Track(TrackEvent::End), next_song_handler) {
         error!(
-            "Error adding TrackEndHandler for track {}: {:?}",
+            "Error adding TrackEndHandler for track {}: {}",
             song.uuid(),
             why
         );
         return Err(PlayError::TrackError(why));
     }
 
-    let settings_lock = ctx
+    let guild_configs_lock = ctx
         .data
         .read()
         .await
@@ -60,12 +59,12 @@ where
         .unwrap()
         .clone();
     {
-        let mut settings = settings_lock.lock().await;
-        let setting = settings
+        let mut guild_configs = guild_configs_lock.lock().await;
+        let guild_config = guild_configs
             .entry(guild_id)
-            .or_insert_with(GuildConfig::default);
-        if let Err(why) = song.set_volume(*setting.volume) {
-            error!("Error setting volume of track {}: {:?}", song.uuid(), why);
+            .or_default();
+        if let Err(why) = song.set_volume(*guild_config.volume) {
+            error!("Error setting volume of track {}: {}", song.uuid(), why);
             return Err(PlayError::TrackError(why));
         }
     }
@@ -93,7 +92,7 @@ pub async fn play_next(ctx: &Context, guild_id: GuildId) -> Result<Metadata, Pla
         .unwrap()
         .clone();
     let mut playlists = playlist_lock.lock().await;
-    let playlist = playlists.entry(guild_id).or_insert_with(Playlist::new);
+    let playlist = playlists.entry(guild_id).or_default();
 
     match playlist.pop_front() {
         Some(next_song) => play_url(ctx, guild_id, next_song.url).await,
