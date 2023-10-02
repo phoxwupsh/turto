@@ -1,88 +1,94 @@
 use std::fmt::Display;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct YouTubeUrl {
-    pub id: Option<String>,
-    pub time: Option<u64>,
-    pub playlist_id: Option<String>
+pub enum YouTubeUrl {
+    Video {
+        video_id: String,
+        playlist_id: Option<String>,
+        time: Option<u64>,
+    },
+    Playlist {
+        playlist_id: String,
+    },
+}
+
+pub struct YouTubeUrlBuilder {
+    video_id: Option<String>,
+    time: Option<u64>,
+    playlist_id: Option<String>,
 }
 
 impl YouTubeUrl {
-    pub fn playlist_url(&self) -> Option<String> {
-        if let Some(playlist_id_) = &self.playlist_id {
-            let mut res = String::with_capacity(72);
-            res.push_str("https://www.youtube.com/playlist?list=");
-            res.push_str(playlist_id_);
-            return Some(res)
+    pub fn builder() -> YouTubeUrlBuilder {
+        YouTubeUrlBuilder {
+            video_id: None,
+            time: None,
+            playlist_id: None,
         }
-        None
     }
-    pub fn video_url(&self) -> VideoUrl {
-        let mut res: Option<String> = None;
-        if let Some(id_) = &self.id {
-            let mut res_str = String::with_capacity(96);
-            res_str.push_str("https://www.youtube.com/watch?v=");
-            res_str.push_str(id_);
-            let _ = res.insert(res_str);
-        }
-        VideoUrl {
-            yt_url: self,
-            acc: res
-        }
+    pub fn is_playlist(&self) -> bool {
+        matches!(self, Self::Playlist { .. })
+    }
+    pub fn is_video(&self) -> bool {
+        matches!(self, Self::Video { .. })
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct VideoUrl<'a> {
-    yt_url: &'a YouTubeUrl,
-    acc: Option<String>
-}
-
-impl VideoUrl<'_> {
-    pub fn with_playlist(&mut self) -> &mut Self {
-        if let Some(playlist_id) = &self.yt_url.playlist_id {
-            if let Some(s) = &mut self.acc {
-                s.push_str("&list=");
-                s.push_str(playlist_id);
-            }
-        }
+impl YouTubeUrlBuilder {
+    pub fn video_id<T: Into<String>>(&mut self, video_id: T) -> &mut Self {
+        let _ = self.video_id.insert(video_id.into());
         self
     }
-    pub fn with_time(&mut self) -> &mut Self {
-        if let Some(time) = &self.yt_url.time {
-            if let Some(s) = &mut self.acc {
-                s.push_str("&t=");
-                s.push_str(time.to_string().as_str());
-                s.push('s');
-            }
-        }
+    pub fn playlist_id<T: Into<String>>(&mut self, playlist_id: T) -> &mut Self {
+        let _ = self.playlist_id.insert(playlist_id.into());
         self
     }
-    pub fn build(self) -> Option<String> {
-        self.acc
+    pub fn time(&mut self, time_sec: u64) -> &mut Self {
+        let _ = self.time.insert(time_sec);
+        self
+    }
+    pub fn build(&self) -> Option<YouTubeUrl> {
+        if let Some(v) = &self.video_id {
+            Some(YouTubeUrl::Video {
+                video_id: v.to_owned(),
+                playlist_id: self.playlist_id.clone(),
+                time: self.time,
+            })
+        } else {
+            self.playlist_id.as_ref().map(|pl| YouTubeUrl::Playlist {
+                playlist_id: pl.to_owned(),
+            })
+        }
     }
 }
 
 impl Display for YouTubeUrl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut res = String::with_capacity(96);
-        res.push_str("https://www.youtube.com/");
-        if let Some(id) = &self.id {
-            res.push_str("watch?v=");
-            res.push_str(id);
-            if let Some(playlist_id) = &self.playlist_id {
-                res.push_str("&list=");
+        res.push_str("https://www.youtube.com/watch?v=");
+        match self {
+            Self::Video {
+                video_id,
+                playlist_id,
+                time,
+            } => {
+                res.push_str(video_id);
+                if let Some(pl) = playlist_id {
+                    res.push_str("&list=");
+                    res.push_str(pl);
+                }
+                if let Some(t) = time {
+                    res.push_str("&t=");
+                    res.push_str(t.to_string().as_str());
+                }
+                f.write_str(&res)
+            }
+            Self::Playlist { playlist_id } => {
+                let mut res = String::with_capacity(72);
+                res.push_str("playlist?list=");
                 res.push_str(playlist_id);
+                f.write_str(&res)
             }
-            if let Some(time) = &self.time {
-                res.push_str("&t=");
-                res.push_str(time.to_string().as_str());
-                res.push('s');
-            }
-        } else if let Some(playlist_id) = &self.playlist_id {
-            res.push_str("playlist?list=");
-            res.push_str(playlist_id);
         }
-        f.write_str(&res)
     }
 }

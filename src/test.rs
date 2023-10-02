@@ -44,8 +44,14 @@ mod tests {
     fn test_guildvolume_serialization() {
         let guild_volume_str = "0.13";
         let guild_volume = GuildVolume::try_from(0.13_f32).unwrap();
-        assert_eq!(serde_json::from_str::<GuildVolume>(guild_volume_str).unwrap(), guild_volume);
-        assert_eq!(serde_json::to_string(&guild_volume).unwrap(), guild_volume_str);
+        assert_eq!(
+            serde_json::from_str::<GuildVolume>(guild_volume_str).unwrap(),
+            guild_volume
+        );
+        assert_eq!(
+            serde_json::to_string(&guild_volume).unwrap(),
+            guild_volume_str
+        );
     }
 
     #[test]
@@ -57,8 +63,14 @@ mod tests {
             banned: HashSet::<UserId>::new(),
         };
         guild_config.banned.insert(UserId(1000005));
-        assert_eq!(serde_json::from_str::<GuildConfig>(guild_config_str).unwrap(), guild_config);
-        assert_eq!(serde_json::to_string(&guild_config).unwrap(), guild_config_str);
+        assert_eq!(
+            serde_json::from_str::<GuildConfig>(guild_config_str).unwrap(),
+            guild_config
+        );
+        assert_eq!(
+            serde_json::to_string(&guild_config).unwrap(),
+            guild_config_str
+        );
     }
 
     #[test]
@@ -81,59 +93,71 @@ mod tests {
 
         assert_eq!(
             short_yt_url,
-            Ok(ParsedUrl::Youtube(YouTubeUrl {
-                id: Some("NjdqQyC7Rkc".to_string()),
-                time: None,
-                playlist_id: None
-            }))
+            Ok(ParsedUrl::Youtube(
+                YouTubeUrl::builder()
+                    .video_id("NjdqQyC7Rkc")
+                    .build()
+                    .unwrap()
+            ))
         );
         assert_eq!(
             short_yt_url_time,
-            Ok(ParsedUrl::Youtube(YouTubeUrl {
-                id: Some("NjdqQyC7Rkc".to_string()),
-                time: Some(8),
-                playlist_id: None
-            }))
+            Ok(ParsedUrl::Youtube(
+                YouTubeUrl::builder()
+                    .video_id("NjdqQyC7Rkc")
+                    .time(8)
+                    .build()
+                    .unwrap()
+            ))
         );
         assert_eq!(
             yt_url,
-            Ok(ParsedUrl::Youtube(YouTubeUrl {
-                id: Some("NjdqQyC7Rkc".to_string()),
-                time: None,
-                playlist_id: None
-            }))
+            Ok(ParsedUrl::Youtube(
+                YouTubeUrl::builder()
+                    .video_id("NjdqQyC7Rkc")
+                    .build()
+                    .unwrap()
+            ))
         );
         assert_eq!(
             yt_url_time,
-            Ok(ParsedUrl::Youtube(YouTubeUrl {
-                id: Some("NjdqQyC7Rkc".to_string()),
-                time: Some(8),
-                playlist_id: None
-            }))
+            Ok(ParsedUrl::Youtube(
+                YouTubeUrl::builder()
+                    .video_id("NjdqQyC7Rkc")
+                    .time(8)
+                    .build()
+                    .unwrap()
+            ))
         );
         assert_eq!(
             yt_playlist_only,
-            Ok(ParsedUrl::Youtube(YouTubeUrl {
-                id: None,
-                time: None,
-                playlist_id: Some("PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".to_string())
-            }))
+            Ok(ParsedUrl::Youtube(
+                YouTubeUrl::builder()
+                    .playlist_id("PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj")
+                    .build()
+                    .unwrap()
+            ))
         );
         assert_eq!(
             yt_url_with_playlist,
-            Ok(ParsedUrl::Youtube(YouTubeUrl {
-                id: Some("NjdqQyC7Rkc".to_string()),
-                time: None,
-                playlist_id: Some("PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".to_string())
-            }))
+            Ok(ParsedUrl::Youtube(
+                YouTubeUrl::builder()
+                    .video_id("NjdqQyC7Rkc")
+                    .playlist_id("PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj")
+                    .build()
+                    .unwrap()
+            ))
         );
         assert_eq!(
             yt_url_with_playlist_and_time,
-            Ok(ParsedUrl::Youtube(YouTubeUrl {
-                id: Some("NjdqQyC7Rkc".to_string()),
-                time: Some(8),
-                playlist_id: Some("PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".to_string())
-            }))
+            Ok(ParsedUrl::Youtube(
+                YouTubeUrl::builder()
+                    .video_id("NjdqQyC7Rkc")
+                    .playlist_id("PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj")
+                    .time(8)
+                    .build()
+                    .unwrap()
+            ))
         );
         assert_eq!(
             other_url,

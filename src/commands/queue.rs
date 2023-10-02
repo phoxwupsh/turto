@@ -24,8 +24,8 @@ async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
         let queueing = match &parsed {
             ParsedUrl::Youtube(yt_url) => {
-                if let Some(playlist_url) = yt_url.playlist_url() {
-                    let (Some(res), Some(info)) = Playlist::ytdl_playlist(&playlist_url) else {
+                if yt_url.is_playlist() {
+                    let (Some(res), Some(info)) = Playlist::ytdl_playlist(&yt_url.to_string()) else {
                         msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed))).await?;
                         continue;
                     };
@@ -33,17 +33,13 @@ async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
                         playlist: res,
                         playlist_info: info,
                     }
-                } else if let Some(video_url) = yt_url.video_url().build() {
-                    let Ok(source) = ytdl(&video_url).await else {
+                } else {
+                    let Ok(source) = ytdl(&yt_url.to_string()).await else {
                         msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed))).await?;
                         continue;
                     };
                     let metadata = source.metadata.clone();
                     Queueing::Single(PlaylistItem::from(*metadata))
-                } else {
-                    msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed)))
-                        .await?;
-                    continue;
                 }
             }
             ParsedUrl::Other(url) => {
