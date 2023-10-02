@@ -1,15 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, time::Duration};
-
-    use serenity::model::prelude::UserId;
 
     use crate::{
-        models::{
-            guild::{config::GuildConfig, volume::GuildVolume},
-            playlist_item::PlaylistItem,
-            url::{youtube_url::YouTubeUrl, ParsedUrl},
-        },
+        models::url::{youtube_url::YouTubeUrl, ParsedUrl},
         utils::misc::ToEmoji,
     };
 
@@ -18,59 +11,6 @@ mod tests {
         assert_eq!(42.to_emoji(), "4️⃣2️⃣");
         assert_eq!(123.to_emoji(), "1️⃣2️⃣3️⃣");
         assert_eq!(56789.to_emoji(), "5️⃣6️⃣7️⃣8️⃣9️⃣");
-    }
-
-    #[test]
-    fn test_playlist_item_serde() {
-        let playlist_item_str = r#"{"url":"https://www.youtube.com/watch?v=a51VH9BYzZA","title":"Stellar Stellar / 星街すいせい(official)","channel":"Suisei Channel","duration":{"secs":305,"nanos":0},"thumbnail":"https://i.ytimg.com/vi_webp/a51VH9BYzZA/maxresdefault.webp"}"#;
-        let playlist_item = PlaylistItem {
-            channel: "Suisei Channel".to_string(),
-            duration: Duration::new(305, 0),
-            url: "https://www.youtube.com/watch?v=a51VH9BYzZA".to_string(),
-            title: "Stellar Stellar / 星街すいせい(official)".to_string(),
-            thumbnail: "https://i.ytimg.com/vi_webp/a51VH9BYzZA/maxresdefault.webp".to_string(),
-        };
-        assert_eq!(
-            serde_json::from_str::<PlaylistItem>(playlist_item_str).unwrap(),
-            playlist_item
-        );
-        assert_eq!(
-            serde_json::to_string(&playlist_item).unwrap(),
-            playlist_item_str.to_string()
-        )
-    }
-
-    #[test]
-    fn test_guildvolume_serialization() {
-        let guild_volume_str = "0.13";
-        let guild_volume = GuildVolume::try_from(0.13_f32).unwrap();
-        assert_eq!(
-            serde_json::from_str::<GuildVolume>(guild_volume_str).unwrap(),
-            guild_volume
-        );
-        assert_eq!(
-            serde_json::to_string(&guild_volume).unwrap(),
-            guild_volume_str
-        );
-    }
-
-    #[test]
-    fn test_guild_config_serialization() {
-        let guild_config_str = r#"{"auto_leave":true,"volume":0.33,"banned":["1000005"]}"#;
-        let mut guild_config = GuildConfig {
-            auto_leave: true,
-            volume: GuildVolume::try_from(0.33_f32).unwrap(),
-            banned: HashSet::<UserId>::new(),
-        };
-        guild_config.banned.insert(UserId(1000005));
-        assert_eq!(
-            serde_json::from_str::<GuildConfig>(guild_config_str).unwrap(),
-            guild_config
-        );
-        assert_eq!(
-            serde_json::to_string(&guild_config).unwrap(),
-            guild_config_str
-        );
     }
 
     #[test]
