@@ -107,4 +107,37 @@ mod tests {
         );
         assert!(invalid_url.is_err());
     }
+
+    #[test]
+    fn test_ytdl_url_to_string() {
+        let video = YouTubeUrl::builder()
+            .video_id("NjdqQyC7Rkc")
+            .build()
+            .unwrap();
+        let video_time = YouTubeUrl::builder()
+            .video_id("NjdqQyC7Rkc")
+            .time(8)
+            .build()
+            .unwrap();
+        let video_time_playlist = YouTubeUrl::builder()
+            .video_id("NjdqQyC7Rkc")
+            .playlist_id("PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj")
+            .time(8)
+            .build()
+            .unwrap();
+        let video_playlist = YouTubeUrl::builder()
+            .video_id("NjdqQyC7Rkc")
+            .playlist_id("PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj")
+            .build()
+            .unwrap();
+        let playlist = YouTubeUrl::builder()
+            .playlist_id("PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj")
+            .build()
+            .unwrap();
+        assert_eq!(video.to_string(), "https://www.youtube.com/watch?v=NjdqQyC7Rkc".to_owned());
+        assert_eq!(video_time.to_string(), "https://www.youtube.com/watch?v=NjdqQyC7Rkc&t=8s".to_owned());
+        assert_eq!(video_time_playlist.to_string(), "https://www.youtube.com/watch?v=NjdqQyC7Rkc&list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj&t=8s".to_owned());
+        assert_eq!(video_playlist.to_string(), "https://www.youtube.com/watch?v=NjdqQyC7Rkc&list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".to_owned());
+        assert_eq!(playlist.to_string(), "https://www.youtube.com/playlist?list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".to_owned())
+    }
 }
