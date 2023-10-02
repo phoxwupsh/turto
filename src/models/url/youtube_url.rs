@@ -65,13 +65,14 @@ impl YouTubeUrlBuilder {
 impl Display for YouTubeUrl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut res = String::with_capacity(96);
-        res.push_str("https://www.youtube.com/watch?v=");
+        res.push_str("https://www.youtube.com/");
         match self {
             Self::Video {
                 video_id,
                 playlist_id,
                 time,
             } => {
+                res.push_str("watch?v=");
                 res.push_str(video_id);
                 if let Some(pl) = playlist_id {
                     res.push_str("&list=");
@@ -80,11 +81,11 @@ impl Display for YouTubeUrl {
                 if let Some(t) = time {
                     res.push_str("&t=");
                     res.push_str(t.to_string().as_str());
+                    res.push('s');
                 }
                 f.write_str(&res)
             }
             Self::Playlist { playlist_id } => {
-                let mut res = String::with_capacity(72);
                 res.push_str("playlist?list=");
                 res.push_str(playlist_id);
                 f.write_str(&res)
