@@ -1,6 +1,7 @@
 use crate::{
-    models::{url::ParsedUrl, guild::volume::GuildVolume},
-    utils::misc::ToEmoji, config::message_template::MessageTemplateProvider,
+    config::message_template::MessageTemplateProvider,
+    models::{guild::volume::GuildVolume, url::ParsedUrl},
+    utils::misc::ToEmoji,
 };
 use serenity::{
     model::prelude::{ChannelId, UserId},
@@ -15,17 +16,22 @@ pub enum TurtoMessage<'a> {
     DifferentVoiceChannel { bot: &'a ChannelId },
     Play { title: &'a str },
     Pause { title: &'a str },
+    Skip { title: &'a str },
     Stop { title: &'a str },
     Join(&'a ChannelId),
     Leave(&'a ChannelId),
     Queue { title: &'a str },
     Remove { title: &'a str },
+    RemovaAll,
+    InvalidRemove,
+    InvalidRemoveIndex { playlist_length: usize },
     InvalidUrl(Option<&'a ParsedUrl>),
     SetVolume(Result<GuildVolume, ()>),
     SetAutoleave(Result<bool, ()>),
     InvalidSeek { seek_limit: u64 },
     SeekNotAllow,
     BackwardSeekNotAllow,
+    SeekNotLongEnough { title: &'a str, length: u64 },
     AdministratorOnly,
     UserGotBanned(Result<UserId, UserId>),
     UserGotUnbanned(Result<UserId, UserId>),
@@ -77,6 +83,12 @@ impl Display for TurtoMessage<'_> {
                     .add_arg("title", title)
                     .render_string(),
             ),
+            Self::Skip { title } => f.write_str(
+                &MessageTemplateProvider::get_template("skip")
+                    .get_renderer()
+                    .add_arg("title", title)
+                    .render_string(),
+            ),
             Self::Join(channel) => f.write_str(
                 &MessageTemplateProvider::get_template("join")
                     .get_renderer()
@@ -99,6 +111,22 @@ impl Display for TurtoMessage<'_> {
                 &MessageTemplateProvider::get_template("remove")
                     .get_renderer()
                     .add_arg("title", title)
+                    .render_string(),
+            ),
+            Self::RemovaAll => f.write_str(
+                &MessageTemplateProvider::get_template("remove_all")
+                    .get_renderer()
+                    .render_string(),
+            ),
+            Self::InvalidRemove => f.write_str(
+                &MessageTemplateProvider::get_template("invalid_remove")
+                    .get_renderer()
+                    .render_string(),
+            ),
+            Self::InvalidRemoveIndex { playlist_length } => f.write_str(
+                &MessageTemplateProvider::get_template("invalid_remove_index")
+                    .get_renderer()
+                    .add_arg("playlist_length", playlist_length)
                     .render_string(),
             ),
             Self::InvalidUrl(url) => match url {
@@ -162,6 +190,13 @@ impl Display for TurtoMessage<'_> {
             Self::BackwardSeekNotAllow => f.write_str(
                 &MessageTemplateProvider::get_template("backward_seek_not_allow")
                     .get_renderer()
+                    .render_string(),
+            ),
+            Self::SeekNotLongEnough {title,  length } => f.write_str(
+                &MessageTemplateProvider::get_template("seek_not_long_enough")
+                    .get_renderer()
+                    .add_arg("title", title)
+                    .add_arg("length", length)
                     .render_string(),
             ),
             Self::AdministratorOnly => f.write_str(

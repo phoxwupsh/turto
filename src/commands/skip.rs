@@ -1,6 +1,6 @@
 use serenity::{
     framework::standard::{macros::command, CommandResult},
-    model::prelude::{Mentionable, Message},
+    model::prelude::Message,
     prelude::Context,
 };
 
@@ -19,21 +19,18 @@ async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
 
     match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
         VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
-            msg.reply(ctx, format!("You are not in {}", bot_vc.mention())).await?;
+            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: &bot_vc })
+                .await?;
             return Ok(());
         }
         VoiceChannelState::OnlySecond(_) | VoiceChannelState::None => {
-            msg.reply(ctx, "Currently not in a voice channel").await?;
+            msg.reply(ctx, TurtoMessage::BotNotInVoiceChannel).await?;
             return Ok(());
         }
         VoiceChannelState::Same(_) => (),
     }
 
-    let handler_lock = match songbird::get(ctx)
-        .await
-        .unwrap()
-        .get(guild.id)
-    {
+    let handler_lock = match songbird::get(ctx).await.unwrap().get(guild.id) {
         Some(handler_lock) => handler_lock,
         None => {
             msg.reply(ctx, TurtoMessage::NotPlaying).await?;
@@ -45,8 +42,13 @@ async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
         handler.stop();
     }
     if let Ok(meta) = play_next(ctx, msg.guild_id.unwrap()).await {
-        msg.reply(ctx, format!("⏭️ {}", meta.title.clone().unwrap()))
-            .await?;
+        msg.reply(
+            ctx,
+            TurtoMessage::Skip {
+                title: meta.title.as_ref().unwrap(),
+            },
+        )
+        .await?;
     }
     Ok(())
 }

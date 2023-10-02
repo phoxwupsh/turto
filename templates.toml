@@ -8,21 +8,27 @@
 # "url" is the url that provided by the users
 # "volume" is the volume being set, represented by number emojis, ranging from 0 to 100
 # "autoleave_status" is the status of autoleave, can be on or off, represented by emojis
+# "playlist_length" is the length of the guild's playlist
+# "length" is the length of the item that is currently being played
 # "seek_limit" is the duration limitation of seeking, corresponding to the value with same name in config.toml
 # "user" is the user that is being banned/unbanned, represented by mentioning
-# "command_name" is the name of commands that is being querying
+# "command_name" is the name of commands that is querying
 not_playing = "Not playing now."
 user_not_in_voice_channel = "You are not in a voice channel."
 bot_not_in_voice_channel = "turto is not in a voice channel."
 different_voice_channel = "You are not in {bot_voice_channel}"
 play = "▶️ {title}"
 pause = "⏸️ {title}"
+skip = "⏭️ {title}"
 stop = "⏹️ {title}"
 join = "{voice_channel}⬅️🐢"
 leave = "⬅️🐢{voice_channel}"
 queue = "✅ {title}"
 remove = "❎ {title}"
-url_not_found = "Can't find {url}"
+remove_all = "The playlist has been cleared."
+invalid_remove = "Please enter a positive number to remove one, or a range to remove multiple, or `all` to clear the playlist."
+invalid_remove_index = "Please enter a number or range between 1 and {playlist_length}."
+url_not_found = "Can't find `{url}`"
 invalid_url = "Please provide a valid url."
 volume = "🔊{volume}"
 invalid_volume = "Enter a number ranges from 0 to 100."
@@ -31,6 +37,7 @@ invalid_autoleave = "Please specify whether to turn on or off autoleave."
 invalid_seek = "Please enter a number between 0 and the seek limitation {seek_limit}."
 seek_not_allow = "Seeking is not allow."
 backward_seek_not_allow = "Backward seeking is not allowed."
+seek_not_long_enough = "`{title}` is only {length} seconds long."
 administrator_only = "This command can only be invoked by an adminstrator."
 user_got_banned = "{user} has been banned."
 user_already_banned = "{user} had already been banned."

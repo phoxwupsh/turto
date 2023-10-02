@@ -39,14 +39,14 @@ async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                 // Check arg is number
                 Ok(i) => {
                     if i < 1 {
-                        msg.reply(ctx, "Enter a number no smaller that 1.").await?;
+                        msg.reply(ctx, TurtoMessage::InvalidRemove).await?;
                         return Ok(());
                     } else {
                         RemoveType::Index(i - 1) // Index start from 1
                     }
                 }
                 Err(_) => {
-                    msg.reply(ctx, "Enter a number or range.").await?;
+                    msg.reply(ctx, TurtoMessage::InvalidRemove).await?;
                     return Ok(());
                 }
             },
@@ -61,13 +61,13 @@ async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         match remove_item {
             RemoveType::All => {
                 playlist.clear();
-                msg.reply(ctx, "Playlist is empty now.").await?;
+                msg.reply(ctx, TurtoMessage::RemovaAll).await?;
             }
             RemoveType::Index(index) => {
-                if index < playlist.len() {
-                    if let Some(removed) = playlist.remove(index) {
-                        msg.reply(ctx, format!("❎ {}", removed.title)).await?;
-                    } // Remove song from playlist
+                if let Some(removed) = playlist.remove(index) {
+                    msg.reply(ctx, TurtoMessage::Remove { title: &removed.title }).await?;
+                } else {
+                    msg.reply(ctx, TurtoMessage::InvalidRemoveIndex { playlist_length: playlist.len() }).await?;
                 }
             }
             RemoveType::Range { from, to } => {
@@ -86,7 +86,7 @@ async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                         .join("\n");
                     msg.reply(ctx, response).await?;
                 } else {
-                    msg.reply(ctx, "Invalid range").await?;
+                    msg.reply(ctx, TurtoMessage::InvalidRemoveIndex { playlist_length: playlist.len() }).await?;
                 }
             }
         }
