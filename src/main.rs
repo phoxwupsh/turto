@@ -5,7 +5,7 @@ use serenity::{
     prelude::GatewayIntents,
 };
 use songbird::SerenityInit;
-use std::{collections::HashMap, env, fs, sync::Arc};
+use std::{collections::HashMap, env, sync::Arc};
 use tokio::sync::{Mutex, RwLock};
 use tracing::{error, info, Level};
 use turto::{
@@ -14,6 +14,7 @@ use turto::{
     handlers::{before::before_hook, SerenityEventHandler},
     models::{guild::config::GuildConfig, playlist::Playlist},
     typemap::{config::GuildConfigs, playing::Playing, playlist::Playlists},
+    utils::json::{read_json, write_json},
 };
 
 #[tokio::main]
@@ -21,19 +22,15 @@ async fn main() {
     let subscriber = tracing_subscriber::fmt()
         .with_max_level(Level::INFO)
         .finish();
-    tracing::subscriber::set_global_default(subscriber).expect("Tracing initialization failed.");
+    tracing::subscriber::set_global_default(subscriber)
+        .unwrap_or_else(|err| panic!("Tracing initialization failed: {}", err));
     dotenv::dotenv().unwrap_or_else(|err| panic!("Error loading .env file: {}", err));
     let token = env::var("DISCORD_TOKEN")
         .unwrap_or_else(|err| panic!("Error loading DISCORD_TOKEN in the environment: {}", err));
     let config = TurtoConfigProvider::get();
 
-    let playlists_json = fs::read_to_string("playlists.json").unwrap_or("{}".to_owned());
-    let playlists: HashMap<GuildId, Playlist> =
-        serde_json::from_str(&playlists_json).unwrap_or_default();
-
-    let guild_configs_json = fs::read_to_string("guilds.json").unwrap_or("{}".to_owned());
-    let guild_configs: HashMap<GuildId, GuildConfig> =
-        serde_json::from_str(&guild_configs_json).unwrap_or_default();
+    let playlists: HashMap<GuildId, Playlist> = read_json("playlists.json").unwrap_or_default();
+    let guild_configs: HashMap<GuildId, GuildConfig> = read_json("guilds.json").unwrap_or_default();
 
     let framework = StandardFramework::new()
         .configure(|c| c.prefix(config.command_prefix.clone()))
@@ -69,28 +66,16 @@ async fn main() {
             {
                 shard_manager.lock().await.shutdown_all().await;
             }
-
-            let playlists_json: String;
-            let guild_configs_json: String;
-            {
-                let data_read = data.read().await;
-                let playlists = data_read.get::<Playlists>().unwrap().lock().await;
-                let guild_configs = data_read.get::<GuildConfigs>().unwrap().lock().await;
-                playlists_json = serde_json::to_string(&*playlists).unwrap_or("{}".to_owned());
-                guild_configs_json =
-                    serde_json::to_string(&*guild_configs).unwrap_or("{}".to_owned());
+            let data_read = data.read().await;
+            let playlists = data_read.get::<Playlists>().unwrap().lock().await;
+            let guild_configs = data_read.get::<GuildConfigs>().unwrap().lock().await;
+            match write_json(&*playlists, "playlists.json") {
+                Ok(size) => info!("Written {} bytes into playlists.json", size),
+                Err(err) => error!("Error occured while writing playlists.json: {}", err),
             }
-            let playlists_json_size = playlists_json.len();
-            let guild_configs_json_size = guild_configs_json.len();
-            if let Err(why) = fs::write("playlists.json", playlists_json) {
-                error!("Error occured while writing playlists.json: {}", why);
-            } else {
-                info!("Written {} bytes into playlists.json", playlists_json_size);
-            }
-            if let Err(why) = fs::write("guilds.json", guild_configs_json) {
-                error!("Error occured while writing guilds.json: {}", why);
-            } else {
-                info!("Written {} bytes into guilds.json", guild_configs_json_size);
+            match write_json(&*guild_configs, "guilds.json") {
+                Ok(size) => info!("Written {} bytes into guilds.json", size),
+                Err(err) => error!("Error occured while writing guilds.json: {}", err),
             }
         }
     });
