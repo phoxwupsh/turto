@@ -1,16 +1,20 @@
+use crate::{
+    messages::TurtoMessage,
+    models::{playlist_item::PlaylistItem, url::ParsedUrl, youtube_playlist::YouTubePlaylist},
+    typemap::playlist::Playlists,
+    utils::ytdl::ytdl_playlist,
+};
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
     model::prelude::Message,
     prelude::Context,
 };
-
 use songbird::input::ytdl;
 
-use crate::{
-    messages::TurtoMessage,
-    models::{playlist::Playlist, playlist_item::PlaylistItem, queue::Queueing, url::ParsedUrl},
-    typemap::playlist::Playlists,
-};
+enum QueueType {
+    Single(PlaylistItem),
+    Multiple(YouTubePlaylist),
+}
 
 #[command]
 #[bucket = "music"]
@@ -22,24 +26,21 @@ async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
             continue;
         };
 
-        let queueing = match &parsed {
+        let queue_item = match &parsed {
             ParsedUrl::Youtube(yt_url) => {
                 if yt_url.is_playlist() {
-                    let (Some(res), Some(info)) = Playlist::ytdl_playlist(&yt_url.to_string()) else {
+                    let Some(yt_playlist) = ytdl_playlist(&yt_url.to_string()) else {
                         msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed))).await?;
                         continue;
                     };
-                    Queueing::Multiple {
-                        playlist: res,
-                        playlist_info: info,
-                    }
+                    QueueType::Multiple(yt_playlist)
                 } else {
                     let Ok(source) = ytdl(&yt_url.to_string()).await else {
                         msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed))).await?;
                         continue;
                     };
                     let metadata = source.metadata.clone();
-                    Queueing::Single(PlaylistItem::from(*metadata))
+                    QueueType::Single(PlaylistItem::from(*metadata))
                 }
             }
             ParsedUrl::Other(url) => {
@@ -48,7 +49,7 @@ async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
                     continue;
                 };
                 let metadata = source.metadata.clone();
-                Queueing::Single(PlaylistItem::from(*metadata))
+                QueueType::Single(PlaylistItem::from(*metadata))
             }
         };
 
@@ -57,8 +58,8 @@ async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
             let mut playlists = playlists_lock.lock().await;
             let playlist = playlists.entry(msg.guild_id.unwrap()).or_default();
 
-            match queueing {
-                Queueing::Single(playlist_item) => {
+            match queue_item {
+                QueueType::Single(playlist_item) => {
                     msg.reply(
                         ctx,
                         TurtoMessage::Queue {
@@ -68,18 +69,11 @@ async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
                     .await?;
                     playlist.push_back(playlist_item); // Add song to playlist
                 }
-                Queueing::Multiple {
-                    playlist: queueing_pl,
-                    playlist_info,
-                } => {
-                    playlist.extend(queueing_pl.into_iter());
-                    msg.reply(
-                        ctx,
-                        TurtoMessage::Queue {
-                            title: &playlist_info.playlist_title,
-                        },
-                    )
-                    .await?;
+                QueueType::Multiple(mut yt_playlist) => {
+                    let title = yt_playlist.title.take().unwrap_or_default();
+                    playlist.extend(yt_playlist.into_iter());
+                    msg.reply(ctx, TurtoMessage::Queue { title: &title })
+                        .await?;
                 }
             }
         }
