@@ -55,32 +55,40 @@ async fn main() {
         .type_map_insert::<GuildConfigs>(Arc::new(Mutex::new(guild_configs)))
         .await
         .unwrap_or_else(|err| panic!("Error creating client: {}", err));
-
+    
     let shard_manager = client.shard_manager.clone();
-    let data = client.data.clone();
+    let shard_manager_panic = shard_manager.clone();
+
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        default_hook(panic_info);
+        let shard_manager_panic_ = shard_manager_panic.clone();
+        tokio::spawn(async move {
+            shard_manager_panic_.lock().await.shutdown_all().await;
+        });
+    }));
 
     tokio::spawn(async move {
-        if let Err(why) = tokio::signal::ctrl_c().await {
-            error!("Client error: {}", why);
-        } else {
-            {
-                shard_manager.lock().await.shutdown_all().await;
-            }
-            let data_read = data.read().await;
-            let playlists = data_read.get::<Playlists>().unwrap().lock().await;
-            let guild_configs = data_read.get::<GuildConfigs>().unwrap().lock().await;
-            match write_json(&*playlists, "playlists.json") {
-                Ok(size) => info!("Written {} bytes into playlists.json", size),
-                Err(err) => error!("Error occured while writing playlists.json: {}", err),
-            }
-            match write_json(&*guild_configs, "guilds.json") {
-                Ok(size) => info!("Written {} bytes into guilds.json", size),
-                Err(err) => error!("Error occured while writing guilds.json: {}", err),
-            }
+        match tokio::signal::ctrl_c().await {
+            Ok(_) => shard_manager.lock().await.shutdown_all().await,
+            Err(err) => error!("Error occured while shutdown: {}", err)
+            
         }
     });
 
     if let Err(why) = client.start().await {
-        error!("Client error: {}", why);
+        error!("Error occured while start bot client: {}", why);
+    } else {
+        let data_read = client.data.read().await;
+        let playlists = data_read.get::<Playlists>().unwrap().lock().await;
+        let guild_configs = data_read.get::<GuildConfigs>().unwrap().lock().await;
+        match write_json(&*playlists, "playlists.json") {
+            Ok(size) => info!("Written {} bytes into playlists.json", size),
+            Err(err) => error!("Error occured while writing playlists.json: {}", err),
+        }
+        match write_json(&*guild_configs, "guilds.json") {
+            Ok(size) => info!("Written {} bytes into guilds.json", size),
+            Err(err) => error!("Error occured while writing guilds.json: {}", err),
+        }
     }
 }
