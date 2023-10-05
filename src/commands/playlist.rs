@@ -10,26 +10,26 @@ use serenity::{
     prelude::Context,
 };
 
-use crate::{typemap::playlist::Playlists, utils::misc::ToEmoji};
+use crate::{typemap::guild_data::GuildDataMap, utils::misc::ToEmoji};
 
 #[command]
 #[bucket = "turto"]
 async fn playlist(ctx: &Context, msg: &Message) -> CommandResult {
-    let playlists_lock = ctx.data.read().await.get::<Playlists>().unwrap().clone();
+    let playlists_lock = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
 
     let waiting: Option<Message>;
     {
         let mut playlists = playlists_lock.lock().await;
-        let playlist = playlists.entry(msg.guild_id.unwrap()).or_default();
+        let guild_data = playlists.entry(msg.guild_id.unwrap()).or_default();
 
-        if playlist.is_empty() {
+        if guild_data.playlist.is_empty() {
             msg.reply(ctx, "🈳").await?;
             return Ok(());
         }
 
-        if playlist.len() <= 10 {
+        if guild_data.playlist.len() <= 10 {
             // directly display if the playlist has less than 10 items
-            let response = playlist
+            let response = guild_data.playlist
                 .iter()
                 .enumerate()
                 .map(|(index, playlist_item)| {
@@ -53,7 +53,7 @@ async fn playlist(ctx: &Context, msg: &Message) -> CommandResult {
                             r.create_select_menu(|menu| {
                                 menu.custom_id("page_select").placeholder("📖❓").options(
                                     |options| {
-                                        let page_num = (playlist.len() / 10) + 1;
+                                        let page_num = (guild_data.playlist.len() / 10) + 1;
                                         for i in 1..=page_num {
                                             options.create_option(|opt| {
                                                 opt.label("📄".to_string() + &i.to_emoji())
@@ -101,9 +101,9 @@ async fn playlist(ctx: &Context, msg: &Message) -> CommandResult {
         if let Ok(page_num) = interaction.data.values[0].parse::<usize>() {
             let page_index = page_num - 1;
             let mut playlists = playlists_lock.lock().await;
-            let playlist = playlists.entry(msg.guild_id.unwrap()).or_default();
+            let guild_data = playlists.entry(msg.guild_id.unwrap()).or_default();
             let response = {
-                playlist
+                guild_data.playlist
                     .iter()
                     .enumerate()
                     .filter(|(index, _playlist_item)| index / 10 == page_index)

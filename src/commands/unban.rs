@@ -3,7 +3,7 @@ use serenity::{
     model::prelude::{Message, UserId},
     prelude::Context,
 };
-use crate::{messages::TurtoMessage, typemap::config::GuildConfigs};
+use crate::{messages::TurtoMessage, typemap::guild_data::GuildDataMap};
 
 #[command]
 #[bucket = "turto"]
@@ -27,18 +27,18 @@ async fn unban(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         }
     };
 
-    let guild_configs_lock = ctx
+    let guild_data_map_lock = ctx
         .data
         .read()
         .await
-        .get::<GuildConfigs>()
+        .get::<GuildDataMap>()
         .unwrap()
         .clone();
     
     let unban_result = {
-        let mut guild_configs = guild_configs_lock.lock().await;
-        let guild_config = guild_configs.entry(guild.id).or_default();
-        if guild_config.banned.remove(&unbanned.user.id) {
+        let mut guild_data_map = guild_data_map_lock.lock().await;
+        let guild_data = guild_data_map.entry(guild.id).or_default();
+        if guild_data.config.banned.remove(&unbanned.user.id) {
             Ok(unbanned.user.id)
         } else {
             Err(unbanned.user.id)

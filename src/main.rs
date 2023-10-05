@@ -16,7 +16,7 @@ async fn main() {
     let token = env::var("DISCORD_TOKEN")
         .unwrap_or_else(|err| panic!("Error loading DISCORD_TOKEN in the environment: {}", err));
 
-    let mut bot = Turto::new(token, "playlists.json", "guilds.json")
+    let mut bot = Turto::new(token, "guilds.json")
         .await
         .unwrap_or_else(|err| panic!("Turto client initialization failed: {}", err));
 

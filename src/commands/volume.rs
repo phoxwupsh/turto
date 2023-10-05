@@ -1,7 +1,7 @@
 use crate::{
-    typemap::{playing::Playing, config::GuildConfigs},
-    models::guild::volume::GuildVolume,
     messages::TurtoMessage,
+    models::guild::volume::GuildVolume,
+    typemap::{guild_data::GuildDataMap, playing::Playing},
 };
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
@@ -18,16 +18,18 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             .data
             .read()
             .await
-            .get::<GuildConfigs>()
+            .get::<GuildDataMap>()
             .unwrap()
             .clone()
             .lock()
             .await
             .entry(msg.guild_id.unwrap())
             .or_default()
+            .config
             .volume;
-        msg.reply(ctx, TurtoMessage::SetVolume(Ok(curr_vol))).await?;
-        return Ok(())
+        msg.reply(ctx, TurtoMessage::SetVolume(Ok(curr_vol)))
+            .await?;
+        return Ok(());
     }
     let new_vol_u32 = match args.parse::<usize>() {
         Ok(vol_u32) => vol_u32,
@@ -45,13 +47,7 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     };
 
     // Update the volume if there is a currently playing TrackHandle
-    let playing_lock = ctx
-        .data
-        .read()
-        .await
-        .get::<Playing>()
-        .unwrap()
-        .clone();
+    let playing_lock = ctx.data.read().await.get::<Playing>().unwrap().clone();
     {
         let playing = playing_lock.read().await;
         if let Some(current_track) = playing.get(&msg.guild_id.unwrap()) {
@@ -66,19 +62,11 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     }
 
     // Update the volume setting of guild
-    let guild_configs_lock = ctx
-        .data
-        .read()
-        .await
-        .get::<GuildConfigs>()
-        .unwrap()
-        .clone();
+    let guild_data_map_lock = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
     {
-        let mut guild_configs = guild_configs_lock.lock().await;
-        let guild_config = guild_configs
-            .entry(msg.guild_id.unwrap())
-            .or_default();
-        guild_config.volume = new_vol;
+        let mut guild_data_map = guild_data_map_lock.lock().await;
+        let guild_data = guild_data_map.entry(msg.guild_id.unwrap()).or_default();
+        guild_data.config.volume = new_vol;
     }
 
     msg.reply(ctx, TurtoMessage::SetVolume(Ok(new_vol))).await?;

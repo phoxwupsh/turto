@@ -9,7 +9,7 @@ use songbird::{
 use tracing::error;
 
 use crate::{
-    typemap::{playing::Playing, playlist::Playlists, config::GuildConfigs},
+    typemap::{playing::Playing, guild_data::GuildDataMap},
     handlers::track_end::TrackEndHandler,
 };
 
@@ -51,19 +51,19 @@ where
         return Err(PlayError::TrackError(why));
     }
 
-    let guild_configs_lock = ctx
+    let guild_data_map_lock = ctx
         .data
         .read()
         .await
-        .get::<GuildConfigs>()
+        .get::<GuildDataMap>()
         .unwrap()
         .clone();
     {
-        let mut guild_configs = guild_configs_lock.lock().await;
-        let guild_config = guild_configs
+        let mut guild_data_map = guild_data_map_lock.lock().await;
+        let guild_data = guild_data_map
             .entry(guild_id)
             .or_default();
-        if let Err(why) = song.set_volume(*guild_config.volume) {
+        if let Err(why) = song.set_volume(*guild_data.config.volume) {
             error!("Error setting volume of track {}: {}", song.uuid(), why);
             return Err(PlayError::TrackError(why));
         }
@@ -88,13 +88,17 @@ pub async fn play_next(ctx: &Context, guild_id: GuildId) -> Result<Metadata, Pla
         .data
         .read()
         .await
-        .get::<Playlists>()
+        .get::<GuildDataMap>()
         .unwrap()
         .clone();
-    let mut playlists = playlist_lock.lock().await;
-    let playlist = playlists.entry(guild_id).or_default();
 
-    match playlist.pop_front() {
+    let next = {
+        let mut playlists = playlist_lock.lock().await;
+        let guild_data = playlists.entry(guild_id).or_default();
+        guild_data.playlist.pop_front()
+    };
+
+    match next {
         Some(next_song) => play_url(ctx, guild_id, next_song.url).await,
         None => Err(PlayError::EmptyPlaylist(guild_id)),
     }

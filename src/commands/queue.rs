@@ -1,7 +1,7 @@
 use crate::{
     messages::TurtoMessage,
     models::{playlist_item::PlaylistItem, url::ParsedUrl, youtube_playlist::YouTubePlaylist},
-    typemap::playlist::Playlists,
+    typemap::guild_data::GuildDataMap,
     utils::ytdl::ytdl_playlist,
 };
 use serenity::{
@@ -53,10 +53,10 @@ async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
             }
         };
 
-        let playlists_lock = ctx.data.read().await.get::<Playlists>().unwrap().clone();
+        let playlists_lock = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
         {
             let mut playlists = playlists_lock.lock().await;
-            let playlist = playlists.entry(msg.guild_id.unwrap()).or_default();
+            let guild_data = playlists.entry(msg.guild_id.unwrap()).or_default();
 
             match queue_item {
                 QueueType::Single(playlist_item) => {
@@ -67,11 +67,11 @@ async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
                         },
                     )
                     .await?;
-                    playlist.push_back(playlist_item); // Add song to playlist
+                    guild_data.playlist.push_back(playlist_item); // Add song to playlist
                 }
                 QueueType::Multiple(mut yt_playlist) => {
                     let title = yt_playlist.title.take().unwrap_or_default();
-                    playlist.extend(yt_playlist.into_iter());
+                    guild_data.playlist.extend(yt_playlist.into_iter());
                     msg.reply(ctx, TurtoMessage::Queue { title: &title })
                         .await?;
                 }

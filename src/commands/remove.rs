@@ -6,7 +6,7 @@ use serenity::{
 
 use regex::Regex;
 
-use crate::{messages::TurtoMessage, typemap::playlist::Playlists};
+use crate::{messages::TurtoMessage, typemap::guild_data::GuildDataMap};
 
 enum RemoveType {
     All,
@@ -53,27 +53,27 @@ async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         },
     };
 
-    let playlists_lock = ctx.data.read().await.get::<Playlists>().unwrap().clone();
+    let playlists_lock = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
     {
         let mut playlists = playlists_lock.lock().await;
-        let playlist = playlists.entry(msg.guild_id.unwrap()).or_default();
+        let guild_data = playlists.entry(msg.guild_id.unwrap()).or_default();
 
         match remove_item {
             RemoveType::All => {
-                playlist.clear();
+                guild_data.playlist.clear();
                 msg.reply(ctx, TurtoMessage::RemovaAll).await?;
             }
             RemoveType::Index(index) => {
-                if let Some(removed) = playlist.remove(index) {
+                if let Some(removed) = guild_data.playlist.remove(index) {
                     msg.reply(ctx, TurtoMessage::Remove { title: &removed.title }).await?;
                 } else {
-                    msg.reply(ctx, TurtoMessage::InvalidRemoveIndex { playlist_length: playlist.len() }).await?;
+                    msg.reply(ctx, TurtoMessage::InvalidRemoveIndex { playlist_length: guild_data.playlist.len() }).await?;
                 }
             }
             RemoveType::Range { from, to } => {
-                let playlist_range = 0..=playlist.len();
+                let playlist_range = 0..=guild_data.playlist.len();
                 if playlist_range.contains(&from) && playlist_range.contains(&to) && from < to {
-                    let drained = playlist.drain(from..to);
+                    let drained = guild_data.playlist.drain(from..to);
                     let response = drained
                         .into_iter()
                         .map(|drained_item| {
@@ -86,7 +86,7 @@ async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                         .join("\n");
                     msg.reply(ctx, response).await?;
                 } else {
-                    msg.reply(ctx, TurtoMessage::InvalidRemoveIndex { playlist_length: playlist.len() }).await?;
+                    msg.reply(ctx, TurtoMessage::InvalidRemoveIndex { playlist_length: guild_data.playlist.len() }).await?;
                 }
             }
         }

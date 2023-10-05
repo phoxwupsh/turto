@@ -5,7 +5,7 @@ use serenity::{
 };
 
 use crate::{
-    typemap::config::GuildConfigs, messages::TurtoMessage,
+    typemap::guild_data::GuildDataMap, messages::TurtoMessage,
 };
 
 #[command]
@@ -19,19 +19,19 @@ async fn autoleave(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             return Ok(());
         }
     };
-    let guild_configs_lock = ctx
+    let guild_data_map_lock = ctx
         .data
         .read()
         .await
-        .get::<GuildConfigs>()
+        .get::<GuildDataMap>()
         .unwrap()
         .clone();
     {
-        let mut guild_configs = guild_configs_lock.lock().await;
-        let guild_config = guild_configs
+        let mut guild_data_map = guild_data_map_lock.lock().await;
+        let guild_data = guild_data_map
             .entry(msg.guild_id.unwrap())
             .or_default();
-        guild_config.auto_leave = toggle;
+        guild_data.config.auto_leave = toggle;
     }
     msg.reply(ctx, TurtoMessage::SetAutoleave(Ok(toggle)))
         .await?;

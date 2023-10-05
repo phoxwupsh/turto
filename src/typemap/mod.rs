@@ -1,3 +1,2 @@
-pub mod config;
+pub mod guild_data;
 pub mod playing;
-pub mod playlist;

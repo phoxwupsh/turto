@@ -2,8 +2,8 @@ use crate::{
     commands::TURTOCOMMANDS_GROUP,
     config::TurtoConfigProvider,
     handlers::{before::before_hook, SerenityEventHandler},
-    models::{guild::config::GuildConfig, playlist::Playlist},
-    typemap::{config::GuildConfigs, playing::Playing, playlist::Playlists},
+    models::guild::data::GuildData,
+    typemap::{guild_data::GuildDataMap, playing::Playing},
     utils::json::{read_json, write_json},
 };
 use serenity::{
@@ -27,14 +27,12 @@ use tracing::{error, info};
 
 pub struct Turto {
     client: Client,
-    playlists_path: PathBuf,
     guilds_path: PathBuf,
 }
 
 impl Turto {
     pub async fn new(
         token: impl AsRef<str>,
-        playlists_path: impl AsRef<Path>,
         guilds_path: impl AsRef<Path>,
     ) -> Result<Self, serenity::Error> {
         let config = TurtoConfigProvider::get();
@@ -49,9 +47,7 @@ impl Turto {
             .await
             .group(&TURTOCOMMANDS_GROUP)
             .before(before_hook);
-        let playlists: HashMap<GuildId, Playlist> =
-            read_json(playlists_path.as_ref()).unwrap_or_default();
-        let guild_configs: HashMap<GuildId, GuildConfig> =
+        let guild_data_map: HashMap<GuildId, GuildData> =
             read_json(guilds_path.as_ref()).unwrap_or_default();
         let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
         let client = Client::builder(token, intents)
@@ -60,12 +56,10 @@ impl Turto {
             .intents(intents)
             .register_songbird()
             .type_map_insert::<Playing>(Arc::new(RwLock::new(HashMap::default())))
-            .type_map_insert::<Playlists>(Arc::new(Mutex::new(playlists)))
-            .type_map_insert::<GuildConfigs>(Arc::new(Mutex::new(guild_configs)))
+            .type_map_insert::<GuildDataMap>(Arc::new(Mutex::new(guild_data_map)))
             .await?;
         Ok(Self {
             client,
-            playlists_path: playlists_path.as_ref().to_path_buf(),
             guilds_path: guilds_path.as_ref().to_path_buf(),
         })
     }
@@ -94,13 +88,8 @@ impl Turto {
 
     pub async fn save_data(&self) {
         let data = self.client.data.read().await;
-        let playlists = data.get::<Playlists>().unwrap().lock().await;
-        let guild_configs = data.get::<GuildConfigs>().unwrap().lock().await;
-        match write_json(&*playlists, self.playlists_path.as_path()) {
-            Ok(size) => info!("Write {} bytes to playlists.json", size),
-            Err(err) => error!("Error occured while writing playlists.json: {}", err),
-        }
-        match write_json(&*guild_configs, self.guilds_path.as_path()) {
+        let guild_data_map = data.get::<GuildDataMap>().unwrap().lock().await;
+        match write_json(&*guild_data_map, self.guilds_path.as_path()) {
             Ok(size) => info!("Write {} bytes to guilds.json", size),
             Err(err) => error!("Error occured while writing guilds.json: {}", err),
         }

@@ -3,7 +3,7 @@ use songbird::events::{Event, EventContext, EventHandler};
 use tracing::error;
 
 use crate::{
-    typemap::config::GuildConfigs,
+    typemap::guild_data::GuildDataMap,
     utils::play::{play_next, PlayError},
 };
 
@@ -16,18 +16,18 @@ pub struct TrackEndHandler {
 impl EventHandler for TrackEndHandler {
     async fn act(&self, _ctx: &EventContext<'_>) -> Option<Event> {
         if let Err(PlayError::EmptyPlaylist(_guild)) = play_next(&self.ctx, self.guild_id).await {
-            let guild_configs_lock = self
+            let guild_data_map_lock = self
                 .ctx
                 .data
                 .read()
                 .await
-                .get::<GuildConfigs>()
+                .get::<GuildDataMap>()
                 .unwrap()
                 .clone();
             let auto_leave = {
-                let mut guild_configs = guild_configs_lock.lock().await;
-                let guild_config = guild_configs.entry(self.guild_id).or_default();
-                guild_config.auto_leave
+                let mut guild_data_map = guild_data_map_lock.lock().await;
+                let guild_data = guild_data_map.entry(self.guild_id).or_default();
+                guild_data.config.auto_leave
             };
             if auto_leave {
                 let manager = songbird::get(&self.ctx).await.unwrap().clone();
