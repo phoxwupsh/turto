@@ -26,6 +26,10 @@ use tokio::{
 use tracing::{error, info};
 
 pub struct Turto {
+    inner: Option<TurtoInner>,
+}
+
+struct TurtoInner {
     client: Client,
     guilds_path: PathBuf,
 }
@@ -59,13 +63,16 @@ impl Turto {
             .type_map_insert::<GuildDataMap>(Arc::new(Mutex::new(guild_data_map)))
             .await?;
         Ok(Self {
-            client,
-            guilds_path: guilds_path.as_ref().to_path_buf(),
+            inner: Some(TurtoInner {
+                client,
+                guilds_path: guilds_path.as_ref().to_path_buf(),
+            }),
         })
     }
 
     pub async fn start(&mut self) -> Result<(), serenity::Error> {
-        let shard_manager = self.client.shard_manager.clone();
+        let inner = self.inner.as_mut().unwrap(); // It's impossible to be None
+        let shard_manager = inner.client.shard_manager.clone();
         let shard_manager_panic = shard_manager.clone();
 
         let default_hook = std::panic::take_hook();
@@ -83,15 +90,27 @@ impl Turto {
                 Err(err) => error!("Error occured while shutdown: {}", err),
             }
         });
-        self.client.start().await
+        inner.client.start().await
     }
+}
 
-    pub async fn save_data(&self) {
+impl TurtoInner {
+    async fn save_data(&self) {
         let data = self.client.data.read().await;
         let guild_data_map = data.get::<GuildDataMap>().unwrap().lock().await;
         match write_json(&*guild_data_map, self.guilds_path.as_path()) {
             Ok(size) => info!("Write {} bytes to guilds.json", size),
             Err(err) => error!("Error occured while writing guilds.json: {}", err),
+        }
+    }
+}
+
+impl Drop for Turto {
+    fn drop(&mut self) {
+        if let Some(this) = self.inner.take() {
+            spawn(async move {
+                this.save_data().await;
+            });
         }
     }
 }

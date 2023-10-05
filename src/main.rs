@@ -22,7 +22,5 @@ async fn main() {
 
     if let Err(why) = bot.start().await {
         error!("Error occured while start bot client: {}", why);
-    } else {
-        bot.save_data().await;
     }
 }
