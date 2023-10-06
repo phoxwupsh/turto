@@ -51,7 +51,7 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         if let Some(current_track) = playing.get(&msg.guild_id.unwrap()) {
             if let Err(why) = current_track.set_volume(*new_vol) {
                 error!(
-                    "Error setting volume for track {}: {}",
+                    "Failed to set volume for track {}: {}",
                     current_track.uuid(),
                     why
                 );

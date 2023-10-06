@@ -91,7 +91,7 @@ async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             }
 
             if let Err(why) = current_track.seek_time(Duration::from_secs(sec)) {
-                error!("Error seeking track {}: {}", current_track.uuid(), why);
+                error!("Failed to seek track {}: {}", current_track.uuid(), why);
             }
         }
     }

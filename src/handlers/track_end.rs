@@ -30,7 +30,7 @@ impl EventHandler for TrackEndHandler {
             if auto_leave {
                 let manager = songbird::get(&self.ctx).await.unwrap().clone();
                 if let Err(err) = manager.remove(self.guild_id).await {
-                    error!("Error leave voice channel: {}", err);
+                    error!("Failed to leave voice channel: {}", err);
                 }
             }
         }

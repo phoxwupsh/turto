@@ -39,7 +39,7 @@ where
 
     if let Err(why) = song.add_event(Event::Track(TrackEvent::End), next_song_handler) {
         error!(
-            "Error adding TrackEndHandler for track {}: {}",
+            "Failed to add TrackEndHandler to track {}: {}",
             song.uuid(),
             why
         );
@@ -49,7 +49,7 @@ where
     let guild_data_map = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
     let guild_data = guild_data_map.entry(guild_id).or_default();
     if let Err(why) = song.set_volume(*guild_data.config.volume) {
-        error!("Error setting volume of track {}: {}", song.uuid(), why);
+        error!("Failed to set volume for track {}: {}", song.uuid(), why);
         return Err(PlayError::TrackError(why));
     }
     drop(guild_data);

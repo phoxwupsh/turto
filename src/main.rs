@@ -12,9 +12,9 @@ async fn main() {
     std::panic::set_hook(Box::new(|panic_info| {
         error!("{}", panic_info.payload().downcast_ref::<String>().unwrap());
     }));
-    dotenv::dotenv().unwrap_or_else(|err| panic!("Error loading .env file: {}", err));
+    dotenv::dotenv().unwrap_or_else(|err| panic!("Failed to load .env file: {}", err));
     let token = env::var("DISCORD_TOKEN")
-        .unwrap_or_else(|err| panic!("Error loading DISCORD_TOKEN in the environment: {}", err));
+        .unwrap_or_else(|err| panic!("Failed to load DISCORD_TOKEN in the environment: {}", err));
 
     let data_path = Path::new("guilds.json");
 
@@ -26,12 +26,12 @@ async fn main() {
         .unwrap_or_else(|err| error!("Failed to load data from {}: {}", data_path.display(), err));
 
     if let Err(why) = bot.start().await {
-        error!("Error occured while start bot client: {}", why);
+        error!("Error occured while starting bot client: {}", why);
     } else {
         match bot.save_data(data_path).await {
             Ok(size) => info!("Write {} bytes to {}", size, data_path.display()),
             Err(err) => error!(
-                "Error occured while writing {}: {}",
+                "Error occured while writing data to {}: {}",
                 data_path.display(),
                 err
             ),
