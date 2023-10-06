@@ -1,7 +1,6 @@
-use std::{sync::Arc, collections::HashMap};
-
-use serenity::{prelude::TypeMapKey, model::prelude::GuildId};
+use serenity::{model::prelude::GuildId, prelude::TypeMapKey};
 use songbird::tracks::TrackHandle;
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 pub struct Playing;

@@ -8,7 +8,7 @@ pub struct Template {
 
 pub struct Renderer<'a> {
     template: &'a Template,
-    args: HashMap<&'a str, &'a dyn Display>
+    args: HashMap<&'a str, &'a dyn Display>,
 }
 
 #[derive(Debug)]
@@ -67,25 +67,24 @@ impl Template {
     }
 
     pub fn get_renderer(&self) -> Renderer {
-        Renderer { template: self, args: HashMap::<_, _>::new() }
+        Renderer {
+            template: self,
+            args: HashMap::<_, _>::new(),
+        }
     }
 }
 
 impl<'a> Renderer<'a> {
     pub fn render_string(&self) -> String {
         let mut res = String::with_capacity(self.template.total_len);
-        self.template.tokens
-            .iter()
-            .for_each(|token|{
-                match token {
-                    Token::Text(t) => res.push_str(t),
-                    Token::Arg(a) => {
-                        if let Some(s) = self.args.get(a.as_str()) {
-                            res.push_str(s.to_string().as_str());
-                        }
-                    }
+        self.template.tokens.iter().for_each(|token| match token {
+            Token::Text(t) => res.push_str(t),
+            Token::Arg(a) => {
+                if let Some(s) = self.args.get(a.as_str()) {
+                    res.push_str(s.to_string().as_str());
                 }
-            });
+            }
+        });
         res
     }
 

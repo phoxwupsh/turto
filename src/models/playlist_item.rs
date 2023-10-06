@@ -1,8 +1,7 @@
-use std::time::Duration;
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use songbird::input::Metadata;
+use std::time::Duration;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct PlaylistItem {
@@ -54,7 +53,7 @@ impl PlaylistItem {
             .and_then(Value::as_array)
             .map(|t| t.last().unwrap_or(&Value::Null))
             .and_then(Value::as_object)
-            .and_then(|t|t.get("url"))
+            .and_then(|t| t.get("url"))
             .and_then(Value::as_str)
             .map(str::to_string)?;
 

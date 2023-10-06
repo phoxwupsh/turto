@@ -1,19 +1,17 @@
-use std::time::Duration;
-
-use serenity::{
-    framework::standard::{macros::command, Args, CommandResult},
-    model::prelude::Message,
-    prelude::Context,
-};
-use songbird::tracks::PlayMode;
-use tracing::error;
-
 use crate::{
     config::TurtoConfigProvider,
     messages::TurtoMessage,
     typemap::playing::Playing,
     utils::guild::{GuildUtil, VoiceChannelState},
 };
+use serenity::{
+    framework::standard::{macros::command, Args, CommandResult},
+    model::prelude::Message,
+    prelude::Context,
+};
+use songbird::tracks::PlayMode;
+use std::time::Duration;
+use tracing::error;
 
 #[command]
 #[bucket = "turto"]

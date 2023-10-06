@@ -1,5 +1,4 @@
-use std::{sync::Arc, time::Duration};
-
+use crate::{typemap::guild_data::GuildDataMap, utils::misc::ToEmoji};
 use serenity::{
     builder::CreateComponents,
     framework::standard::{macros::command, CommandResult},
@@ -10,8 +9,7 @@ use serenity::{
     },
     prelude::Context,
 };
-
-use crate::{typemap::guild_data::GuildDataMap, utils::misc::ToEmoji};
+use std::{sync::Arc, time::Duration};
 
 #[command]
 #[bucket = "turto"]

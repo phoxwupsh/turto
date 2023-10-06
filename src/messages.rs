@@ -192,7 +192,7 @@ impl Display for TurtoMessage<'_> {
                     .get_renderer()
                     .render_string(),
             ),
-            Self::SeekNotLongEnough {title,  length } => f.write_str(
+            Self::SeekNotLongEnough { title, length } => f.write_str(
                 &MessageTemplateProvider::get_template("seek_not_long_enough")
                     .get_renderer()
                     .add_arg("title", title)

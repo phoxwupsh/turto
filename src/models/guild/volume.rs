@@ -1,11 +1,13 @@
-use std::{ops::{Deref, DerefMut}, fmt::Display, error::Error};
-
-use serde::{Serialize, Deserialize};
-
 use crate::utils::misc::ToEmoji;
+use serde::{Deserialize, Serialize};
+use std::{
+    error::Error,
+    fmt::Display,
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy)]
-pub struct  GuildVolume(f32);
+pub struct GuildVolume(f32);
 
 impl Default for GuildVolume {
     fn default() -> Self {
@@ -62,13 +64,13 @@ impl ToEmoji for GuildVolume {
 
 #[derive(Debug)]
 pub enum VolumeError {
-    OutOfRange
+    OutOfRange,
 }
 
 impl Display for VolumeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            VolumeError::OutOfRange => f.write_str("GuildVolume should be between 0.0 ~ 1.0")
+            VolumeError::OutOfRange => f.write_str("GuildVolume should be between 0.0 ~ 1.0"),
         }
     }
 }

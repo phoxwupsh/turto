@@ -1,7 +1,6 @@
+use crate::utils::template::Template;
 use std::{collections::HashMap, fs, sync::OnceLock};
 use toml::Table;
-
-use crate::utils::template::Template;
 
 pub struct MessageTemplateProvider;
 

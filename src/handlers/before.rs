@@ -1,6 +1,5 @@
-use serenity::{framework::standard::macros::hook, model::prelude::Message, prelude::Context};
-
 use crate::{messages::TurtoMessage, typemap::guild_data::GuildDataMap};
+use serenity::{framework::standard::macros::hook, model::prelude::Message, prelude::Context};
 
 #[hook]
 pub async fn before_hook(ctx: &Context, msg: &Message, _cmd_name: &str) -> bool {

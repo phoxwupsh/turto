@@ -15,7 +15,7 @@ pub fn ytdl_playlist(url: &str) -> Option<YouTubePlaylist> {
         .unwrap_or_else(|err| panic!("yt-dlp command failed to run: {}", err));
 
     let Some(stdout) = &mut child.stdout else {
-        return None
+        return None;
     };
 
     let reader = BufReader::new(stdout);

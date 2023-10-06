@@ -1,20 +1,19 @@
+use crate::{
+    messages::TurtoMessage,
+    typemap::playing::Playing,
+    utils::{
+        guild::{GuildUtil, VoiceChannelState},
+        play::{play_next, play_url},
+    },
+};
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
     model::prelude::Message,
     prelude::Context,
 };
 use songbird::tracks::PlayMode;
-use url::Url;
-
-use crate::{
-    typemap::playing::Playing,
-    utils::{
-        guild::{GuildUtil, VoiceChannelState},
-        play::{play_next, play_url},
-    }, messages::TurtoMessage,
-};
-
 use tracing::error;
+use url::Url;
 
 #[command]
 #[bucket = "turto"]
@@ -27,7 +26,8 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             return Ok(());
         }
         VoiceChannelState::Different(bot_vc, _) => {
-            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: &bot_vc }).await?;
+            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: &bot_vc })
+                .await?;
             return Ok(());
         }
         VoiceChannelState::OnlySecond(user_vc) => {
@@ -56,16 +56,16 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         }
 
         let meta = play_url(ctx, guild.id, url).await?;
-        msg.reply(ctx, TurtoMessage::Play { title: meta.title.as_ref().unwrap() }).await?;
+        msg.reply(
+            ctx,
+            TurtoMessage::Play {
+                title: meta.title.as_ref().unwrap(),
+            },
+        )
+        .await?;
     } else {
         // If no url provided, check if there is a paused track or there is any song in the playlist
-        let playing_lock = ctx
-            .data
-            .read()
-            .await
-            .get::<Playing>()
-            .unwrap()
-            .clone();
+        let playing_lock = ctx.data.read().await.get::<Playing>().unwrap().clone();
         {
             let playing = playing_lock.read().await;
             // Get the current track handle
@@ -84,7 +84,13 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 
         if let Ok(meta) = play_next(ctx, guild.id).await {
             // if there is any song in the play list
-            msg.reply(ctx, TurtoMessage::Play { title: meta.title.as_ref().unwrap() }).await?;
+            msg.reply(
+                ctx,
+                TurtoMessage::Play {
+                    title: meta.title.as_ref().unwrap(),
+                },
+            )
+            .await?;
         } else {
             // if the playlist is empty
             msg.reply(ctx, TurtoMessage::InvalidUrl(None)).await?;

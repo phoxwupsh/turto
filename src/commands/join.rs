@@ -1,9 +1,11 @@
-use crate::{utils::guild::{GuildUtil, VoiceChannelState}, messages::TurtoMessage};
-
+use crate::{
+    messages::TurtoMessage,
+    utils::guild::{GuildUtil, VoiceChannelState},
+};
 use serenity::{
     client::Context,
     framework::standard::{macros::command, CommandResult},
-    model::channel::Message
+    model::channel::Message,
 };
 
 #[command]
@@ -13,7 +15,8 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
 
     match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
         VoiceChannelState::Different(bot_vc, _) => {
-            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: &bot_vc }).await?;
+            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: &bot_vc })
+                .await?;
             return Ok(());
         }
         VoiceChannelState::None | VoiceChannelState::OnlyFirst(_) => {

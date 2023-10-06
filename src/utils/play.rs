@@ -1,3 +1,7 @@
+use crate::{
+    handlers::track_end::TrackEndHandler,
+    typemap::{guild_data::GuildDataMap, playing::Playing},
+};
 use serenity::{model::prelude::GuildId, prelude::Context};
 use songbird::{
     input::{error::Error as InputError, Metadata, Restartable},
@@ -6,11 +10,6 @@ use songbird::{
 };
 use std::{error::Error, fmt::Display};
 use tracing::error;
-
-use crate::{
-    handlers::track_end::TrackEndHandler,
-    typemap::{guild_data::GuildDataMap, playing::Playing},
-};
 
 pub async fn play_url<S>(ctx: &Context, guild_id: GuildId, url: S) -> Result<Metadata, PlayError>
 where

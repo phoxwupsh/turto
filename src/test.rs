@@ -134,10 +134,23 @@ mod tests {
             .playlist_id("PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj")
             .build()
             .unwrap();
-        assert_eq!(video.to_string(), "https://www.youtube.com/watch?v=NjdqQyC7Rkc".to_owned());
-        assert_eq!(video_time.to_string(), "https://www.youtube.com/watch?v=NjdqQyC7Rkc&t=8s".to_owned());
+        assert_eq!(
+            video.to_string(),
+            "https://www.youtube.com/watch?v=NjdqQyC7Rkc".to_owned()
+        );
+        assert_eq!(
+            video_time.to_string(),
+            "https://www.youtube.com/watch?v=NjdqQyC7Rkc&t=8s".to_owned()
+        );
         assert_eq!(video_time_playlist.to_string(), "https://www.youtube.com/watch?v=NjdqQyC7Rkc&list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj&t=8s".to_owned());
-        assert_eq!(video_playlist.to_string(), "https://www.youtube.com/watch?v=NjdqQyC7Rkc&list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".to_owned());
-        assert_eq!(playlist.to_string(), "https://www.youtube.com/playlist?list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".to_owned())
+        assert_eq!(
+            video_playlist.to_string(),
+            "https://www.youtube.com/watch?v=NjdqQyC7Rkc&list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj"
+                .to_owned()
+        );
+        assert_eq!(
+            playlist.to_string(),
+            "https://www.youtube.com/playlist?list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj".to_owned()
+        )
     }
 }

@@ -14,12 +14,7 @@ use serenity::{
     Client,
 };
 use songbird::SerenityInit;
-use std::{
-    collections::HashMap,
-    io,
-    path::Path,
-    sync::Arc,
-};
+use std::{collections::HashMap, io, path::Path, sync::Arc};
 use tokio::{signal::ctrl_c, spawn, sync::RwLock};
 use tracing::error;
 

@@ -1,5 +1,4 @@
-use std::{sync::Arc, time::Duration};
-
+use crate::{config::help::HelpConfigProvider, messages::TurtoMessage};
 use serenity::{
     framework::standard::{macros::command, CommandResult},
     futures::StreamExt,
@@ -9,8 +8,7 @@ use serenity::{
     },
     prelude::Context,
 };
-
-use crate::{config::help::HelpConfigProvider, messages::TurtoMessage};
+use std::{sync::Arc, time::Duration};
 
 #[command]
 #[bucket = "turto"]

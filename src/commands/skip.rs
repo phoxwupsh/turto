@@ -1,15 +1,14 @@
-use serenity::{
-    framework::standard::{macros::command, CommandResult},
-    model::prelude::Message,
-    prelude::Context,
-};
-
 use crate::{
     messages::TurtoMessage,
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         play::play_next,
     },
+};
+use serenity::{
+    framework::standard::{macros::command, CommandResult},
+    model::prelude::Message,
+    prelude::Context,
 };
 
 #[command]

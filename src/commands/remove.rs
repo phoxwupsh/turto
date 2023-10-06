@@ -1,12 +1,10 @@
+use crate::{messages::TurtoMessage, typemap::guild_data::GuildDataMap};
+use regex::Regex;
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
     model::prelude::Message,
     prelude::Context,
 };
-
-use regex::Regex;
-
-use crate::{messages::TurtoMessage, typemap::guild_data::GuildDataMap};
 
 enum RemoveType {
     All,
@@ -74,7 +72,7 @@ async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                 }
             };
             drop(guild_data);
-            
+
             msg.reply(ctx, response).await?;
         }
         RemoveType::Range { from, to } => {
@@ -99,7 +97,7 @@ async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                     .to_string()
                 };
             drop(guild_data);
-            
+
             msg.reply(ctx, response).await?;
         }
     }

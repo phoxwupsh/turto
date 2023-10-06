@@ -1,16 +1,14 @@
+use crate::{
+    messages::TurtoMessage,
+    typemap::playing::Playing,
+    utils::guild::{GuildUtil, VoiceChannelState},
+};
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
     model::prelude::Message,
     prelude::Context,
 };
-
 use tracing::error;
-
-use crate::{
-    typemap::playing::Playing,
-    messages::TurtoMessage,
-    utils::guild::{GuildUtil, VoiceChannelState},
-};
 
 #[command]
 #[bucket = "turto"]
@@ -30,13 +28,7 @@ async fn stop(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
         VoiceChannelState::Same(_) => (),
     }
 
-    let playing_lock = ctx
-        .data
-        .read()
-        .await
-        .get::<Playing>()
-        .unwrap()
-        .clone();
+    let playing_lock = ctx.data.read().await.get::<Playing>().unwrap().clone();
     {
         let mut playing = playing_lock.write().await;
         let current_track = match playing.remove(&guild.id) {

@@ -1,3 +1,4 @@
+use crate::{messages::TurtoMessage, typemap::playing::Playing};
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
     model::prelude::Message,
@@ -6,20 +7,12 @@ use serenity::{
 use songbird::tracks::PlayMode;
 use tracing::error;
 
-use crate::{typemap::playing::Playing, messages::TurtoMessage};
-
 #[command]
 #[bucket = "turto"]
 async fn playwhat(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
     let guild = msg.guild(&ctx.cache).unwrap();
 
-    let playing_lock = ctx
-        .data
-        .read()
-        .await
-        .get::<Playing>()
-        .unwrap()
-        .clone();
+    let playing_lock = ctx.data.read().await.get::<Playing>().unwrap().clone();
     {
         let playing = playing_lock.read().await;
         let current_track = match playing.get(&guild.id) {
