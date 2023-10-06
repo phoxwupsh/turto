@@ -1,4 +1,6 @@
-use crate::{messages::TurtoMessage, typemap::guild_data::GuildDataMap};
+use crate::{
+    config::TurtoConfigProvider, messages::TurtoMessage, typemap::guild_data::GuildDataMap,
+};
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
     model::prelude::{Message, UserId},
@@ -10,7 +12,9 @@ use serenity::{
 async fn ban(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let guild = msg.guild(ctx).unwrap();
     let member = guild.member(ctx, &msg.author).await?;
-    if !member.permissions(ctx).unwrap().administrator() {
+    if !(member.permissions(ctx).unwrap().administrator()
+        || TurtoConfigProvider::get().is_owner(&msg.author.id))
+    {
         msg.reply(ctx, TurtoMessage::AdministratorOnly).await?;
         return Ok(());
     }

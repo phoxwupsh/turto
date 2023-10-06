@@ -12,3 +12,6 @@ allow_backward_seek = false
 
 # The delay of command invoking, denoted by seconds, it means "there is only one command can be invoked in command_delay seconds", time for each guild is calculated separately
 command_delay = 1
+
+# Uncomment the below line to set the of owner of this bot, you need to set with a user id, which you can copy from a user's Discord page with your Developer mode enabled
+#owner = 
