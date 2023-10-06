@@ -30,13 +30,15 @@ async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
             ParsedUrl::Youtube(yt_url) => {
                 if yt_url.is_playlist() {
                     let Some(yt_playlist) = ytdl_playlist(&yt_url.to_string()) else {
-                        msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed))).await?;
+                        msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed)))
+                            .await?;
                         continue;
                     };
                     QueueType::Multiple(yt_playlist)
                 } else {
                     let Ok(source) = ytdl(&yt_url.to_string()).await else {
-                        msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed))).await?;
+                        msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed)))
+                            .await?;
                         continue;
                     };
                     let metadata = source.metadata.clone();
@@ -45,7 +47,8 @@ async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
             }
             ParsedUrl::Other(url) => {
                 let Ok(source) = ytdl(url).await else {
-                    msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed))).await?;
+                    msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed)))
+                        .await?;
                     continue;
                 };
                 let metadata = source.metadata.clone();
@@ -53,28 +56,25 @@ async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
             }
         };
 
-        let playlists_lock = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
-        {
-            let mut playlists = playlists_lock.lock().await;
-            let guild_data = playlists.entry(msg.guild_id.unwrap()).or_default();
+        let guild_data_map = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
+        let mut guild_data = guild_data_map.entry(msg.guild_id.unwrap()).or_default();
 
-            match queue_item {
-                QueueType::Single(playlist_item) => {
-                    msg.reply(
-                        ctx,
-                        TurtoMessage::Queue {
-                            title: &playlist_item.title,
-                        },
-                    )
+        match queue_item {
+            QueueType::Single(playlist_item) => {
+                let title = playlist_item.title.clone();
+                let response = TurtoMessage::Queue { title: &title };
+                guild_data.playlist.push_back(playlist_item);
+                drop(guild_data);
+
+                msg.reply(ctx, response).await?;
+            }
+            QueueType::Multiple(mut yt_playlist) => {
+                let title = yt_playlist.title.take().unwrap_or_default();
+                guild_data.playlist.extend(yt_playlist.into_iter());
+                drop(guild_data);
+
+                msg.reply(ctx, TurtoMessage::Queue { title: &title })
                     .await?;
-                    guild_data.playlist.push_back(playlist_item); // Add song to playlist
-                }
-                QueueType::Multiple(mut yt_playlist) => {
-                    let title = yt_playlist.title.take().unwrap_or_default();
-                    guild_data.playlist.extend(yt_playlist.into_iter());
-                    msg.reply(ctx, TurtoMessage::Queue { title: &title })
-                        .await?;
-                }
             }
         }
     }

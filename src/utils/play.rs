@@ -1,33 +1,29 @@
-// ytdl, // Use restartable for seeking feature
-
-use std::{error::Error, fmt::Display};
 use serenity::{model::prelude::GuildId, prelude::Context};
 use songbird::{
-    input::{Metadata, Restartable, error::Error as InputError},
-    Event, TrackEvent, tracks::TrackError,
+    input::{error::Error as InputError, Metadata, Restartable},
+    tracks::TrackError,
+    Event, TrackEvent,
 };
+use std::{error::Error, fmt::Display};
 use tracing::error;
 
 use crate::{
-    typemap::{playing::Playing, guild_data::GuildDataMap},
     handlers::track_end::TrackEndHandler,
+    typemap::{guild_data::GuildDataMap, playing::Playing},
 };
 
 pub async fn play_url<S>(ctx: &Context, guild_id: GuildId, url: S) -> Result<Metadata, PlayError>
 where
     S: AsRef<str> + Send + Clone + Sync + 'static,
 {
-    let manager = songbird::get(ctx)
-        .await
-        .unwrap()
-        .clone();
+    let manager = songbird::get(ctx).await.unwrap().clone();
 
     let handler_lock = manager.get(guild_id).unwrap(); // When this method is called the bot must be in a voice channel
     let source = match Restartable::ytdl(url, true).await {
+        // Use restartable for seeking feature
         Ok(s) => s,
         Err(e) => return Err(PlayError::InputError(e)),
     };
-    // let source = ytdl(&url).await?; // Use restartable for seeking feature
 
     let song = {
         let mut handler = handler_lock.lock().await;
@@ -51,32 +47,16 @@ where
         return Err(PlayError::TrackError(why));
     }
 
-    let guild_data_map_lock = ctx
-        .data
-        .read()
-        .await
-        .get::<GuildDataMap>()
-        .unwrap()
-        .clone();
-    {
-        let mut guild_data_map = guild_data_map_lock.lock().await;
-        let guild_data = guild_data_map
-            .entry(guild_id)
-            .or_default();
-        if let Err(why) = song.set_volume(*guild_data.config.volume) {
-            error!("Error setting volume of track {}: {}", song.uuid(), why);
-            return Err(PlayError::TrackError(why));
-        }
+    let guild_data_map = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
+    let guild_data = guild_data_map.entry(guild_id).or_default();
+    if let Err(why) = song.set_volume(*guild_data.config.volume) {
+        error!("Error setting volume of track {}: {}", song.uuid(), why);
+        return Err(PlayError::TrackError(why));
     }
+    drop(guild_data);
 
     // Update the current track
-    let playing_lock = ctx
-        .data
-        .read()
-        .await
-        .get::<Playing>()
-        .unwrap()
-        .clone();
+    let playing_lock = ctx.data.read().await.get::<Playing>().unwrap().clone();
     {
         let _track = playing_lock.write().await.insert(guild_id, song);
     }
@@ -84,19 +64,10 @@ where
 }
 
 pub async fn play_next(ctx: &Context, guild_id: GuildId) -> Result<Metadata, PlayError> {
-    let playlist_lock = ctx
-        .data
-        .read()
-        .await
-        .get::<GuildDataMap>()
-        .unwrap()
-        .clone();
-
-    let next = {
-        let mut playlists = playlist_lock.lock().await;
-        let guild_data = playlists.entry(guild_id).or_default();
-        guild_data.playlist.pop_front()
-    };
+    let guild_data_map = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
+    let mut guild_data = guild_data_map.entry(guild_id).or_default();
+    let next = guild_data.playlist.pop_front();
+    drop(guild_data);
 
     match next {
         Some(next_song) => play_url(ctx, guild_id, next_song.url).await,
@@ -108,7 +79,7 @@ pub async fn play_next(ctx: &Context, guild_id: GuildId) -> Result<Metadata, Pla
 pub enum PlayError {
     TrackError(TrackError),
     InputError(InputError),
-    EmptyPlaylist(GuildId)
+    EmptyPlaylist(GuildId),
 }
 
 impl Display for PlayError {
@@ -122,4 +93,3 @@ impl Display for PlayError {
 }
 
 impl Error for PlayError {}
-

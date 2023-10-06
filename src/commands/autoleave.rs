@@ -4,9 +4,7 @@ use serenity::{
     prelude::Context,
 };
 
-use crate::{
-    typemap::guild_data::GuildDataMap, messages::TurtoMessage,
-};
+use crate::{messages::TurtoMessage, typemap::guild_data::GuildDataMap};
 
 #[command]
 #[bucket = "turto"]
@@ -19,20 +17,12 @@ async fn autoleave(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             return Ok(());
         }
     };
-    let guild_data_map_lock = ctx
-        .data
-        .read()
-        .await
-        .get::<GuildDataMap>()
-        .unwrap()
-        .clone();
-    {
-        let mut guild_data_map = guild_data_map_lock.lock().await;
-        let guild_data = guild_data_map
-            .entry(msg.guild_id.unwrap())
-            .or_default();
-        guild_data.config.auto_leave = toggle;
-    }
+    
+    let guild_data_map = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
+    let mut guild_data = guild_data_map.entry(msg.guild_id.unwrap()).or_default();
+    guild_data.config.auto_leave = toggle;
+    drop(guild_data);
+
     msg.reply(ctx, TurtoMessage::SetAutoleave(Ok(toggle)))
         .await?;
     Ok(())

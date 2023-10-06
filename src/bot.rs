@@ -6,6 +6,7 @@ use crate::{
     typemap::{guild_data::GuildDataMap, playing::Playing},
     utils::json::{read_json, write_json},
 };
+use dashmap::DashMap;
 use serenity::{
     framework::{standard::buckets::LimitedFor, StandardFramework},
     model::prelude::GuildId,
@@ -21,7 +22,7 @@ use std::{
 use tokio::{
     signal::ctrl_c,
     spawn,
-    sync::{Mutex, RwLock},
+    sync::RwLock,
 };
 use tracing::{error, info};
 
@@ -51,7 +52,7 @@ impl Turto {
             .await
             .group(&TURTOCOMMANDS_GROUP)
             .before(before_hook);
-        let guild_data_map: HashMap<GuildId, GuildData> =
+        let guild_data_map: DashMap<GuildId, GuildData> =
             read_json(guilds_path.as_ref()).unwrap_or_default();
         let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
         let client = Client::builder(token, intents)
@@ -60,7 +61,7 @@ impl Turto {
             .intents(intents)
             .register_songbird()
             .type_map_insert::<Playing>(Arc::new(RwLock::new(HashMap::default())))
-            .type_map_insert::<GuildDataMap>(Arc::new(Mutex::new(guild_data_map)))
+            .type_map_insert::<GuildDataMap>(Arc::new(guild_data_map))
             .await?;
         Ok(Self {
             inner: Some(TurtoInner {
@@ -97,7 +98,7 @@ impl Turto {
 impl TurtoInner {
     async fn save_data(&self) {
         let data = self.client.data.read().await;
-        let guild_data_map = data.get::<GuildDataMap>().unwrap().lock().await;
+        let guild_data_map = data.get::<GuildDataMap>().unwrap().clone();
         match write_json(&*guild_data_map, self.guilds_path.as_path()) {
             Ok(size) => info!("Write {} bytes to guilds.json", size),
             Err(err) => error!("Error occured while writing guilds.json: {}", err),

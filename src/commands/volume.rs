@@ -21,8 +21,6 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             .get::<GuildDataMap>()
             .unwrap()
             .clone()
-            .lock()
-            .await
             .entry(msg.guild_id.unwrap())
             .or_default()
             .config
@@ -62,12 +60,10 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     }
 
     // Update the volume setting of guild
-    let guild_data_map_lock = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
-    {
-        let mut guild_data_map = guild_data_map_lock.lock().await;
-        let guild_data = guild_data_map.entry(msg.guild_id.unwrap()).or_default();
-        guild_data.config.volume = new_vol;
-    }
+    let guild_data_map = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
+    let mut guild_data = guild_data_map.entry(msg.guild_id.unwrap()).or_default();
+    guild_data.config.volume = new_vol;
+    drop(guild_data);
 
     msg.reply(ctx, TurtoMessage::SetVolume(Ok(new_vol))).await?;
 
