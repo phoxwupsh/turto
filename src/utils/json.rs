@@ -5,7 +5,11 @@ use std::{
     path::Path,
 };
 
-pub fn read_json<T: DeserializeOwned, P: AsRef<Path>>(path: P) -> Result<T, Error> {
+pub fn read_json<T, P>(path: P) -> Result<T, Error>
+where
+    T: DeserializeOwned,
+    P: AsRef<Path>
+{
     match OpenOptions::new().read(true).open(path) {
         Ok(f) => {
             let reader = BufReader::new(f);
@@ -18,10 +22,11 @@ pub fn read_json<T: DeserializeOwned, P: AsRef<Path>>(path: P) -> Result<T, Erro
     }
 }
 
-pub fn write_json<T: ?Sized + Serialize, P: AsRef<Path>>(
-    value: &T,
-    path: P,
-) -> Result<usize, Error> {
+pub fn write_json<T, P>(value: &T, path: P) -> Result<usize, Error>
+where
+    T: ?Sized + Serialize,
+    P: AsRef<Path>
+{
     let mut f = OpenOptions::new()
         .write(true)
         .create(true)

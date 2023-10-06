@@ -1,5 +1,5 @@
-use std::env;
-use tracing::{error, Level};
+use std::{env, path::Path};
+use tracing::{error, info, Level};
 use turto::bot::Turto;
 
 #[tokio::main]
@@ -16,11 +16,25 @@ async fn main() {
     let token = env::var("DISCORD_TOKEN")
         .unwrap_or_else(|err| panic!("Error loading DISCORD_TOKEN in the environment: {}", err));
 
-    let mut bot = Turto::new(token, "guilds.json")
+    let data_path = Path::new("guilds.json");
+
+    let mut bot = Turto::new(token)
         .await
         .unwrap_or_else(|err| panic!("Turto client initialization failed: {}", err));
+    bot.load_data(data_path)
+        .await
+        .unwrap_or_else(|err| error!("Failed to load data from {}: {}", data_path.display(), err));
 
     if let Err(why) = bot.start().await {
         error!("Error occured while start bot client: {}", why);
+    } else {
+        match bot.save_data(data_path).await {
+            Ok(size) => info!("Write {} bytes to {}", size, data_path.display()),
+            Err(err) => error!(
+                "Error occured while writing {}: {}",
+                data_path.display(),
+                err
+            ),
+        }
     }
 }
