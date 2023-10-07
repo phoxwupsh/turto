@@ -47,3 +47,5 @@ banned_user_repsonse = "You are not allow to invoke any command because you are 
 invalid_user = "Please specify a user by mentioning."
 help = "Here are all the available commands, you can use the menu below to see detailed usage for each command. Remember to prefix any command with an exclamation mark (`!`)."
 command_help = "Here is how to use `{command_name}`. Remember to prefix any command with an exclamation mark (`!`)."
+empty_playlist = "The playlist is empty."
+shuffle = "The playlist has been shuffled."

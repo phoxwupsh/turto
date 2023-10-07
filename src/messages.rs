@@ -39,6 +39,8 @@ pub enum TurtoMessage<'a> {
     BannedUserResponse,
     Help,
     CommandHelp { command_name: &'a str },
+    EmptyPlaylist,
+    Shuffle
 }
 
 impl Display for TurtoMessage<'_> {
@@ -251,6 +253,16 @@ impl Display for TurtoMessage<'_> {
                 &MessageTemplateProvider::get_template("command_help")
                     .get_renderer()
                     .add_arg("command_name", command_name)
+                    .render_string(),
+            ),
+            Self::EmptyPlaylist => f.write_str(
+                &MessageTemplateProvider::get_template("empty_playlist")
+                    .get_renderer()
+                    .render_string(),
+            ),
+            Self::Shuffle => f.write_str(
+                &MessageTemplateProvider::get_template("shuffle")
+                    .get_renderer()
                     .render_string(),
             ),
         }
