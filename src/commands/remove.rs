@@ -37,14 +37,14 @@ async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                 // Check arg is number
                 Ok(i) => {
                     if i < 1 {
-                        msg.reply(ctx, TurtoMessage::InvalidRemove).await?;
+                        msg.reply(ctx, TurtoMessage::InvalidRemove{playlist_length: None}).await?;
                         return Ok(());
                     } else {
                         RemoveType::Index(i - 1) // Index start from 1
                     }
                 }
                 Err(_) => {
-                    msg.reply(ctx, TurtoMessage::InvalidRemove).await?;
+                    msg.reply(ctx, TurtoMessage::InvalidRemove{playlist_length: None}).await?;
                     return Ok(());
                 }
             },
@@ -67,8 +67,8 @@ async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                 title = removed.title.clone();
                 TurtoMessage::Remove { title: &title }
             } else {
-                TurtoMessage::InvalidRemoveIndex {
-                    playlist_length: guild_data.playlist.len(),
+                TurtoMessage::InvalidRemove {
+                    playlist_length: Some(guild_data.playlist.len()),
                 }
             };
             drop(guild_data);
@@ -91,8 +91,8 @@ async fn remove(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                         .collect::<Vec<_>>()
                         .join("\n")
                 } else {
-                    TurtoMessage::InvalidRemoveIndex {
-                        playlist_length: guild_data.playlist.len(),
+                    TurtoMessage::InvalidRemove {
+                        playlist_length: Some(guild_data.playlist.len()),
                     }
                     .to_string()
                 };

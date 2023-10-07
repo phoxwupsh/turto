@@ -26,7 +26,7 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             return Ok(());
         }
         VoiceChannelState::Different(bot_vc, _) => {
-            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: &bot_vc })
+            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: bot_vc })
                 .await?;
             return Ok(());
         }
@@ -40,7 +40,7 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                 error!("Failed to join voice channel {}: {}", user_vc, err);
                 return Ok(());
             }
-            msg.reply(ctx, TurtoMessage::Join(&user_vc)).await?;
+            msg.reply(ctx, TurtoMessage::Join(user_vc)).await?;
             call
         }
         VoiceChannelState::Same(_) => songbird::get(ctx).await.unwrap().get(guild.id).unwrap(),

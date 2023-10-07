@@ -13,24 +13,22 @@ pub enum TurtoMessage<'a> {
     NotPlaying,
     UserNotInVoiceChannel,
     BotNotInVoiceChannel,
-    DifferentVoiceChannel { bot: &'a ChannelId },
+    DifferentVoiceChannel { bot: ChannelId },
     Play { title: &'a str },
     Pause { title: &'a str },
     Skip { title: &'a str },
     Stop { title: &'a str },
-    Join(&'a ChannelId),
-    Leave(&'a ChannelId),
+    Join(ChannelId),
+    Leave(ChannelId),
     Queue { title: &'a str },
     Remove { title: &'a str },
     RemovaAll,
-    InvalidRemove,
-    InvalidRemoveIndex { playlist_length: usize },
+    InvalidRemove { playlist_length: Option<usize> },
     InvalidUrl(Option<&'a ParsedUrl>),
     SetVolume(Result<GuildVolume, ()>),
     SetAutoleave(Result<bool, ()>),
     InvalidSeek { seek_limit: u64 },
-    SeekNotAllow,
-    BackwardSeekNotAllow,
+    SeekNotAllow { backward: bool },
     SeekNotLongEnough { title: &'a str, length: u64 },
     AdministratorOnly,
     UserGotBanned(Result<UserId, UserId>),
@@ -39,8 +37,7 @@ pub enum TurtoMessage<'a> {
     BannedUserResponse,
     Help,
     CommandHelp { command_name: &'a str },
-    EmptyPlaylist,
-    Shuffle,
+    Shuffle(Result<(), ()>),
     SetRepeat(Result<bool, ()>),
 }
 
@@ -121,17 +118,19 @@ impl Display for TurtoMessage<'_> {
                     .get_renderer()
                     .render_string(),
             ),
-            Self::InvalidRemove => f.write_str(
-                &MessageTemplateProvider::get_template("invalid_remove")
-                    .get_renderer()
-                    .render_string(),
-            ),
-            Self::InvalidRemoveIndex { playlist_length } => f.write_str(
-                &MessageTemplateProvider::get_template("invalid_remove_index")
-                    .get_renderer()
-                    .add_arg("playlist_length", playlist_length)
-                    .render_string(),
-            ),
+            Self::InvalidRemove { playlist_length } => match playlist_length {
+                Some(length) => f.write_str(
+                    &MessageTemplateProvider::get_template("invalid_remove_index")
+                        .get_renderer()
+                        .add_arg("playlist_length", length)
+                        .render_string(),
+                ),
+                None => f.write_str(
+                    &MessageTemplateProvider::get_template("invalid_remove")
+                        .get_renderer()
+                        .render_string(),
+                ),
+            },
             Self::InvalidUrl(url) => match url {
                 Some(url_) => f.write_str(
                     &MessageTemplateProvider::get_template("url_not_found")
@@ -159,20 +158,16 @@ impl Display for TurtoMessage<'_> {
                 ),
             },
             Self::SetAutoleave(res) => match res {
-                Ok(toggle) => match toggle {
-                    true => f.write_str(
-                        &MessageTemplateProvider::get_template("toggle_autoleave")
-                            .get_renderer()
-                            .add_arg("autoleave_status", &"✅")
-                            .render_string(),
-                    ),
-                    false => f.write_str(
-                        &MessageTemplateProvider::get_template("toggle_autoleave")
-                            .get_renderer()
-                            .add_arg("autoleave_status", &"❎")
-                            .render_string(),
-                    ),
-                },
+                Ok(toggle) => {
+                    let mut res =
+                        MessageTemplateProvider::get_template("toggle_autoleave").get_renderer();
+                    if *toggle {
+                        res.add_arg("autoleave_status", &"✅");
+                    } else {
+                        res.add_arg("autoleave_status", &"❎");
+                    }
+                    f.write_str(&res.render_string())
+                }
                 Err(_) => f.write_str(
                     &MessageTemplateProvider::get_template("invalid_autoleave")
                         .get_renderer()
@@ -185,16 +180,14 @@ impl Display for TurtoMessage<'_> {
                     .add_arg("seek_limit", seek_limit)
                     .render_string(),
             ),
-            Self::SeekNotAllow => f.write_str(
-                &MessageTemplateProvider::get_template("seek_not_allow")
-                    .get_renderer()
-                    .render_string(),
-            ),
-            Self::BackwardSeekNotAllow => f.write_str(
-                &MessageTemplateProvider::get_template("backward_seek_not_allow")
-                    .get_renderer()
-                    .render_string(),
-            ),
+            Self::SeekNotAllow {backward} => {
+                let res = if *backward {
+                    MessageTemplateProvider::get_template("seek_not_allow").get_renderer()
+                } else {
+                    MessageTemplateProvider::get_template("backward_seek_not_allow").get_renderer()
+                };
+                f.write_str(&res.render_string())
+            },
             Self::SeekNotLongEnough { title, length } => f.write_str(
                 &MessageTemplateProvider::get_template("seek_not_long_enough")
                     .get_renderer()
@@ -256,28 +249,31 @@ impl Display for TurtoMessage<'_> {
                     .add_arg("command_name", command_name)
                     .render_string(),
             ),
-            Self::EmptyPlaylist => f.write_str(
-                &MessageTemplateProvider::get_template("empty_playlist")
-                    .get_renderer()
-                    .render_string(),
-            ),
-            Self::Shuffle => f.write_str(
-                &MessageTemplateProvider::get_template("shuffle")
-                    .get_renderer()
-                    .render_string(),
-            ),
+            Self::Shuffle(res) => {
+                let res = if res.is_ok() {
+                    MessageTemplateProvider::get_template("shuffle").get_renderer()
+                } else {
+                    MessageTemplateProvider::get_template("empty_playlist").get_renderer()
+                };
+                f.write_str(&res.render_string())
+            },
             Self::SetRepeat(repeat) => match repeat {
-                Ok(toggle) =>  {
-                    let mut res = MessageTemplateProvider::get_template("toggle_repeat").get_renderer();
+                Ok(toggle) => {
+                    let mut res =
+                        MessageTemplateProvider::get_template("toggle_repeat").get_renderer();
                     if *toggle {
                         res.add_arg("repeat_status", &"✅");
                     } else {
-                        res.add_arg("repeat_status", &"❎") ;                       
+                        res.add_arg("repeat_status", &"❎");
                     }
                     f.write_str(&res.render_string())
-                },
-                Err(_) => f.write_str(&MessageTemplateProvider::get_template("invalid_repeat").get_renderer().render_string())
-            }
+                }
+                Err(_) => f.write_str(
+                    &MessageTemplateProvider::get_template("invalid_repeat")
+                        .get_renderer()
+                        .render_string(),
+                ),
+            },
         }
     }
 }

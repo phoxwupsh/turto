@@ -21,7 +21,7 @@ async fn pause(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
             return Ok(());
         }
         VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
-            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: &bot_vc })
+            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: bot_vc })
                 .await?;
             return Ok(());
         }

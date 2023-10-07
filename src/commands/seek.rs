@@ -20,13 +20,14 @@ async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let config = TurtoConfigProvider::get();
 
     if !config.allow_seek {
-        msg.reply(ctx, TurtoMessage::SeekNotAllow).await?;
+        msg.reply(ctx, TurtoMessage::SeekNotAllow { backward: false })
+            .await?;
         return Ok(());
     }
 
     match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
         VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
-            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: &bot_vc })
+            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: bot_vc })
                 .await?;
             return Ok(());
         }
@@ -72,7 +73,8 @@ async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                     return Ok(());
                 }
                 if !config.allow_backward_seek && track_state.position.as_secs() > sec {
-                    msg.reply(ctx, TurtoMessage::BackwardSeekNotAllow).await?;
+                    msg.reply(ctx, TurtoMessage::SeekNotAllow { backward: true })
+                        .await?;
                     return Ok(());
                 }
             }

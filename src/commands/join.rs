@@ -15,7 +15,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
 
     match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
         VoiceChannelState::Different(bot_vc, _) => {
-            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: &bot_vc })
+            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: bot_vc })
                 .await?;
             return Ok(());
         }
@@ -30,7 +30,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
                 .join(guild.id, user_vc)
                 .await;
             if success.is_ok() {
-                msg.reply(ctx, TurtoMessage::Join(&user_vc)).await?;
+                msg.reply(ctx, TurtoMessage::Join(user_vc)).await?;
             }
         }
         VoiceChannelState::Same(_) => (),
