@@ -40,7 +40,8 @@ pub enum TurtoMessage<'a> {
     Help,
     CommandHelp { command_name: &'a str },
     EmptyPlaylist,
-    Shuffle
+    Shuffle,
+    SetRepeat(Result<bool, ()>),
 }
 
 impl Display for TurtoMessage<'_> {
@@ -265,6 +266,18 @@ impl Display for TurtoMessage<'_> {
                     .get_renderer()
                     .render_string(),
             ),
+            Self::SetRepeat(repeat) => match repeat {
+                Ok(toggle) =>  {
+                    let mut res = MessageTemplateProvider::get_template("toggle_repeat").get_renderer();
+                    if *toggle {
+                        res.add_arg("repeat_status", &"✅");
+                    } else {
+                        res.add_arg("repeat_status", &"❎") ;                       
+                    }
+                    f.write_str(&res.render_string())
+                },
+                Err(_) => f.write_str(&MessageTemplateProvider::get_template("invalid_repeat").get_renderer().render_string())
+            }
         }
     }
 }

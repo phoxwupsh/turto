@@ -49,3 +49,5 @@ help = "Here are all the available commands, you can use the menu below to see d
 command_help = "Here is how to use `{command_name}`. Remember to prefix any command with an exclamation mark (`!`)."
 empty_playlist = "The playlist is empty."
 shuffle = "The playlist has been shuffled."
+toggle_repeat = "Repeat: {repeat_status}"
+invalid_repeat = "Please specify whether to turn on or off repeat."
