@@ -1,22 +1,30 @@
+use std::sync::Arc;
+
 use crate::{
     typemap::guild_data::GuildDataMap,
     utils::play::{play_next, PlayError},
 };
-use serenity::{async_trait, model::prelude::GuildId, prelude::Context};
-use songbird::events::{Event, EventContext, EventHandler};
+use serenity::{async_trait, model::prelude::GuildId, prelude::TypeMap};
+use songbird::{
+    events::{Event, EventContext, EventHandler},
+    Call,
+};
+use tokio::sync::{Mutex, RwLock};
 use tracing::error;
 
 pub struct TrackEndHandler {
-    pub ctx: Context,
+    pub data: Arc<RwLock<TypeMap>>,
+    pub call: Arc<Mutex<Call>>,
     pub guild_id: GuildId,
 }
 
 #[async_trait]
 impl EventHandler for TrackEndHandler {
     async fn act(&self, _ctx: &EventContext<'_>) -> Option<Event> {
-        if let Err(PlayError::EmptyPlaylist(_guild)) = play_next(&self.ctx, self.guild_id).await {
+        if let Err(PlayError::EmptyPlaylist(_guild)) =
+            play_next(self.call.clone(), self.data.clone(), self.guild_id).await
+        {
             let guild_data_map = self
-                .ctx
                 .data
                 .read()
                 .await
@@ -28,8 +36,8 @@ impl EventHandler for TrackEndHandler {
             drop(guild_data);
 
             if auto_leave {
-                let manager = songbird::get(&self.ctx).await.unwrap().clone();
-                if let Err(err) = manager.remove(self.guild_id).await {
+                let mut call = self.call.lock().await;
+                if let Err(err) = call.leave().await {
                     error!("Failed to leave voice channel: {}", err);
                 }
             }

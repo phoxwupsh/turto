@@ -20,7 +20,7 @@ use url::Url;
 async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let guild = msg.guild(ctx).unwrap();
 
-    match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
+    let call = match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
         VoiceChannelState::None | VoiceChannelState::OnlyFirst(_) => {
             msg.reply(ctx, TurtoMessage::UserNotInVoiceChannel).await?;
             return Ok(());
@@ -31,19 +31,20 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             return Ok(());
         }
         VoiceChannelState::OnlySecond(user_vc) => {
-            let (_handler_lock, success) = songbird::get(ctx)
+            let (call, success) = songbird::get(ctx)
                 .await
                 .unwrap()
                 .join(guild.id, user_vc)
                 .await;
-            if success.is_ok() {
-                msg.channel_id
-                    .say(ctx, TurtoMessage::Join(&user_vc))
-                    .await?;
+            if let Err(err) = success {
+                error!("Failed to join voice channel {}: {}", user_vc, err);
+                return Ok(());
             }
+            msg.reply(ctx, TurtoMessage::Join(&user_vc)).await?;
+            call
         }
-        VoiceChannelState::Same(_) => (),
-    }
+        VoiceChannelState::Same(_) => songbird::get(ctx).await.unwrap().get(guild.id).unwrap(),
+    };
 
     let url = args.rest().to_string();
 
@@ -55,7 +56,7 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             return Ok(());
         }
 
-        let meta = play_url(ctx, guild.id, url).await?;
+        let meta = play_url(call, ctx.data.clone(), guild.id, url).await?;
         msg.reply(
             ctx,
             TurtoMessage::Play {
@@ -68,8 +69,6 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         let playing_lock = ctx.data.read().await.get::<Playing>().unwrap().clone();
         {
             let playing = playing_lock.read().await;
-            // Get the current track handle
-
             if let Some(current_track) = playing.get(&guild.id) {
                 if let Ok(current_track_state) = current_track.get_info().await {
                     if current_track_state.playing == PlayMode::Pause {
@@ -82,7 +81,7 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             } // return the lock
         }
 
-        if let Ok(meta) = play_next(ctx, guild.id).await {
+        if let Ok(meta) = play_next(call, ctx.data.clone(), guild.id).await {
             // if there is any song in the play list
             msg.reply(
                 ctx,
