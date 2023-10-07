@@ -40,7 +40,7 @@ async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
         let mut call = call.lock().await;
         call.stop();
     }
-    if let Ok(meta) = play_next(call, ctx.data.clone(), msg.guild_id.unwrap()).await {
+    if let Some(Ok(meta)) = play_next(call, ctx.data.clone(), msg.guild_id.unwrap()).await {
         msg.reply(
             ctx,
             TurtoMessage::Skip {

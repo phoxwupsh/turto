@@ -2,10 +2,7 @@ use crate::{
     handlers::track_end::TrackEndHandler,
     typemap::{guild_data::GuildDataMap, playing::Playing},
 };
-use serenity::{
-    model::prelude::GuildId,
-    prelude::TypeMap,
-};
+use serenity::{model::prelude::GuildId, prelude::TypeMap};
 use songbird::{
     input::{error::Error as InputError, Metadata, Restartable},
     tracks::TrackError,
@@ -63,21 +60,24 @@ where
 
     // Update the current track
     let playing_lock = data.read().await.get::<Playing>().unwrap().clone();
-    {
-        let _track = playing_lock.write().await.insert(guild_id, track);
-    }
+    let _track = playing_lock.write().await.insert(guild_id, track);
+
     Ok(meta)
 }
 
-pub async fn play_next(call: Arc<Mutex<Call>>, data: Arc<RwLock<TypeMap>>, guild_id: GuildId) -> Result<Metadata, PlayError> {
+pub async fn play_next(
+    call: Arc<Mutex<Call>>,
+    data: Arc<RwLock<TypeMap>>,
+    guild_id: GuildId,
+) -> Option<Result<Metadata, PlayError>> {
     let guild_data_map = data.read().await.get::<GuildDataMap>().unwrap().clone();
     let mut guild_data = guild_data_map.entry(guild_id).or_default();
     let next = guild_data.playlist.pop_front();
     drop(guild_data);
 
     match next {
-        Some(next_track) => play_url(call, data, guild_id, next_track.url).await,
-        None => Err(PlayError::EmptyPlaylist(guild_id)),
+        Some(next_track) => Some(play_url(call, data, guild_id, next_track.url).await),
+        None => None,
     }
 }
 
@@ -85,13 +85,11 @@ pub async fn play_next(call: Arc<Mutex<Call>>, data: Arc<RwLock<TypeMap>>, guild
 pub enum PlayError {
     TrackError(TrackError),
     InputError(InputError),
-    EmptyPlaylist(GuildId),
 }
 
 impl Display for PlayError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::EmptyPlaylist(g) => f.write_str(&format!("The playlist of guild {} is empty", g)),
             Self::TrackError(e) => f.write_str(&e.to_string()),
             Self::InputError(e) => f.write_str(&e.to_string()),
         }

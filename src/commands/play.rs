@@ -81,7 +81,7 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             } // return the lock
         }
 
-        if let Ok(meta) = play_next(call, ctx.data.clone(), guild.id).await {
+        if let Some(Ok(meta)) = play_next(call, ctx.data.clone(), guild.id).await {
             // if there is any song in the play list
             msg.reply(
                 ctx,
