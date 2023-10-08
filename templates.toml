@@ -13,6 +13,7 @@
 # "seek_limit" is the duration limitation of seeking, corresponding to the value with same name in config.toml
 # "user" is the user that is being banned/unbanned, represented by mentioning
 # "command_name" is the name of commands that is querying
+# "repeat_status" is the status of repeat, can be on or off, represented by emojis
 not_playing = "Not playing now."
 user_not_in_voice_channel = "You are not in a voice channel."
 bot_not_in_voice_channel = "turto is not in a voice channel."
