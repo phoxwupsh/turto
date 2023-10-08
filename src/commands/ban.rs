@@ -33,15 +33,17 @@ async fn ban(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 
     let guild_data_map = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
     let mut guild_data = guild_data_map.entry(guild.id).or_default();
-    let ban_result = if guild_data.config.banned.insert(banned.user.id) {
-        Ok(banned.user.id)
-    } else {
-        Err(banned.user.id)
-    };
+    let success = guild_data.config.banned.insert(banned.user.id);
     drop(guild_data);
 
-    msg.reply(ctx, TurtoMessage::UserGotBanned(ban_result))
-        .await?;
+    msg.reply(
+        ctx,
+        TurtoMessage::Ban {
+            success,
+            user: banned.user.id,
+        },
+    )
+    .await?;
 
     Ok(())
 }

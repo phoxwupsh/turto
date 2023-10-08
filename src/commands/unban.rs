@@ -33,15 +33,17 @@ async fn unban(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
 
     let guild_data_map = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
     let mut guild_data = guild_data_map.entry(guild.id).or_default();
-    let unban_result = if guild_data.config.banned.remove(&unbanned.user.id) {
-        Ok(unbanned.user.id)
-    } else {
-        Err(unbanned.user.id)
-    };
+    let success = guild_data.config.banned.remove(&unbanned.user.id);
     drop(guild_data);
 
-    msg.reply(ctx, TurtoMessage::UserGotUnbanned(unban_result))
-        .await?;
+    msg.reply(
+        ctx,
+        TurtoMessage::Unban {
+            success,
+            user: unbanned.user.id,
+        },
+    )
+    .await?;
 
     Ok(())
 }

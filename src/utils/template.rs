@@ -2,11 +2,11 @@ use std::{collections::HashMap, fmt::Display};
 
 #[derive(Debug)]
 pub struct Template {
-    total_len: usize,
+    length: usize,
     tokens: Vec<Token>,
 }
 
-pub struct Renderer<'a> {
+pub struct TemplateRenderer<'a> {
     template: &'a Template,
     args: HashMap<&'a str, &'a dyn Display>,
 }
@@ -61,26 +61,26 @@ impl Template {
             tokens.push(Token::Text(acc));
         }
         Ok(Template {
-            total_len: template.len(),
+            length: template.len(),
             tokens,
         })
     }
 
-    pub fn get_renderer(&self) -> Renderer {
-        Renderer {
+    pub fn renderer(&self) -> TemplateRenderer {
+        TemplateRenderer {
             template: self,
             args: HashMap::<_, _>::new(),
         }
     }
 }
 
-impl<'a> Renderer<'a> {
-    pub fn render_string(&self) -> String {
-        let mut res = String::with_capacity(self.template.total_len);
+impl<'a> TemplateRenderer<'a> {
+    pub fn render(&self) -> String {
+        let mut res = String::with_capacity(self.template.length);
         self.template.tokens.iter().for_each(|token| match token {
-            Token::Text(t) => res.push_str(t),
-            Token::Arg(a) => {
-                if let Some(s) = self.args.get(a.as_str()) {
+            Token::Text(text) => res.push_str(text),
+            Token::Arg(arg) => {
+                if let Some(s) = self.args.get(arg.as_str()) {
                     res.push_str(s.to_string().as_str());
                 }
             }

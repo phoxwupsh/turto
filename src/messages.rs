@@ -1,5 +1,5 @@
 use crate::{
-    config::message_template::MessageTemplateProvider,
+    config::message_template::get_renderer,
     models::{guild::volume::GuildVolume, url::ParsedUrl},
     utils::misc::ToEmoji,
 };
@@ -31,8 +31,8 @@ pub enum TurtoMessage<'a> {
     SeekNotAllow { backward: bool },
     SeekNotLongEnough { title: &'a str, length: u64 },
     AdministratorOnly,
-    UserGotBanned(Result<UserId, UserId>),
-    UserGotUnbanned(Result<UserId, UserId>),
+    Ban { success: bool, user: UserId },
+    Unban { success: bool, user: UserId },
     InvalidUser,
     BannedUserResponse,
     Help,
@@ -44,235 +44,129 @@ pub enum TurtoMessage<'a> {
 impl Display for TurtoMessage<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NotPlaying => f.write_str(
-                &MessageTemplateProvider::get_template("not_playing")
-                    .get_renderer()
-                    .render_string(),
-            ),
-            Self::UserNotInVoiceChannel => f.write_str(
-                &MessageTemplateProvider::get_template("user_not_in_voice_channel")
-                    .get_renderer()
-                    .render_string(),
-            ),
-            Self::BotNotInVoiceChannel => f.write_str(
-                &MessageTemplateProvider::get_template("bot_not_in_voice_channel")
-                    .get_renderer()
-                    .render_string(),
-            ),
+            Self::NotPlaying => f.write_str(&get_renderer("not_playing").render()),
+            Self::UserNotInVoiceChannel => {
+                f.write_str(&get_renderer("user_not_in_voice_channel").render())
+            }
+            Self::BotNotInVoiceChannel => {
+                f.write_str(&get_renderer("bot_not_in_voice_channel").render())
+            }
             Self::DifferentVoiceChannel { bot } => f.write_str(
-                &MessageTemplateProvider::get_template("different_voice_channel")
-                    .get_renderer()
+                &get_renderer("different_voice_channel")
                     .add_arg("bot_voice_channel", &bot.mention())
-                    .render_string(),
+                    .render(),
             ),
-            Self::Play { title } => f.write_str(
-                &MessageTemplateProvider::get_template("play")
-                    .get_renderer()
-                    .add_arg("title", title)
-                    .render_string(),
-            ),
-            Self::Pause { title } => f.write_str(
-                &MessageTemplateProvider::get_template("pause")
-                    .get_renderer()
-                    .add_arg("title", title)
-                    .render_string(),
-            ),
-            Self::Stop { title } => f.write_str(
-                &MessageTemplateProvider::get_template("stop")
-                    .get_renderer()
-                    .add_arg("title", title)
-                    .render_string(),
-            ),
-            Self::Skip { title } => f.write_str(
-                &MessageTemplateProvider::get_template("skip")
-                    .get_renderer()
-                    .add_arg("title", title)
-                    .render_string(),
-            ),
+            Self::Play { title } => {
+                f.write_str(&get_renderer("play").add_arg("title", title).render())
+            }
+            Self::Pause { title } => {
+                f.write_str(&get_renderer("pause").add_arg("title", title).render())
+            }
+            Self::Stop { title } => {
+                f.write_str(&get_renderer("stop").add_arg("title", title).render())
+            }
+            Self::Skip { title } => {
+                f.write_str(&get_renderer("skip").add_arg("title", title).render())
+            }
             Self::Join(channel) => f.write_str(
-                &MessageTemplateProvider::get_template("join")
-                    .get_renderer()
+                &get_renderer("join")
                     .add_arg("voice_channel", &channel.mention())
-                    .render_string(),
+                    .render(),
             ),
             Self::Leave(channel) => f.write_str(
-                &MessageTemplateProvider::get_template("leave")
-                    .get_renderer()
+                &get_renderer("leave")
                     .add_arg("voice_channel", &channel.mention())
-                    .render_string(),
+                    .render(),
             ),
-            Self::Queue { title } => f.write_str(
-                &MessageTemplateProvider::get_template("queue")
-                    .get_renderer()
-                    .add_arg("title", title)
-                    .render_string(),
-            ),
-            Self::Remove { title } => f.write_str(
-                &MessageTemplateProvider::get_template("remove")
-                    .get_renderer()
-                    .add_arg("title", title)
-                    .render_string(),
-            ),
-            Self::RemovaAll => f.write_str(
-                &MessageTemplateProvider::get_template("remove_all")
-                    .get_renderer()
-                    .render_string(),
-            ),
+            Self::Queue { title } => {
+                f.write_str(&get_renderer("queue").add_arg("title", title).render())
+            }
+            Self::Remove { title } => {
+                f.write_str(&get_renderer("remove").add_arg("title", title).render())
+            }
+            Self::RemovaAll => f.write_str(&get_renderer("remove_all").render()),
             Self::InvalidRemove { playlist_length } => match playlist_length {
                 Some(length) => f.write_str(
-                    &MessageTemplateProvider::get_template("invalid_remove_index")
-                        .get_renderer()
+                    &get_renderer("invalid_remove_index")
                         .add_arg("playlist_length", length)
-                        .render_string(),
+                        .render(),
                 ),
-                None => f.write_str(
-                    &MessageTemplateProvider::get_template("invalid_remove")
-                        .get_renderer()
-                        .render_string(),
-                ),
+                None => f.write_str(&get_renderer("invalid_remove").render()),
             },
             Self::InvalidUrl(url) => match url {
-                Some(url_) => f.write_str(
-                    &MessageTemplateProvider::get_template("url_not_found")
-                        .get_renderer()
-                        .add_arg("url", url_)
-                        .render_string(),
-                ),
-                None => f.write_str(
-                    &MessageTemplateProvider::get_template("invalid_url")
-                        .get_renderer()
-                        .render_string(),
-                ),
+                Some(url_) => {
+                    f.write_str(&get_renderer("url_not_found").add_arg("url", url_).render())
+                }
+                None => f.write_str(&get_renderer("invalid_url").render()),
             },
             Self::SetVolume(res) => match res {
                 Ok(vol) => f.write_str(
-                    &MessageTemplateProvider::get_template("volume")
-                        .get_renderer()
+                    &get_renderer("volume")
                         .add_arg("volume", &vol.to_emoji())
-                        .render_string(),
+                        .render(),
                 ),
-                Err(_) => f.write_str(
-                    &MessageTemplateProvider::get_template("invalid_volume")
-                        .get_renderer()
-                        .render_string(),
-                ),
+                Err(_) => f.write_str(&get_renderer("invalid_volume").render()),
             },
             Self::SetAutoleave(res) => match res {
                 Ok(toggle) => {
-                    let mut res =
-                        MessageTemplateProvider::get_template("toggle_autoleave").get_renderer();
-                    if *toggle {
-                        res.add_arg("autoleave_status", &"✅");
-                    } else {
-                        res.add_arg("autoleave_status", &"❎");
-                    }
-                    f.write_str(&res.render_string())
+                    let mut res = get_renderer("toggle_autoleave");
+                    let autoleave_status = if *toggle { "✅" } else { "❎" };
+                    f.write_str(&res.add_arg("autoleave_status", &autoleave_status).render())
                 }
-                Err(_) => f.write_str(
-                    &MessageTemplateProvider::get_template("invalid_autoleave")
-                        .get_renderer()
-                        .render_string(),
-                ),
+                Err(_) => f.write_str(&get_renderer("invalid_autoleave").render()),
             },
             Self::InvalidSeek { seek_limit } => f.write_str(
-                &MessageTemplateProvider::get_template("invalid_seek")
-                    .get_renderer()
+                &get_renderer("invalid_seek")
                     .add_arg("seek_limit", seek_limit)
-                    .render_string(),
+                    .render(),
             ),
-            Self::SeekNotAllow {backward} => {
-                let res = if *backward {
-                    MessageTemplateProvider::get_template("seek_not_allow").get_renderer()
-                } else {
-                    MessageTemplateProvider::get_template("backward_seek_not_allow").get_renderer()
-                };
-                f.write_str(&res.render_string())
+            Self::SeekNotAllow { backward } => match *backward {
+                true => f.write_str(&get_renderer("backward_seek_not_allow").render()),
+                false => f.write_str(&get_renderer("seek_not_allow").render()),
             },
             Self::SeekNotLongEnough { title, length } => f.write_str(
-                &MessageTemplateProvider::get_template("seek_not_long_enough")
-                    .get_renderer()
+                &get_renderer("seek_not_long_enough")
                     .add_arg("title", title)
                     .add_arg("length", length)
-                    .render_string(),
+                    .render(),
             ),
-            Self::AdministratorOnly => f.write_str(
-                &MessageTemplateProvider::get_template("administrator_only")
-                    .get_renderer()
-                    .render_string(),
-            ),
-            Self::UserGotBanned(user) => match user {
-                Ok(u) => f.write_str(
-                    &MessageTemplateProvider::get_template("user_got_banned")
-                        .get_renderer()
-                        .add_arg("user", &u.mention())
-                        .render_string(),
-                ),
-                Err(u) => f.write_str(
-                    &MessageTemplateProvider::get_template("user_already_banned")
-                        .get_renderer()
-                        .add_arg("user", &u.mention())
-                        .render_string(),
-                ),
-            },
-            Self::UserGotUnbanned(user) => match user {
-                Ok(u) => f.write_str(
-                    &MessageTemplateProvider::get_template("user_got_unbanned")
-                        .get_renderer()
-                        .add_arg("user", &u.mention())
-                        .render_string(),
-                ),
-                Err(u) => f.write_str(
-                    &MessageTemplateProvider::get_template("user_not_banned")
-                        .get_renderer()
-                        .add_arg("user", &u.mention())
-                        .render_string(),
-                ),
-            },
-            Self::InvalidUser => f.write_str(
-                &MessageTemplateProvider::get_template("invalid_user")
-                    .get_renderer()
-                    .render_string(),
-            ),
-            Self::BannedUserResponse => f.write_str(
-                &MessageTemplateProvider::get_template("banned_user_repsonse")
-                    .get_renderer()
-                    .render_string(),
-            ),
-            Self::Help => f.write_str(
-                &MessageTemplateProvider::get_template("help")
-                    .get_renderer()
-                    .render_string(),
-            ),
+            Self::AdministratorOnly => f.write_str(&get_renderer("administrator_only").render()),
+            Self::Ban { success, user } => {
+                let mut res = match success {
+                    true => get_renderer("user_got_banned"),
+                    false => get_renderer("user_already_banned"),
+                };
+                f.write_str(&res.add_arg("user", &user.mention()).render())
+            }
+            Self::Unban { success, user } => {
+                let mut res = match success {
+                    true => get_renderer("user_got_unbanned"),
+                    false => get_renderer("user_not_banned"),
+                };
+                f.write_str(&res.add_arg("user", &user.mention()).render())
+            }
+            Self::InvalidUser => f.write_str(&get_renderer("invalid_user").render()),
+            Self::BannedUserResponse => f.write_str(&get_renderer("banned_user_repsonse").render()),
+            Self::Help => f.write_str(&get_renderer("help").render()),
             Self::CommandHelp { command_name } => f.write_str(
-                &MessageTemplateProvider::get_template("command_help")
-                    .get_renderer()
+                &get_renderer("command_help")
                     .add_arg("command_name", command_name)
-                    .render_string(),
+                    .render(),
             ),
             Self::Shuffle(res) => {
-                let res = if res.is_ok() {
-                    MessageTemplateProvider::get_template("shuffle").get_renderer()
-                } else {
-                    MessageTemplateProvider::get_template("empty_playlist").get_renderer()
+                let res = match res {
+                    Ok(_) => get_renderer("shuffle"),
+                    Err(_) => get_renderer("empty_playlist"),
                 };
-                f.write_str(&res.render_string())
-            },
+                f.write_str(&res.render())
+            }
             Self::SetRepeat(repeat) => match repeat {
                 Ok(toggle) => {
-                    let mut res =
-                        MessageTemplateProvider::get_template("toggle_repeat").get_renderer();
-                    if *toggle {
-                        res.add_arg("repeat_status", &"✅");
-                    } else {
-                        res.add_arg("repeat_status", &"❎");
-                    }
-                    f.write_str(&res.render_string())
+                    let mut res = get_renderer("toggle_repeat");
+                    let repeat_status = if *toggle { "✅" } else { "❎" };
+                    f.write_str(&res.add_arg("repeat_status", &repeat_status).render())
                 }
-                Err(_) => f.write_str(
-                    &MessageTemplateProvider::get_template("invalid_repeat")
-                        .get_renderer()
-                        .render_string(),
-                ),
+                Err(_) => f.write_str(&get_renderer("invalid_repeat").render()),
             },
         }
     }
