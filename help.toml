@@ -11,22 +11,22 @@ example_field = "Example"
 [commands.autoleave]
 description = "Enable (`on`) or disable (`off`) automatic leaving. When automatic leave is enabled, turto will leave the voice channel automatically when the playlist is empty after playback ends or is stopped."
 usage = "autoleave on|off"
-example = [ "autoleave on", "autoleave off" ]
+example = ["autoleave on", "autoleave off"]
 
 [commands.join]
 description = "turto will join the voice channel you are in. It has no effect if turto is already in another voice channel."
 usage = "join"
-example = [ "join" ]
+example = ["join"]
 
 [commands.leave]
 description = "Make turto leave the current voice channel."
 usage = "leave"
-example = [ "leave" ]
+example = ["leave"]
 
 [commands.pause]
 description = "Pause the currently playing item."
 usage = "pause"
-example = [ "pause" ]
+example = ["pause"]
 
 [commands.play]
 description = """
@@ -40,18 +40,18 @@ example = [
   "play https://youtu.be/dQw4w9WgXcQ",
   "play https://www.youtube.com/watch?v=dQw4w9WgXcQ",
   "play https://soundcloud.com/kivawu/the-beautiful-ones",
-  "play https://www.bilibili.com/video/BV178411Y7QB/"
+  "play https://www.bilibili.com/video/BV178411Y7QB/",
 ]
 
 [commands.playlist]
 description = "Display the current playlist, which is shared across the entire server."
 usage = "playlist"
-example = [ "playlist" ]
+example = ["playlist"]
 
 [commands.playwhat]
 description = "Display the currently playing item."
 usage = "playwhat"
-example = [ "playwhat" ]
+example = ["playwhat"]
 
 [commands.queue]
 description = "Add new URLs (`url`) to the playlist. Supported sources include YouTube, Bilibili videos (no live streams), and Soundcloud music. You can add multiple items at once, separating them with spaces (` `). Additionally, you can directly add entire YouTube playlists, and playlist URLs will be prioritized."
@@ -62,50 +62,55 @@ example = [
   "queue https://soundcloud.com/kivawu/the-beautiful-ones",
   "queue https://www.bilibili.com/video/BV178411Y7QB/",
   "queue https://www.youtube.com/playlist?list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj",
-  "queue https://www.youtube.com/watch?v=NjdqQyC7Rkc&list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj"
+  "queue https://www.youtube.com/watch?v=NjdqQyC7Rkc&list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj",
 ]
 
 [commands.remove]
 description = "Delete certain items from the playlist. There are two ways to use it: you can use `remove index` to delete the item at position `index`, or you can use `remove from~to` to delete all items between positions `from` and `to`. `index`, `from`, and `to` must be positive integers. If you just want to simply clear the playlist, use `remove all`"
 usage = "remove index|from~to|all"
-example = [ "remove 2", "remove 2~4", "remove all" ]
+example = ["remove 2", "remove 2~4", "remove all"]
 
 [commands.seek]
 description = "If there is a currently playing or paused item, jump to the specified `time` in seconds. `time` must be a positive number."
 usage = "seek time"
-example = [ "seek 42" ]
+example = ["seek 42"]
 
 [commands.skip]
 description = "Skip the currently playing item and start playing the next item in the playlist (if available)."
 usage = "skip"
-example = [ "skip" ]
+example = ["skip"]
 
 [commands.stop]
 description = "Stop the currently playing item."
 usage = "stop"
-example = [ "stop" ]
+example = ["stop"]
 
 [commands.volume]
 description = "Adjust the volume, where `vol` can range from 0 (mute) to 100. The volume setting is shared across the entire server. If you want to check the current volume, use `volume ?`"
 usage = "volume vol"
-example = [ "volume 66", "volume ?" ]
+example = ["volume 66", "volume ?"]
 
 [commands.ban]
 description = "Ban a user, then the banned user won't be able to use any command. You can mention a user (using `@`) to ban that user, you can also use `<@user id>` to specify the user."
 usage = "ban user"
-example = [ "ban <@244448189917298698>" ]
+example = ["ban <@244448189917298698>"]
 
 [commands.unban]
 description = "Unban a user (if banned), then the user will be able to use all commands. You can mention a user (using `@`) to unban that user, you can also use `<@user id>` to specify the user."
 usage = "unban user"
-example = [ "unban <@244448189917298698>" ]
+example = ["unban <@244448189917298698>"]
 
 [commands.shuffle]
 description = "Shuffle the playlist."
 usage = "shuffle"
-example = [ "shuffle" ]
+example = ["shuffle"]
 
 [commands.repeat]
 description = "Enable (`on`) or disable (`off`) repeating. When repeating is enabled, turto will repeatly playing what is being played."
 usage = "repeat on|off"
-example = [ "repeat on", "repeat off" ]
+example = ["repeat on", "repeat off"]
+
+[commands.about]
+description = "Display the information about this bot."
+usage = "about"
+example = ["about"]
