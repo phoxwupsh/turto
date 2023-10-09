@@ -1,3 +1,6 @@
+use ring::digest::{Context, SHA256};
+use std::time::{SystemTime, UNIX_EPOCH};
+
 pub trait ToEmoji {
     fn to_emoji(&self) -> String;
 }
@@ -21,4 +24,21 @@ impl ToEmoji for usize {
             })
             .collect()
     }
+}
+
+pub fn sha256_now() -> String {
+    let mut hasher = Context::new(&SHA256);
+    hasher.update(
+        &SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_else(|err| panic!("Failed to get system time: {}", err))
+            .as_secs()
+            .to_be_bytes(),
+    );
+    hasher
+        .finish()
+        .as_ref()
+        .iter()
+        .map(|v| format!("{:02x?}", v))
+        .collect::<String>()
 }
