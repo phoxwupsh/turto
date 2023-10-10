@@ -15,4 +15,7 @@ Cargo.lock
 
 .env
 .vscode
+config.toml
+help.toml
+templates.toml
 guilds.json
