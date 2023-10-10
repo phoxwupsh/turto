@@ -1,6 +1,6 @@
 # turto
 
-[English](https://github.com/phoxwupsh/turto/blob/main/README.md) | [繁體中文]()
+[English](https://github.com/phoxwupsh/turto/blob/main/README.md) | [繁體中文](https://github.com/phoxwupsh/turto/blob/main/README.zh-Hant.md)
 
 turto is a simple and easy-to-use Discord music bot that supports customization. Through the following steps, you can have your own turto in minutes.
 

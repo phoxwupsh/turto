@@ -1,6 +1,6 @@
 # turto
 
-[English](https://github.com/phoxwupsh/turto/blob/main/README.md) | [繁體中文]()
+[English](https://github.com/phoxwupsh/turto/blob/main/README.md) | [繁體中文](https://github.com/phoxwupsh/turto/blob/main/README.zh-Hant.md)
 
 turto是一個簡單易用的Discord音樂機器人。只要跟著下面的指示，不用幾分鐘你就能擁有自己的turto。
 
