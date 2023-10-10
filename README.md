@@ -87,7 +87,7 @@ In the same directory there is also `config.toml`, it's configuration file for t
 
 #### Windows
 
-On Windows you can simply double click the `turto.exe` file then the bot will start working, or you can also use `cmd` or `powershell`.
+On Windows you can simply double click the `turto.exe` file then the bot will start working, or you can also use Command Prompt or PowerShell.
 
 ```shell
 .\turto
@@ -218,4 +218,4 @@ And start compiling
 cargo build --release
 ```
 
-After it compile successfully, you can see turto executable in directory `target` &rarr; `release`. If you compile turto yourself, you will need `.env`, `config.toml`, `help.toml` and `templates.toml` in the same directory with the executable, you can find presets in this repository, with file name end with `.template`.
+After it compile successfully, you can see turto executable in directory `target` &rarr; `release`. If you compile turto yourself, you will need `.env`, `config.toml`, `help.toml` and `templates.toml` in the same directory with the executable, you can find presets in this repository, with file name end with `.template`, you can simply rename them and start using.
