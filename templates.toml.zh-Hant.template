@@ -1,0 +1,53 @@
+# 以下是出現在訊息中的參數，參數必須用大括號 "{" 和 "}" 包住
+# 如果你真的很需要大括號 "{" 或 "}" 出現在訊息中，請在它之前放一個反斜線
+# 在 toml 中，被雙引號包住的文字需要轉義反斜線，所以其實你會需要兩個反斜線
+# 或者你可以使用單引號包住您的文字，這樣您就不需要兩個反斜線
+# 你可以參考 https://toml.io/en/v1.0.0 瞭解更多細節
+# "bot_voice_channel" 是機器人目前所在/加入/離開的語音頻道，以提及方式表示
+# "title" 是正在播放/暫停/停止的項目的標題
+# "volume" 是設定的音量，以數字表情符號表示，範圍從 0 到 100
+# "autoleave_status" 是自動離開的狀態，可以是開啟或關閉，以表情符號表示
+# "playlist_length" 是伺服器播放清單的長度
+# "length" 是當前正在播放的項目的長度
+# "seek_limit" 是跳轉的時間限制，對應到 config.toml 中的相同名稱的參數
+# "user" 是正在封鎖/解封的使用者，以提及方式表示
+# "command_name" 是正在查詢的指令名稱
+# "repeat_status" 是單曲循環的狀態，可以是開啟或關閉，以表情符號表示
+not_playing = "現在沒有在播放任何東西。"
+user_not_in_voice_channel = "你不在任何語音頻道中。"
+bot_not_in_voice_channel = "turto不在任何語音頻道中。"
+different_voice_channel = "你不在{bot_voice_channel}裡面"
+play = "▶️ {title}"
+pause = "⏸️ {title}"
+skip = "⏭️ {title}"
+stop = "⏹️ {title}"
+join = "{voice_channel}⬅️🐢"
+leave = "⬅️🐢{voice_channel}"
+queue = "✅ {title}"
+remove = "❎ {title}"
+remove_all = "播放清單已經被清空了。"
+invalid_remove = "你必須輸入你要移除播放清單中的第幾項，或是一個範圍，或輸入`all`來清空整個播放清單。"
+invalid_remove_index = "你必須輸入一個介於1和{playlist_length}的數字。"
+url_not_found = "找不到`{url}`。"
+invalid_url = "請輸入一個正確的網址。"
+volume = "🔊{volume}"
+invalid_volume = "請輸入一個介於0和100的數字。"
+toggle_autoleave = "自動離開：{autoleave_status}"
+invalid_autoleave = "請輸入`on`或`off`來開關自動離開。"
+invalid_seek = "請輸入一個介於0和{seek_limit}之間的數字。"
+seek_not_allow = "跳轉功能已被關閉。"
+backward_seek_not_allow = "倒轉功能已被關閉。"
+seek_not_long_enough = "`{title}`的長度只有{length}秒而已。"
+administrator_only = "這個指令只有管理員能用。"
+user_got_banned = "成功封鎖{user}"
+user_already_banned = "{user}之前就已經被封鎖過了。"
+user_got_unbanned = "成功解封{user}"
+user_not_banned = "{user}還沒被封鎖。"
+banned_user_repsonse = "你被封鎖了。"
+invalid_user = "請以標記的方式指定一位使用者"
+help = "以下是所有能用的指令，你可以用以下選單來查看每個指令的詳細用法。使用任何指令前面記得加上半形驚嘆號(`!`)。"
+command_help = "以下是`{command_name}`的用法，使用任何指令前面記得加上半形驚嘆號(`!`)。"
+empty_playlist = "播放清單裡面沒有東西。"
+shuffle = "🔀✅"
+toggle_repeat = "🔂{repeat_status}"
+invalid_repeat = "請輸入`on`或`off`來開關單曲循環。"

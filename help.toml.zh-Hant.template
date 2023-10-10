@@ -1,0 +1,115 @@
+# help指令選單的佔位符
+placeholder = "選一個指令"
+# 用法欄位名稱
+usage_field = "用法"
+# 範例欄位名稱
+example_field = "範例"
+
+# 各指令的說明，你可以用Discord的Markdown語法來裝飾它們
+# 用法和範例會動套用程式碼模式(以就是被兩個`包圍)
+# 範例可以有很多個，範例與範例間需要用半形逗號(,)，你可以參考 https://toml.io/en/v1.0.0 瞭解更多細節
+[commands.autoleave]
+description = "啟用(`on`)或停用(`off`)自動離開，如果自動離開有啟用，當播放結束或被停止時播放清單是空的，turto就會自動離開語音頻道。"
+usage = "autoleave on|off"
+example = [ "autoleave on", "autoleave off" ]
+
+[commands.join]
+description = "如果turto沒有已經在其他語音頻道中，turto會加入你所在的語音頻道。"
+usage = "join"
+example = [ "join" ]
+
+[commands.leave]
+description = "當你跟turto在同一個語音頻道時，讓turto離開目前所在的語音頻道。"
+usage = "leave"
+example = [ "leave" ]
+
+[commands.pause]
+description = "暫停正在播放中的的項目。"
+usage = "pause"
+example = [ "pause" ]
+
+[commands.play]
+description = """開始播放，如果turto沒有在其他語音頻道的話就會進入你所在的語音頻道，依照狀況不同有以下幾種可能：
+1. 有輸入網址(`url`)的話，會停止目前正在播放的項目(如果有的話)，並開始播放該網址的內容，目前支援YouTube、Bilibili的影片(直播不行)，和Soundcloud的音樂。
+2. 如果沒有輸入網址(`url`)，且當目前有正在播放的項目被暫停時，會繼續播放該項目。
+3. 如果沒有輸入網址(`url`)，目前也沒有暫停的項目，會從頭開始播放播放清單。"""
+usage = "play [url]"
+example = [
+  "play",
+  "play https://youtu.be/dQw4w9WgXcQ",
+  "play https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "play https://soundcloud.com/kivawu/the-beautiful-ones",
+  "play https://www.bilibili.com/video/BV178411Y7QB/"
+]
+
+[commands.playlist]
+description = "顯示目前的播放清單，整個伺服器會共用同一個播放清單。當播放清單中的項目數量超過10個時，會以每頁10個項目分成好幾頁。"
+usage = "playlist"
+example = [ "playlist" ]
+
+[commands.playwhat]
+description = "顯示目前正在播放的項目。"
+usage = "playwhat"
+example = [ "playwhat" ]
+
+[commands.queue]
+description = "在播放清單中加入新的網址(`url`)，目前支援YouTube、Bilibili的影片(直播不行)，和Soundcloud的音樂。你可以一次性加入多個項目，每個項目中間用半形空格(` `)即可。另外，你也可以直接加入整個YouTube播放清單，帶有播放清單的YouTube網址會優先加入整個播放清單。"
+usage = "queue url"
+example = [
+  "queue https://youtu.be/dQw4w9WgXcQ",
+  "queue https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "queue https://soundcloud.com/kivawu/the-beautiful-ones",
+  "queue https://www.bilibili.com/video/BV178411Y7QB/",
+  "queue https://www.youtube.com/playlist?list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj",
+  "queue https://www.youtube.com/watch?v=NjdqQyC7Rkc&list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj"
+]
+
+[commands.remove]
+description = "刪除播放清單中的某些項目，有三種用法，你可以用`remove index`刪除第`index`個項目，或是用`remove from~to`刪除從第`from`到第`to`之間的所有項目，`index`、`from`、`to`都必須是一個1或以上的整數。用`remove all`則可以直接清空整個播放清單。"
+usage = "remove index|from~to|all"
+example = [ "remove 2", "remove 2~4", "remove all" ]
+
+[commands.seek]
+description = "如果目前有正在播放或暫停中的的項目，跳轉到第`time`秒，`time`必須是一個大於0的數字。"
+usage = "seek time"
+example = [ "seek 42" ]
+
+[commands.skip]
+description = "跳過目前正在播放的項目，並開始播放播放清單中的下一個項目(如果有的話)。"
+usage = "skip"
+example = [ "skip" ]
+
+[commands.stop]
+description = "停止目前正在播放的項目。"
+usage = "stop"
+example = [ "stop" ]
+
+[commands.volume]
+description = "調整音量，音量(`vol`)最小是0(靜音)最大是100，整個伺服器共用同一個音量。你可以用`volume ?`來查看目前的音量。"
+usage = "volume vol"
+example = [ "volume 66", "volume ?" ]
+
+[commands.ban]
+description = "把人封鎖，被封鎖的人(`user`)要用標註來指定，被封鎖之後就沒辦法使用任何指令，這個指令只有管理員或擁有者能用。"
+usage = "ban user"
+example = [ "ban <@244448189917298698>" ]
+
+[commands.unban]
+description = "把被封鎖的人解封，要解封的對象(`user`)要用標註來指定，這個指令只有管理員或擁有者能用。"
+usage = "unban user"
+example = [ "unban <@244448189917298698>" ]
+
+[commands.shuffle]
+description = "將播放清單隨機洗牌。"
+usage = "shuffle"
+example = [ "shuffle" ]
+
+[commands.repeat]
+description = "開啟(`on`)或關閉(`off`)單曲循環。"
+usage = "repeat on|off"
+example = [ "repeat on", "repeat off" ]
+
+[commands.about]
+description = "顯示關於這個機器人的資訊。"
+usage = "about"
+example = ["about"]
