@@ -1,6 +1,6 @@
 # turto
 
-[English]() | [繁體中文]()
+[English](https://github.com/phoxwupsh/turto/blob/main/README.md) | [繁體中文]()
 
 turto is a simple and easy-to-use Discord music bot that supports customization. Through the following steps, you can have your own turto in minutes.
 
@@ -64,11 +64,11 @@ brew install ffmpeg
 
 ### yt-dlp
 
-For installing `yt-dlp`, you can refer to [this page on their github repository](https://github.com/yt-dlp/yt-dlp/wiki/Installation), they have made instructions for various platforms.
+For installing yt-dlp, you can refer to [this page on their github repository](https://github.com/yt-dlp/yt-dlp/wiki/Installation), they have made instructions for various platforms.
 
 ### Setup the bot
 
-Since you ensure `ffmpeg` and `yt-dlp` are installed, you can download pre-compiled turto binaries from the [release page](https://github.com/phoxwupsh/turto/releases). If the platform that you're using isn't provided, you can also compile it yourself.
+Since you ensure FFmpeg and yt-dlp are installed, you can download pre-compiled turto binaries from the [release page](https://github.com/phoxwupsh/turto/releases). If the platform that you're using isn't provided, you can also compile it yourself.
 
 #### .env
 
@@ -77,7 +77,7 @@ After you extract the zip file downloaded from the release page, you will see `.
 ```
 DISCORD_TOKEN=
 ```
-You need to paste you **Token** right after `DISCORD_TOKEN=`, and save the file, then you can start the bot.
+You need to paste you **Token** right after `DISCORD_TOKEN=`, and save the file.
 
 #### config.toml
 
@@ -136,7 +136,7 @@ Basically there's no need to edit these file, since I have written presets for y
 
 ## Compile
 
-To compile turto, you will need Rust toolchain and cmake.
+To compile turto, you will need Rust toolchain and CMake.
 
 ### Rust toolchain
 
@@ -218,4 +218,4 @@ And start compiling
 cargo build --release
 ```
 
-After it compile successfully, you can see turto executable in directory `target` &rarr; `release`. If you compile turto yourself, you will need `.env`, `config.toml`, `help.toml` and `templates.toml` in the same directory with the executable, you can get there are presets in this repository, with file name end with `.template`.
+After it compile successfully, you can see turto executable in directory `target` &rarr; `release`. If you compile turto yourself, you will need `.env`, `config.toml`, `help.toml` and `templates.toml` in the same directory with the executable, you can find presets in this repository, with file name end with `.template`.
