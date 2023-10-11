@@ -134,6 +134,10 @@ https://discord.com/api/oauth2/authorize?client_id={your application id}&permiss
 
 基本上你也不用自己寫，因為我都幫你寫好了。
 
+### 使用方式
+
+所有指令的使用方式都寫在`help`指令中了，你可以直接使用`help`指令來查詢每個指令的用法和使用範例。記得使用每個指令要在前面加上你在`config.toml`中設定過的`command_prefix`。
+
 ## 編譯
 
 要自己編譯turto你會需要Rust工具鏈和CMake。

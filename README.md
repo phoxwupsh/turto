@@ -134,6 +134,10 @@ In the directory where the bot executable is, there are two files `help.toml` an
 
 Basically there's no need to edit these file, since I have written presets for you.
 
+### Usage
+
+Basically you can get instructions of each command using the `help` command, there are also some example included. Make sure to add the prefix (`command_prefix`) you set in `config.toml` before using commands.
+
 ## Compile
 
 To compile turto, you will need Rust toolchain and CMake.
