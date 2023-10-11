@@ -68,7 +68,7 @@ brew install ffmpeg
 
 ### 設定
 
-在你確定FFmpeg和yt-dlp都安裝好之後，你可以從[這裡](https://github.com/phoxwupsh/turto/releases)下在我已經預先編譯好的turto版本。如果我沒有幫你用的平台編譯的話，你也可以自己編譯
+在你確定FFmpeg和yt-dlp都安裝好之後，你可以從[這裡](https://github.com/phoxwupsh/turto/releases)按照你所使用的平台下載我已經預先編譯好的turto版本。如果我沒有幫你用的平台編譯的話，你也可以自己編譯。裡面預設的檔案是英文的，如果你希望turto說中文，可以在同一個頁面下載`zh-Hant.zip`，並用`zh-Hant.zip`中的`help.toml`和`templates.toml`取代原本的檔案。
 
 #### .env
 
