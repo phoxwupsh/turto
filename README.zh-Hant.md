@@ -77,7 +77,7 @@ brew install ffmpeg
 ```
 DISCORD_TOKEN=
 ```
-你需要把你的**Token**貼在`DISCORD_TOKEN=`後面然後存檔。
+你需要把你的**Token**貼在`DISCORD_TOKEN=`後面然後存檔。如果你還沒有Token的話，可以直接[Google搜尋「discord 機器人 token」](https://www.google.com/search?q=discord+%E6%A9%9F%E5%99%A8%E4%BA%BA+token)然後你就會看到一堆教學。
 
 #### config.toml
 

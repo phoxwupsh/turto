@@ -77,7 +77,7 @@ After you extract the zip file downloaded from the release page, you will see `.
 ```
 DISCORD_TOKEN=
 ```
-You need to paste you **Token** right after `DISCORD_TOKEN=`, and save the file.
+You need to paste you **Token** right after `DISCORD_TOKEN=`, and save the file. If you don't know what is Token, you can just [seach "discord bot token"](https://www.google.com/search?q=discord+bot+token) and there are a lot of tutorials telling how to do.
 
 #### config.toml
 
