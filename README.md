@@ -138,6 +138,10 @@ Basically there's no need to edit these file, since I have written presets for y
 
 Basically you can get instructions of each command using the `help` command, there are also some example included. Make sure to add the prefix (`command_prefix`) you set in `config.toml` before using commands.
 
+### Shutdown
+
+If you want to stop the bot, you should press `Ctrl` + `C`, this make the bot save data of each guilds (playlist and settings) then shutdown. If you close the terminal window directly, the bot would not save the data.
+
 ## Compile
 
 To compile turto, you will need Rust toolchain and CMake.

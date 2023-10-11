@@ -138,6 +138,10 @@ https://discord.com/api/oauth2/authorize?client_id={your application id}&permiss
 
 所有指令的使用方式都寫在`help`指令中了，你可以直接使用`help`指令來查詢每個指令的用法和使用範例。記得使用每個指令要在前面加上你在`config.toml`中設定過的`command_prefix`。
 
+### 關閉
+
+當你要讓turto關機的時候，你要按`Ctrl`和`C`，這樣turto才會把資料(例如播放清單和設定)儲存起來，反之如果你直接把視窗關掉那資料就不會儲存。
+
 ## 編譯
 
 要自己編譯turto你會需要Rust工具鏈和CMake。
