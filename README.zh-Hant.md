@@ -6,7 +6,7 @@ turto是一個簡單易用的Discord音樂機器人。只要跟著下面的指�
 
 ## 部署
 
-turto需要FFmpeg和yt-dlp才能運作，如果你還沒有安裝它們的話，你可以照著下面的指示來安裝。turto也支援Docker，如果你要用Docker來執行turto的話，可以直接跳過以下這些步驟看[這裡]()。
+turto需要FFmpeg和yt-dlp才能運作，如果你還沒有安裝它們的話，你可以照著下面的指示來安裝。turto也支援Docker，如果你要用Docker來執行turto的話，可以直接跳過以下這些步驟看[這裡](https://github.com/phoxwupsh/turto/blob/main/README.zh-Hant.md#%E5%A6%82%E6%9E%9C%E4%BD%A0%E6%98%AF%E7%94%A8docker%E7%9A%84%E8%A9%B1)。
 
 ### ffmpeg
 

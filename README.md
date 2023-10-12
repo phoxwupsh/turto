@@ -6,7 +6,7 @@ turto is a simple and easy-to-use Discord music bot that supports customization.
 
 ## Deployment
 
-turto depends on FFmpeg and yt-dlp, make sure you have these tools installed, if you haven't done so, you can follow the following steps to install them. turto also supports Docker, see [here]() if you want to use turto with Docker.
+turto depends on FFmpeg and yt-dlp, make sure you have these tools installed, if you haven't done so, you can follow the following steps to install them. turto also supports Docker, see [here](https://github.com/phoxwupsh/turto#if-you-use-docker) if you want to use turto with Docker.
 
 ### ffmpeg
 
