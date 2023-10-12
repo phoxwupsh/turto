@@ -6,7 +6,7 @@ turto is a simple and easy-to-use Discord music bot that supports customization.
 
 ## Deployment
 
-turto depends on FFmpeg and yt-dlp, make sure you have these tools installed, if you haven't done so, you can follow the following steps to install them.
+turto depends on FFmpeg and yt-dlp, make sure you have these tools installed, if you haven't done so, you can follow the following steps to install them. turto also supports Docker, see [here]() if you want to use turto with Docker.
 
 ### ffmpeg
 
@@ -141,6 +141,16 @@ Basically you can get instructions of each command using the `help` command, the
 ### Shutdown
 
 If you want to stop the bot, you should press `Ctrl` + `C`, this make the bot save data of each guilds (playlist and settings) then shutdown. If you close the terminal window directly, the bot would not save the data.
+
+### If you use Docker
+
+Run this command
+
+```shell
+docker run -e DISCORD_TOKEN={you bot token} ghcr.io/phoxwupsh/turto:latest
+```
+
+You need to replace `{you bot token}` with you bot token, that's it.
 
 ## Compile
 

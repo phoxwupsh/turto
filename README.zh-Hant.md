@@ -4,9 +4,9 @@
 
 turto是一個簡單易用的Discord音樂機器人。只要跟著下面的指示，不用幾分鐘你就能擁有自己的turto。
 
-## 部屬
+## 部署
 
-turto需要FFmpeg和yt-dlp才能運作，如果你還沒有安裝它們的話，你可以照著下面的指示來安裝。
+turto需要FFmpeg和yt-dlp才能運作，如果你還沒有安裝它們的話，你可以照著下面的指示來安裝。turto也支援Docker，如果你要用Docker來執行turto的話，可以直接跳過以下這些步驟看[這裡]()。
 
 ### ffmpeg
 
@@ -141,6 +141,16 @@ https://discord.com/api/oauth2/authorize?client_id={your application id}&permiss
 ### 關閉
 
 當你要讓turto關機的時候，你要按`Ctrl`和`C`，這樣turto才會把資料(例如播放清單和設定)儲存起來，反之如果你直接把視窗關掉那資料就不會儲存。
+
+### 如果你是用Docker的話
+
+你只需要執行
+
+```shell
+docker run -e DISCORD_TOKEN={you bot token} ghcr.io/phoxwupsh/turto:latest
+```
+
+記得用你的Token取代`{you bot token}`，就這麼簡單。
 
 ## 編譯
 
