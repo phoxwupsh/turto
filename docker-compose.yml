@@ -1,0 +1,9 @@
+services:
+  bot:
+    build: .
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+    volumes:
+      - ./config.toml.template:/app/config.toml
+      - ./help.toml.template:/app/help.toml
+      - ./templates.toml.template:/app/templates.toml

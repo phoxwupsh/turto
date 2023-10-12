@@ -1,5 +1,5 @@
 use std::{env, path::Path};
-use tracing::{error, info, Level};
+use tracing::{error, info, warn, Level};
 use turto::bot::Turto;
 
 #[tokio::main]
@@ -12,10 +12,14 @@ async fn main() {
     std::panic::set_hook(Box::new(|panic_info| {
         error!("{}", panic_info.payload().downcast_ref::<String>().unwrap());
     }));
-    dotenv::dotenv().unwrap_or_else(|err| panic!("Failed to load .env file: {}", err));
+    if let Err(err) = dotenv::dotenv() {
+        warn!("Failed to load .env file: {}", err);
+    }
     let token = env::var("DISCORD_TOKEN")
         .unwrap_or_else(|err| panic!("Failed to load DISCORD_TOKEN in the environment: {}", err));
-
+    if token.is_empty() {
+        error!("You need to set DISCORD_TOKEN in the enviroment!");
+    }
     let data_path = Path::new("guilds.json");
 
     let mut bot = Turto::new(token)
