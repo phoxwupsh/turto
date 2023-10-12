@@ -15,5 +15,8 @@ RUN chmod a+rx /usr/local/bin/yt-dlp
 
 # copy bot binary
 COPY --from=builder /build/target/release/turto .
+COPY --from=builder /build/config.toml.template ./config.toml
+COPY --from=builder /build/help.toml.template ./help.toml
+COPY --from=builder /build/templates.toml.template ./templates.toml
 
 CMD ["/app/turto"]
