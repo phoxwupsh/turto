@@ -27,7 +27,7 @@ async fn main() {
         .unwrap_or_else(|err| panic!("Turto client initialization failed: {}", err));
     bot.load_data(data_path)
         .await
-        .unwrap_or_else(|err| error!("Failed to load data from {}: {}", data_path.display(), err));
+        .unwrap_or_else(|err| warn!("Failed to load data from {}: {}, will initialize new guilds data", data_path.display(), err));
 
     if let Err(why) = bot.start().await {
         error!("Error occured while starting bot client: {}", why);
