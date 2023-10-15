@@ -7,11 +7,11 @@ RUN cargo build --release
 FROM debian:bullseye-slim
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y xz-utils wget
+RUN apt-get update && apt-get install -y xz-utils wget python3
 
 # download yt-dlp
-RUN wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -O /usr/local/bin/yt-dlp
-RUN chmod a+rx /usr/local/bin/yt-dlp
+RUN wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp \
+    && chmod a+rx /usr/local/bin/yt-dlp
 
 # install static ffmpeg
 RUN wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz \
