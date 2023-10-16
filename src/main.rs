@@ -1,6 +1,7 @@
 use std::{env, path::Path};
 use tracing::{error, info, warn, Level};
 use turto::bot::Turto;
+use which::which_global;
 
 #[tokio::main]
 async fn main() {
@@ -20,6 +21,14 @@ async fn main() {
     if token.is_empty() {
         error!("You need to set DISCORD_TOKEN in the enviroment!");
     }
+
+    if let Err(err) = which_global("ffmpeg") {
+        panic!("ffmpeg is not installed: {}", err);
+    }
+    if let Err(err) = which_global("yt-dlp") {
+        panic!("yt-dlp is not installed: {}", err);
+    }
+
     let data_path = Path::new("guilds.json");
 
     let mut bot = Turto::new(token)
