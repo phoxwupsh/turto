@@ -1,13 +1,13 @@
-FROM rust:1.73-bullseye as builder
+FROM rust:1.73-alpine as builder
 WORKDIR /build
 COPY . .
-RUN apt-get update && apt-get install -y cmake
+RUN apk update && apk add git make cmake musl-dev
 RUN cargo build --release
 
-FROM debian:bullseye-slim
+FROM alpine:3.18
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y xz-utils wget python3
+RUN apk add --no-cache python3 xz
 
 # download yt-dlp
 RUN wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp \
@@ -26,7 +26,8 @@ RUN wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.t
 # copy bot binary
 COPY --from=builder /build/target/release/turto .
 COPY --from=builder /build/config.toml.template ./config.toml
-COPY --from=builder /build/help.toml.template ./help.toml
-COPY --from=builder /build/templates.toml.template ./templates.toml
+COPY --from=builder /build/help.toml.zh-Hant.template ./help.toml
+COPY --from=builder /build/templates.toml.zh-Hant.template ./templates.toml
+COPY --from=builder /build/.env ./.env
 
-CMD ["/app/turto"]
+ENTRYPOINT ["/app/turto"]
