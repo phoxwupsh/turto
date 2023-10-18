@@ -7,7 +7,7 @@ RUN cargo build --release
 FROM alpine:3.18
 WORKDIR /app
 
-RUN apk add --no-cache python3
+RUN apk add --no-cache python3 xz
 
 # download yt-dlp
 RUN wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp \
