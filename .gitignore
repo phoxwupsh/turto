@@ -15,6 +15,7 @@ Cargo.lock
 
 .env
 .vscode
+.devcontainer
 config.toml
 help.toml
 templates.toml
