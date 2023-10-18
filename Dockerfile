@@ -26,8 +26,7 @@ RUN wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.t
 # copy bot binary
 COPY --from=builder /build/target/release/turto .
 COPY --from=builder /build/config.toml.template ./config.toml
-COPY --from=builder /build/help.toml.zh-Hant.template ./help.toml
-COPY --from=builder /build/templates.toml.zh-Hant.template ./templates.toml
-COPY --from=builder /build/.env ./.env
+COPY --from=builder /build/help.toml.template ./help.toml
+COPY --from=builder /build/templates.toml.template ./templates.toml
 
 ENTRYPOINT ["/app/turto"]
