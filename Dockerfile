@@ -1,7 +1,8 @@
-FROM rust:1.73-alpine as builder
+FROM rust:1.74-alpine as builder
 WORKDIR /build
 COPY . .
-RUN apk update && apk add git make cmake musl-dev
+# it seems openssl does not work thus switch to libressl
+RUN apk update && apk add git make cmake musl-dev libressl-dev
 RUN cargo build --release
 
 FROM alpine:3.18
