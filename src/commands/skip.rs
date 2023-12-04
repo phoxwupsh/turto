@@ -14,9 +14,10 @@ use serenity::{
 #[command]
 #[bucket = "turto"]
 async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
-    let guild = msg.guild(ctx).unwrap();
+    let guild = msg.guild(&ctx.cache).unwrap().clone();
+    let bot_id = ctx.cache.current_user().id;
 
-    match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
+    match guild.cmp_voice_channel(&bot_id, &msg.author.id) {
         VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
             msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: bot_vc })
                 .await?;

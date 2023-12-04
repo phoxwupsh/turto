@@ -1,7 +1,7 @@
 use crate::{
     messages::TurtoMessage,
     models::guild::volume::GuildVolume,
-    typemap::{guild_data::GuildDataMap, playing::Playing},
+    typemap::{guild_data::GuildDataMap, playing::PlayingMap},
 };
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
@@ -45,19 +45,15 @@ async fn volume(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     };
 
     // Update the volume if there is a currently playing TrackHandle
-    let playing_lock = ctx.data.read().await.get::<Playing>().unwrap().clone();
-    {
-        let playing = playing_lock.read().await;
-        if let Some(current_track) = playing.get(&msg.guild_id.unwrap()) {
-            if let Err(why) = current_track.set_volume(*new_vol) {
-                error!(
-                    "Failed to set volume for track {}: {}",
-                    current_track.uuid(),
-                    why
-                );
-            }
+    let playing_lock = ctx.data.read().await.get::<PlayingMap>().unwrap().clone();
+    let playing_map = playing_lock.read().await;
+    if let Some(playing) = playing_map.get(&msg.guild_id.unwrap()) {
+        if let Err(why) = playing.track_handle.set_volume(*new_vol) {
+            let uuid = playing.track_handle.uuid();
+            error!("Failed to set volume for track {uuid}: {why}");
         }
     }
+    drop(playing_map);
 
     // Update the volume setting of guild
     let guild_data_map = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();

@@ -1,72 +1,63 @@
-use crate::{config::help::HelpConfigProvider, messages::TurtoMessage};
+use crate::{
+    config::help::{get_command_list, get_help},
+    messages::TurtoMessage,
+};
 use serenity::{
+    all::ComponentInteractionDataKind,
+    builder::{
+        CreateActionRow, CreateEmbed, CreateInteractionResponse, CreateInteractionResponseMessage,
+        CreateMessage, CreateSelectMenu, CreateSelectMenuKind, CreateSelectMenuOption,
+    },
     framework::standard::{macros::command, CommandResult},
     futures::StreamExt,
-    model::{
-        application::interaction::InteractionResponseType,
-        prelude::{interaction::message_component::MessageComponentInteraction, Message},
-    },
+    model::prelude::Message,
     prelude::Context,
 };
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 #[command]
 #[bucket = "turto"]
 async fn help(ctx: &Context, msg: &Message) -> CommandResult {
-    let helps = HelpConfigProvider::get();
-    let command_list = HelpConfigProvider::command_list();
-    let waiting = msg
-        .channel_id
-        .send_message(ctx, |message| {
-            message
-                .reference_message(msg)
-                .content(TurtoMessage::Help)
-                .components(|components| {
-                    components.create_action_row(|row| {
-                        row.create_select_menu(|menu| {
-                            menu.custom_id("help")
-                                .placeholder(&helps.placeholder)
-                                .options(|options| {
-                                    for command_name in command_list.iter() {
-                                        options.create_option(|o| {
-                                            o.label(command_name).value(command_name)
-                                        });
-                                    }
-                                    options
-                                })
-                        })
-                    })
-                })
-        })
-        .await?;
+    let helps = get_help();
+    let options = get_command_list()
+        .iter()
+        .map(|command_name| CreateSelectMenuOption::new(command_name, command_name))
+        .collect::<Vec<_>>();
+    let acction = CreateActionRow::SelectMenu(
+        CreateSelectMenu::new("help", CreateSelectMenuKind::String { options })
+            .placeholder(&helps.placeholder),
+    );
+    let help_message = CreateMessage::new()
+        .reference_message(msg)
+        .content(TurtoMessage::Help)
+        .components(vec![acction]);
+    let waiting = msg.channel_id.send_message(ctx, help_message).await?;
 
     let mut interactions = waiting
         .await_component_interactions(ctx)
         .timeout(Duration::from_secs(60))
-        .build();
+        .stream();
 
-    let interaction = {
-        let res: Arc<MessageComponentInteraction>;
-        loop {
-            match interactions.next().await {
-                Some(interaction) => {
-                    if interaction.user == msg.author {
-                        // response only if the interaction is send by the user who invoke the help command
-                        res = interaction;
-                        break;
-                    }
-                }
-                None => {
-                    // if there is no interaction sended, delete the select menu
-                    waiting.delete(ctx).await?;
-                    return Ok(());
+    let interaction = loop {
+        match interactions.next().await {
+            Some(interaction) => {
+                if interaction.user == msg.author {
+                    // response only if the interaction is send by the user who invoke the help command
+                    break interaction;
                 }
             }
+            None => {
+                // if there is no interaction sended, delete the select menu
+                waiting.delete(ctx).await?;
+                return Ok(());
+            }
         }
-        res
     };
 
-    let command_name = &interaction.data.values[0];
+    let command_name = match &interaction.data.kind {
+        ComponentInteractionDataKind::StringSelect { values } => values.get(0).unwrap(),
+        _ => panic!("Invalid help select"),
+    };
     let target_help = helps.commands.get(command_name).unwrap_or_else(|| {
         panic!(
             "Can't find help configuration of the command \"{}\" in help.toml",
@@ -74,22 +65,21 @@ async fn help(ctx: &Context, msg: &Message) -> CommandResult {
         )
     });
 
-    interaction
-        .create_interaction_response(ctx, |resp| {
-            resp.kind(InteractionResponseType::UpdateMessage)
-                .interaction_response_data(|data| {
-                    data.content(TurtoMessage::CommandHelp { command_name })
-                        .components(|components| components)
-                        .embed(|embed| {
-                            embed
-                                .title(command_name)
-                                .description(&target_help.description)
-                                .field(&helps.usage_field, &target_help.usage, true)
-                                .field(&helps.example_field, &target_help.example, true)
-                        })
-                })
-        })
-        .await?;
+    let response = CreateInteractionResponse::UpdateMessage(
+        CreateInteractionResponseMessage::new()
+            .content(TurtoMessage::CommandHelp {
+                command_name: command_name.as_str(),
+            })
+            .embed(
+                CreateEmbed::new()
+                    .title(command_name)
+                    .description(&target_help.description)
+                    .field(&helps.usage_field, &target_help.usage, true)
+                    .field(&helps.example_field, &target_help.example, true),
+            ),
+    );
+
+    interaction.create_response(ctx, response).await?;
 
     Ok(())
 }

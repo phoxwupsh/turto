@@ -1,7 +1,7 @@
 use crate::{
-    config::TurtoConfigProvider,
+    config::get_config,
     messages::TurtoMessage,
-    typemap::playing::Playing,
+    typemap::playing::PlayingMap,
     utils::guild::{GuildUtil, VoiceChannelState},
 };
 use serenity::{
@@ -16,8 +16,8 @@ use tracing::error;
 #[command]
 #[bucket = "turto"]
 async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-    let guild = msg.guild(ctx).unwrap();
-    let config = TurtoConfigProvider::get();
+    let guild = msg.guild(&ctx.cache).unwrap().clone();
+    let config = get_config();
 
     if !config.allow_seek {
         msg.reply(ctx, TurtoMessage::SeekNotAllow { backward: false })
@@ -25,7 +25,8 @@ async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         return Ok(());
     }
 
-    match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
+    let bot_id = ctx.cache.current_user().id;
+    match guild.cmp_voice_channel(&bot_id, &msg.author.id) {
         VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
             msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: bot_vc })
                 .await?;
@@ -53,11 +54,11 @@ async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     };
 
     // Update the volume if there is a currently playing TrackHandle
-    let playing_lock = ctx.data.read().await.get::<Playing>().unwrap().clone();
+    let playing_lock = ctx.data.read().await.get::<PlayingMap>().unwrap().clone();
     {
-        let playing = playing_lock.read().await;
-        if let Some(current_track) = playing.get(&msg.guild_id.unwrap()) {
-            if let Ok(track_state) = current_track.get_info().await {
+        let playing_map = playing_lock.read().await;
+        if let Some(playing) = playing_map.get(&msg.guild_id.unwrap()) {
+            if let Ok(track_state) = playing.track_handle.get_info().await {
                 if track_state.playing == PlayMode::Stop || track_state.playing == PlayMode::End {
                     msg.reply(ctx, TurtoMessage::NotPlaying).await?;
                     return Ok(());
@@ -79,21 +80,21 @@ async fn seek(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                 }
             }
 
-            let track_sec = current_track.metadata().duration.unwrap().as_secs();
-            if track_sec < sec {
-                msg.reply(
-                    ctx,
-                    TurtoMessage::SeekNotLongEnough {
-                        title: current_track.metadata().title.as_ref().unwrap(),
-                        length: track_sec,
-                    },
-                )
-                .await?;
+            let length = playing.metadata.duration.unwrap().as_secs();
+            let title = playing.metadata.title.as_ref().unwrap();
+            if length < sec {
+                msg.reply(ctx, TurtoMessage::SeekNotLongEnough { title, length })
+                    .await?;
                 return Ok(());
             }
 
-            if let Err(why) = current_track.seek_time(Duration::from_secs(sec)) {
-                error!("Failed to seek track {}: {}", current_track.uuid(), why);
+            if let Err(why) = playing
+                .track_handle
+                .seek_async(Duration::from_secs(sec))
+                .await
+            {
+                let uuid = playing.track_handle.uuid();
+                error!("Failed to seek track {uuid}: {why}");
             }
         }
     }

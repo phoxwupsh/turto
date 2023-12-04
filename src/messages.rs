@@ -171,3 +171,9 @@ impl Display for TurtoMessage<'_> {
         }
     }
 }
+
+impl From<TurtoMessage<'_>> for String {
+    fn from(value: TurtoMessage) -> Self {
+        value.to_string()
+    }
+}

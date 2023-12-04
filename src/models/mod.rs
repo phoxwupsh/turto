@@ -5,3 +5,4 @@ pub mod playlist;
 pub mod playlist_item;
 pub mod url;
 pub mod youtube_playlist;
+pub mod playing;

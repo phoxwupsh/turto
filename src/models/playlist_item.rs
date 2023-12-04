@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use songbird::input::Metadata;
+use songbird::input::AuxMetadata;
 use std::time::Duration;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -12,8 +12,8 @@ pub struct PlaylistItem {
     pub thumbnail: String,
 }
 
-impl From<Metadata> for PlaylistItem {
-    fn from(value: Metadata) -> Self {
+impl From<AuxMetadata> for PlaylistItem {
+    fn from(value: AuxMetadata) -> Self {
         PlaylistItem {
             url: value.source_url.unwrap_or_default(),
             title: value.title.unwrap_or_default(),

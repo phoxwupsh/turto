@@ -22,18 +22,19 @@ toml = "0.8.0"
 rand = "0.8.5"
 sha256 = "1.4.0"
 which = "4.4.2"
+reqwest = "0.11.22"
+symphonia = "0.5.3"
 
 [dependencies.serenity]
-version = "0.11.6"
-features = ["client", "standard_framework", "voice", "rustls_backend", "collector"]
+version = "0.12.0"
+features = ["client", "standard_framework", "cache", "voice", "rustls_backend", "collector"]
 
 [dependencies.tokio]
 version = "1.32.0"
 features = ["macros", "rt-multi-thread", "signal"]
 
 [dependencies.songbird]
-version = "0.3.2"
-features = ["yt-dlp"]
+version = "0.4.0"
 
 [dependencies.dashmap]
 version = "5.5.3"

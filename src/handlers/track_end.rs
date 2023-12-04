@@ -16,6 +16,7 @@ use tracing::error;
 pub struct TrackEndHandler {
     pub data: Arc<RwLock<TypeMap>>,
     pub call: Arc<Mutex<Call>>,
+    pub url: String,
     pub guild_id: GuildId,
 }
 
@@ -36,13 +37,13 @@ impl EventHandler for TrackEndHandler {
             let EventContext::Track(ctx) = ctx else {
                 return None;
             };
-            let (state, handle) = ctx[0];
+            let (state, _handle) = ctx[0];
             if state.playing != PlayMode::Stop {
                 let _ = play_url(
                     self.call.clone(),
                     self.data.clone(),
                     self.guild_id,
-                    handle.metadata().source_url.clone().unwrap(),
+                    self.url.clone()
                 )
                 .await;
             }

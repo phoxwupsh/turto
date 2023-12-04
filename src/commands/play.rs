@@ -1,6 +1,6 @@
 use crate::{
     messages::TurtoMessage,
-    typemap::playing::Playing,
+    typemap::playing::PlayingMap,
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         play::{play_next, play_url},
@@ -18,9 +18,10 @@ use url::Url;
 #[command]
 #[bucket = "turto"]
 async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-    let guild = msg.guild(ctx).unwrap();
+    let guild = msg.guild(&ctx.cache).unwrap().clone();
+    let bot_id = ctx.cache.current_user().id;
 
-    let call = match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
+    let call = match guild.cmp_voice_channel(&bot_id, &msg.author.id) {
         VoiceChannelState::None | VoiceChannelState::OnlyFirst(_) => {
             msg.reply(ctx, TurtoMessage::UserNotInVoiceChannel).await?;
             return Ok(());
@@ -31,17 +32,21 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             return Ok(());
         }
         VoiceChannelState::OnlySecond(user_vc) => {
-            let (call, success) = songbird::get(ctx)
+            match songbird::get(ctx)
                 .await
                 .unwrap()
                 .join(guild.id, user_vc)
-                .await;
-            if let Err(err) = success {
-                error!("Failed to join voice channel {}: {}", user_vc, err);
-                return Ok(());
+                .await
+            {
+                Ok(call) => {
+                    msg.reply(ctx, TurtoMessage::Join(user_vc)).await?;
+                    call
+                }
+                Err(err) => {
+                    error!("Failed to join voice channel {user_vc}: {err}");
+                    return Ok(());
+                }
             }
-            msg.reply(ctx, TurtoMessage::Join(user_vc)).await?;
-            call
         }
         VoiceChannelState::Same(_) => songbird::get(ctx).await.unwrap().get(guild.id).unwrap(),
     };
@@ -66,20 +71,21 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         .await?;
     } else {
         // If no url provided, check if there is a paused track or there is any song in the playlist
-        let playing_lock = ctx.data.read().await.get::<Playing>().unwrap().clone();
-        {
-            let playing = playing_lock.read().await;
-            if let Some(current_track) = playing.get(&guild.id) {
-                if let Ok(current_track_state) = current_track.get_info().await {
-                    if current_track_state.playing == PlayMode::Pause {
-                        if let Err(why) = current_track.play() {
-                            error!("Failed to play track {}: {}", current_track.uuid(), why);
-                        }
-                        return Ok(()); // If there is a paused song then play it
+        let playing_lock = ctx.data.read().await.get::<PlayingMap>().unwrap().clone();
+        let playing_map = playing_lock.read().await;
+        if let Some(playing) = playing_map.get(&guild.id) {
+            if let Ok(current_track_state) = playing.track_handle.get_info().await {
+                if current_track_state.playing == PlayMode::Pause {
+                    // If there is a paused song then play it
+                    if let Err(why) = playing.track_handle.play() {
+                        let uuid = playing.track_handle.uuid();
+                        error!("Failed to play track {uuid}: {why}");
                     }
+                    return Ok(());
                 }
-            } // return the lock
+            }
         }
+        drop(playing_map);
 
         if let Some(Ok(meta)) = play_next(call, ctx.data.clone(), guild.id).await {
             // if there is any song in the play list

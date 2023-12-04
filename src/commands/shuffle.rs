@@ -9,9 +9,9 @@ use serenity::{
 #[command]
 #[bucket = "turto"]
 async fn shuffle(ctx: &Context, msg: &Message) -> CommandResult {
-    let guild = msg.guild(ctx).unwrap();
+    let guild = msg.guild_id.unwrap();
     let guild_data_map = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
-    let mut guild_data = guild_data_map.entry(guild.id).or_default();
+    let mut guild_data = guild_data_map.entry(guild).or_default();
     if guild_data.playlist.is_empty() {
         drop(guild_data);
         msg.reply(ctx, TurtoMessage::Shuffle(Err(()))).await?;

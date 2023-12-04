@@ -11,9 +11,10 @@ use serenity::{
 #[command]
 #[bucket = "turto"]
 async fn join(ctx: &Context, msg: &Message) -> CommandResult {
-    let guild = msg.guild(ctx).unwrap();
+    let guild = msg.guild(&ctx.cache).unwrap().clone();
+    let bot_id = ctx.cache.current_user().id;
 
-    match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
+    match guild.cmp_voice_channel(&bot_id, &msg.author.id) {
         VoiceChannelState::Different(bot_vc, _) => {
             msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: bot_vc })
                 .await?;
@@ -24,7 +25,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
             return Ok(());
         }
         VoiceChannelState::OnlySecond(user_vc) => {
-            let (_handler_lock, success) = songbird::get(ctx)
+            let success = songbird::get(ctx)
                 .await
                 .unwrap()
                 .join(guild.id, user_vc)
