@@ -22,9 +22,6 @@ async fn main() {
         error!("You need to set DISCORD_TOKEN in the enviroment!");
     }
 
-    if let Err(err) = which_global("ffmpeg") {
-        panic!("ffmpeg is not installed: {}", err);
-    }
     if let Err(err) = which_global("yt-dlp") {
         panic!("yt-dlp is not installed: {}", err);
     }
