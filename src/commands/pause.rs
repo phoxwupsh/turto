@@ -1,6 +1,6 @@
 use crate::{
     messages::TurtoMessage,
-    typemap::playing::Playing,
+    typemap::playing::PlayingMap,
     utils::guild::{GuildUtil, VoiceChannelState},
 };
 use serenity::{
@@ -13,9 +13,10 @@ use tracing::error;
 #[command]
 #[bucket = "turto"]
 async fn pause(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
-    let guild = msg.guild(ctx).unwrap();
+    let guild = msg.guild(&ctx.cache).unwrap().clone();
+    let bot_id = ctx.cache.current_user().id;
 
-    match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
+    match guild.cmp_voice_channel(&bot_id, &msg.author.id) {
         VoiceChannelState::None | VoiceChannelState::OnlySecond(_) => {
             msg.reply(ctx, TurtoMessage::BotNotInVoiceChannel).await?;
             return Ok(());
@@ -28,28 +29,21 @@ async fn pause(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
         VoiceChannelState::Same(_) => (),
     }
 
-    let playing_lock = ctx.data.read().await.get::<Playing>().unwrap().clone();
-    {
-        let playing = playing_lock.read().await;
-        let current_track = match playing.get(&guild.id) {
-            Some(track) => track,
-            None => {
-                msg.reply(ctx, TurtoMessage::NotPlaying).await?;
-                return Ok(());
-            }
-        };
+    let playing_lock = ctx.data.read().await.get::<PlayingMap>().unwrap().clone();
 
-        if let Err(why) = current_track.pause() {
-            error!("Failed to pause track {}: {}", current_track.uuid(), why);
-        }
+    let playing_map = playing_lock.read().await;
+    let Some(playing) = playing_map.get(&guild.id) else {
+        msg.reply(ctx, TurtoMessage::NotPlaying).await?;
+        return Ok(());
+    };
 
-        msg.reply(
-            ctx,
-            TurtoMessage::Pause {
-                title: current_track.metadata().title.as_ref().unwrap(),
-            },
-        )
-        .await?;
+    if let Err(why) = playing.track_handle.pause() {
+        let uuid = playing.track_handle.uuid();
+        error!("Failed to pause track {uuid}: {why}");
     }
+    let title = playing.metadata.title.as_ref().unwrap();
+    msg.reply(ctx, TurtoMessage::Pause { title }).await?;
+    drop(playing_map);
+
     Ok(())
 }

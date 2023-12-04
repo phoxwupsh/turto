@@ -1,14 +1,17 @@
 use crate::{
     commands::TURTOCOMMANDS_GROUP,
-    config::TurtoConfigProvider,
+    config::get_config,
     handlers::{before::before_hook, SerenityEventHandler},
     models::guild::data::GuildData,
-    typemap::{guild_data::GuildDataMap, playing::Playing},
+    typemap::{guild_data::GuildDataMap, playing::PlayingMap},
     utils::json::{read_json, write_json},
 };
 use dashmap::DashMap;
 use serenity::{
-    framework::{standard::buckets::LimitedFor, StandardFramework},
+    framework::{
+        standard::{buckets::LimitedFor, BucketBuilder, Configuration},
+        StandardFramework,
+    },
     model::prelude::GuildId,
     prelude::GatewayIntents,
     Client,
@@ -24,25 +27,26 @@ pub struct Turto {
 
 impl Turto {
     pub async fn new(token: impl AsRef<str>) -> Result<Self, serenity::Error> {
-        let config = TurtoConfigProvider::get();
+        let config = get_config();
         let framework = StandardFramework::new()
-            .configure(|c| c.prefix(config.command_prefix.clone()))
-            .bucket("turto", |bucket| {
-                bucket
+            .bucket(
+                "turto",
+                BucketBuilder::new_guild()
                     .delay(config.command_delay)
                     .await_ratelimits(1)
-                    .limit_for(LimitedFor::Guild)
-            })
+                    .limit_for(LimitedFor::Guild),
+            )
             .await
             .group(&TURTOCOMMANDS_GROUP)
             .before(before_hook);
+        framework.configure(Configuration::new().prefix(config.command_prefix.clone()));
         let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
         let client = Client::builder(token, intents)
             .event_handler(SerenityEventHandler)
             .framework(framework)
             .intents(intents)
             .register_songbird()
-            .type_map_insert::<Playing>(Arc::new(RwLock::new(HashMap::default())))
+            .type_map_insert::<PlayingMap>(Arc::new(RwLock::new(HashMap::default())))
             .type_map_insert::<GuildDataMap>(Arc::new(DashMap::<GuildId, GuildData>::default()))
             .await?;
         Ok(Self { client })
@@ -57,13 +61,13 @@ impl Turto {
             default_hook(panic_info);
             let shard_manager_panic_ = shard_manager_panic.clone();
             spawn(async move {
-                shard_manager_panic_.lock().await.shutdown_all().await;
+                shard_manager_panic_.shutdown_all().await;
             });
         }));
 
         spawn(async move {
             match ctrl_c().await {
-                Ok(_) => shard_manager.lock().await.shutdown_all().await,
+                Ok(_) => shard_manager.shutdown_all().await,
                 Err(err) => error!("Error occured while shutdown: {}", err),
             }
         });

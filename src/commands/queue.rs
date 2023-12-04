@@ -2,14 +2,14 @@ use crate::{
     messages::TurtoMessage,
     models::{playlist_item::PlaylistItem, url::ParsedUrl, youtube_playlist::YouTubePlaylist},
     typemap::guild_data::GuildDataMap,
-    utils::ytdl::ytdl_playlist,
+    utils::{ytdl::ytdl_playlist, get_http_client},
 };
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
     model::prelude::Message,
     prelude::Context,
 };
-use songbird::input::ytdl;
+use songbird::input::{Compose, YoutubeDl};
 
 enum QueueType {
     Single(PlaylistItem),
@@ -36,23 +36,27 @@ async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
                     };
                     QueueType::Multiple(yt_playlist)
                 } else {
-                    let Ok(source) = ytdl(&yt_url.to_string()).await else {
-                        msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed)))
-                            .await?;
-                        continue;
-                    };
-                    let metadata = source.metadata.clone();
-                    QueueType::Single(PlaylistItem::from(*metadata))
+                    let mut source = YoutubeDl::new(get_http_client(), yt_url.to_string());
+                    match source.aux_metadata().await {
+                        Ok(metadata) => QueueType::Single(PlaylistItem::from(metadata)),
+                        Err(_err) => {
+                            msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed)))
+                                .await?;
+                            continue;
+                        }
+                    }
                 }
             }
             ParsedUrl::Other(url) => {
-                let Ok(source) = ytdl(url).await else {
-                    msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed)))
-                        .await?;
-                    continue;
-                };
-                let metadata = source.metadata.clone();
-                QueueType::Single(PlaylistItem::from(*metadata))
+                let mut source = YoutubeDl::new(get_http_client(), url.to_string());
+                match source.aux_metadata().await {
+                    Ok(metadata) => QueueType::Single(PlaylistItem::from(metadata)),
+                    Err(_err) => {
+                        msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed)))
+                            .await?;
+                        continue;
+                    }
+                }
             }
         };
 

@@ -11,9 +11,10 @@ use serenity::{
 #[command]
 #[bucket = "turto"]
 async fn leave(ctx: &Context, msg: &Message) -> CommandResult {
-    let guild = msg.guild(ctx).unwrap();
+    let guild = msg.guild(&ctx.cache).unwrap().clone();
+    let bot_id = ctx.cache.current_user().id;
 
-    let leave_ = match guild.cmp_voice_channel(&ctx.cache.current_user_id(), &msg.author.id) {
+    let leave_ = match guild.cmp_voice_channel(&bot_id, &msg.author.id) {
         VoiceChannelState::None | VoiceChannelState::OnlySecond(_) => {
             msg.reply(ctx, TurtoMessage::BotNotInVoiceChannel).await?;
             return Ok(());
