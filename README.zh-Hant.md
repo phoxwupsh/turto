@@ -6,61 +6,7 @@ turto是一個簡單易用的Discord音樂機器人。只要跟著下面的指�
 
 ## 部署
 
-turto需要FFmpeg和yt-dlp才能運作，如果你還沒有安裝它們的話，你可以照著下面的指示來安裝。turto也支援Docker，如果你要用Docker來執行turto的話，可以直接跳過以下這些步驟看[這裡](https://github.com/phoxwupsh/turto/blob/main/README.zh-Hant.md#%E5%A6%82%E6%9E%9C%E4%BD%A0%E6%98%AF%E7%94%A8docker%E7%9A%84%E8%A9%B1)。
-
-### ffmpeg
-
-#### Windows
-
-在Windwos上建議用套件管理工具來安裝FFmpeg，例如[Scoop](https://scoop.sh/)(我個人是用這個)、[Chocolatey](https://chocolatey.org/)或[winget](https://www.microsoft.com/p/app-installer/9nblggh4nns1)。你也可以從[他們的官網](https://ffmpeg.org/download.html#build-windows)下載然後自己加進系統環境變數中。
-
-##### Scoop
-```shell
-scoop install ffmpeg
-```
-
-##### Chocolatey
-```shell
-choco install ffmpeg
-```
-
-##### winget
-```shell
-winget install --id=Gyan.FFmpeg -e
-```
-
-Or, you can install [Python](https://www.python.org/downloads/) and then use `pip` to install `yt-dlp`.
-
-```
-pip install yt-dlp
-```
-
-#### Linux
-
-在Linux上你可以直接用內建的套件管理工具來安裝FFmpeg，以下是幾個較常見Linux發行版的安裝方式。
-
-##### Debian/Ubuntu:
-```shell
-sudo apt-get install ffmpeg
-```
-
-##### Fedora
-```shell
-sudo dnf install ffmpeg
-```
-
-##### Arch Linux
-```shell
-sudo pacman -S ffmpeg
-```
-
-#### macOS
-
-在mac上你可以用[Homebrew](https://brew.sh/)套件管理工具來安裝FFmpeg。
-
-```shell
-brew install ffmpeg
-```
+turto需要yt-dlp才能運作，如果你還沒有安裝它的話，你可以照著下面的指示來安裝。turto也支援Docker，如果你要用Docker來執行turto的話，可以直接跳過以下這些步驟看[這裡](https://github.com/phoxwupsh/turto/blob/main/README.zh-Hant.md#%E5%A6%82%E6%9E%9C%E4%BD%A0%E6%98%AF%E7%94%A8docker%E7%9A%84%E8%A9%B1)。
 
 ### yt-dlp
 

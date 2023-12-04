@@ -6,61 +6,7 @@ turto is a simple and easy-to-use Discord music bot that supports customization.
 
 ## Deployment
 
-turto depends on FFmpeg and yt-dlp, make sure you have these tools installed, if you haven't done so, you can follow the following steps to install them. turto also supports Docker, see [here](https://github.com/phoxwupsh/turto#if-you-use-docker) if you want to use turto with Docker.
-
-### ffmpeg
-
-#### Windows
-
-It's recommanded to install FFmpeg using package manager like [Scoop](https://scoop.sh/) (my personal choice), [Chocolatey](https://chocolatey.org/) or [winget](https://www.microsoft.com/p/app-installer/9nblggh4nns1). Or you can also download it from [their official site](https://ffmpeg.org/download.html#build-windows) and manually add the executable to your system's PATH environment variable.
-
-##### Scoop
-```shell
-scoop install ffmpeg
-```
-
-##### Chocolatey
-```shell
-choco install ffmpeg
-```
-
-##### winget
-```shell
-winget install --id=Gyan.FFmpeg -e
-```
-
-Or, you can install [Python](https://www.python.org/downloads/) and then use `pip` to install `yt-dlp`.
-
-```
-pip install yt-dlp
-```
-
-#### Linux
-
-You can install FFmpeg on Linux using package manager. Depends on what distribution you are using, below are commands for some common package managers.
-
-##### Debian/Ubuntu:
-```shell
-sudo apt-get install ffmpeg
-```
-
-##### Fedora
-```shell
-sudo dnf install ffmpeg
-```
-
-##### Arch Linux
-```shell
-sudo pacman -S ffmpeg
-```
-
-#### macOS
-
-You can install FFmpeg on macOS using [Homebrew](https://brew.sh/) package manager.
-
-```shell
-brew install ffmpeg
-```
+turto depends on yt-dlp, make sure you have the tools installed, if you haven't done so, you can follow the following steps to install them. turto also supports Docker, see [here](https://github.com/phoxwupsh/turto#if-you-use-docker) if you want to use turto with Docker.
 
 ### yt-dlp
 
