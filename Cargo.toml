@@ -23,7 +23,6 @@ rand = "0.8.5"
 sha256 = "1.4.0"
 which = "4.4.2"
 reqwest = "0.11.22"
-symphonia = "0.5.3"
 
 [dependencies.serenity]
 version = "0.12.0"
@@ -39,6 +38,10 @@ version = "0.4.0"
 [dependencies.dashmap]
 version = "5.5.3"
 features = ["serde"]
+
+[dependencies.symphonia]
+version = "0.5.3"
+features = ["mp3", "aac", "vorbis"]
 
 [profile.release]
 opt-level = 3
