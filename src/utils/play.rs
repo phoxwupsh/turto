@@ -18,9 +18,9 @@ pub async fn play_url(
     call: Arc<Mutex<Call>>,
     data: Arc<RwLock<TypeMap>>,
     guild_id: GuildId,
-    url: String,
+    url: impl AsRef<str>,
 ) -> Result<Arc<AuxMetadata>, PlayError> {
-    let mut source = YoutubeDl::new(get_http_client(), url.clone());
+    let mut source = YoutubeDl::new(get_http_client(), url.as_ref().to_owned());
     let meta = match source.aux_metadata().await {
         Ok(meta) => Arc::new(meta),
         Err(err) => return Err(PlayError::AudioStreamError(err)),
@@ -41,7 +41,7 @@ pub async fn play_url(
     let track_end_handler = TrackEndHandler {
         data: data.clone(),
         call: call.clone(),
-        url,
+        url: url.as_ref().into(),
         guild_id,
     };
 
@@ -77,7 +77,7 @@ pub async fn play_next(
     drop(guild_data);
 
     match next {
-        Some(next_track) => Some(play_url(call, data, guild_id, next_track.url).await),
+        Some(next_track) => Some(play_url(call, data, guild_id, &next_track.url).await),
         None => None,
     }
 }

@@ -51,12 +51,10 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         VoiceChannelState::Same(_) => songbird::get(ctx).await.unwrap().get(guild.id).unwrap(),
     };
 
-    let url = args.rest().to_string();
-
-    // Check if url is provided
+    let url = args.rest();
     if !url.is_empty() {
-        // Validate the URL
-        if Url::parse(&url).is_err() {
+        // If a valid url is provided then play the url
+        if Url::parse(url).is_err() {
             msg.reply(ctx, TurtoMessage::InvalidUrl(None)).await?;
             return Ok(());
         }

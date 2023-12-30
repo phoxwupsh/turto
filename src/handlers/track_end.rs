@@ -16,7 +16,7 @@ use tracing::error;
 pub struct TrackEndHandler {
     pub data: Arc<RwLock<TypeMap>>,
     pub call: Arc<Mutex<Call>>,
-    pub url: String,
+    pub url: Arc<str>,
     pub guild_id: GuildId,
 }
 
@@ -39,25 +39,28 @@ impl EventHandler for TrackEndHandler {
             };
             let (state, _handle) = ctx[0];
             if state.playing != PlayMode::Stop {
-                let _ = play_url(
+                let _meta = play_url(
                     self.call.clone(),
                     self.data.clone(),
                     self.guild_id,
-                    self.url.clone()
+                    self.url.clone(),
                 )
                 .await;
             }
             None
-        } else if guild_data.playlist.is_empty() && guild_data.config.auto_leave {
-            drop(guild_data);
-            let mut call = self.call.lock().await;
-            if let Err(err) = call.leave().await {
-                error!("Failed to leave voice channel: {}", err);
-            }
-            None
         } else {
+            let auto_leave = guild_data.config.auto_leave;
             drop(guild_data);
-            let _ = play_next(self.call.clone(), self.data.clone(), self.guild_id).await;
+            if play_next(self.call.clone(), self.data.clone(), self.guild_id)
+                .await
+                .is_none()
+                && auto_leave
+            {
+                let mut call = self.call.lock().await;
+                if let Err(err) = call.leave().await {
+                    error!("Failed to leave voice channel: {}", err);
+                }
+            }
             None
         }
     }
