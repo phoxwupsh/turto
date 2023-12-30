@@ -70,6 +70,7 @@ async fn help(ctx: &Context, msg: &Message) -> CommandResult {
             .content(TurtoMessage::CommandHelp {
                 command_name: command_name.as_str(),
             })
+            .components(vec![])
             .embed(
                 CreateEmbed::new()
                     .title(command_name)
