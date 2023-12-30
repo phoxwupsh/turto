@@ -2,7 +2,7 @@
 
 [English](https://github.com/phoxwupsh/turto/blob/main/README.md) | [繁體中文](https://github.com/phoxwupsh/turto/blob/main/README.zh-Hant.md)
 
-turto is a simple and easy-to-use Discord music bot that supports customization. Through the following steps, you can have your own turto in minutes.
+turto is a simple, easy-to-use and customizable Discord music bot, especially suitable for self-hosting. Through the following steps, you can have your own turto in minutes.
 
 ## Deployment
 
@@ -93,10 +93,10 @@ If you want to stop the bot, you should press `Ctrl` + `C`, this make the bot sa
 Run this command
 
 ```shell
-docker run -e DISCORD_TOKEN={you bot token} ghcr.io/phoxwupsh/turto:latest
+docker run -e DISCORD_TOKEN=your_bot_token ghcr.io/phoxwupsh/turto:latest
 ```
 
-You need to replace `{you bot token}` with you bot token, that's it.
+You need to replace `your_bot_token` with your Discord bot token, that's it.
 
 ## Compile
 
@@ -106,7 +106,7 @@ To compile turto, you will need Rust toolchain and CMake.
 
 To install Rust toolchain, you can visit [here](https://www.rust-lang.org/tools/install), and follow the instruction.
 
-After you finish the installation, make sure your Rust version is higher than `1.70.0`, you can check your Rust version by
+After you finish the installation, make sure your Rust version is higher than `1.74.0`, you can check your Rust version by
 
 ```shell
 rustc -V

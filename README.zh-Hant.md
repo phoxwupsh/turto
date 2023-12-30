@@ -2,7 +2,7 @@
 
 [English](https://github.com/phoxwupsh/turto/blob/main/README.md) | [繁體中文](https://github.com/phoxwupsh/turto/blob/main/README.zh-Hant.md)
 
-turto是一個簡單易用的Discord音樂機器人。只要跟著下面的指示，不用幾分鐘你就能擁有自己的turto。
+turto是一個簡單易用而且支援許多自定義選項的Discord音樂機器人，很適合想要自己架設Discord音樂機器人的你。只要跟著下面的指示，不用幾分鐘你就能擁有自己的turto。
 
 ## 部署
 
@@ -93,10 +93,10 @@ https://discord.com/api/oauth2/authorize?client_id={your application id}&permiss
 你只需要執行
 
 ```shell
-docker run -e DISCORD_TOKEN={you bot token} ghcr.io/phoxwupsh/turto:latest
+docker run -e DISCORD_TOKEN=your_bot_token ghcr.io/phoxwupsh/turto:latest
 ```
 
-記得用你的Token取代`{you bot token}`，就這麼簡單。
+記得用你自己的Token取代`your_bot_token`，就這麼簡單。
 
 ## 編譯
 
@@ -106,7 +106,7 @@ docker run -e DISCORD_TOKEN={you bot token} ghcr.io/phoxwupsh/turto:latest
 
 你可以直接去[他們的網站](https://www.rust-lang.org/tools/install)按照裡面的指示安裝。
 
-安裝好之後你可以用下面這個指令確定你的Rust版本至少有`1.70.0`。
+安裝好之後你可以用下面這個指令確定你的Rust版本至少有`1.74.0`。
 
 ```shell
 rustc -V
