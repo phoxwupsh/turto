@@ -32,17 +32,25 @@ impl FromStr for ParsedUrl {
         match parsed.host_str() {
             Some("www.youtube.com") | Some("youtu.be") => {
                 let mut res = YouTubeUrl::builder();
-                match parsed.path_segments().and_then(|mut seg| seg.next()) {
-                    Some("playlist") | Some("watch") => {
-                        if let Some(video_id) = queries.get("v").map(|s| s.to_string()) {
-                            res.video_id(video_id);
+                match parsed.path_segments() {
+                    Some(mut segs) => match segs.next() {
+                        Some("playlist") | Some("watch") => {
+                            if let Some(video_id) = queries.get("v") {
+                                res.video_id(video_id.as_ref());
+                            }
+                            if let Some(playlist_id) = queries.get("list") {
+                                res.playlist_id(playlist_id.as_ref());
+                            }
                         }
-                        if let Some(playlist_id) = queries.get("list").map(|s| s.to_string()) {
-                            res.playlist_id(playlist_id);
+                        Some("shorts") => {
+                            if let Some(video_id) = segs.next() {
+                                res.video_id(video_id);
+                            }
                         }
-                    }
-                    Some(id_) => {
-                        res.video_id(id_.to_owned());
+                        Some(video_id) => {
+                            res.video_id(video_id.to_owned());
+                        }
+                        None => ()
                     }
                     None => return Ok(Self::Other(s.to_owned())),
                 }
@@ -52,10 +60,9 @@ impl FromStr for ParsedUrl {
                 {
                     res.time(time);
                 }
-                if let Some(yt_url) = res.build() {
-                    Ok(Self::Youtube(yt_url))
-                } else {
-                    Ok(Self::Other(s.to_owned()))
+                match res.build() {
+                    Some(yt_url) => Ok(Self::Youtube(yt_url)),
+                    None => Ok(Self::Other(s.to_owned()))
                 }
             }
             Some(_other) => Ok(Self::Other(s.to_owned())),

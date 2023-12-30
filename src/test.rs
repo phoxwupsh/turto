@@ -29,6 +29,7 @@ mod tests {
             "https://www.youtube.com/watch?v=NjdqQyC7Rkc&list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj&t=8s"
                 .parse::<ParsedUrl>();
         let other_url = "https://soundcloud.com/kivawu/the-beautiful-ones".parse::<ParsedUrl>();
+        let yt_shorts_url = "https://www.youtube.com/shorts/VSKIGdbf5Fg".parse::<ParsedUrl>();
         let invalid_url = "some_invalid_url".parse::<ParsedUrl>();
 
         assert_eq!(
@@ -103,6 +104,15 @@ mod tests {
             other_url,
             Ok(ParsedUrl::Other(
                 "https://soundcloud.com/kivawu/the-beautiful-ones".to_owned()
+            ))
+        );
+        assert_eq!(
+            yt_shorts_url,
+            Ok(ParsedUrl::Youtube(
+                YouTubeUrl::builder()
+                    .video_id("VSKIGdbf5Fg")
+                    .build()
+                    .unwrap()
             ))
         );
         assert!(invalid_url.is_err());
