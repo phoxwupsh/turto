@@ -1,8 +1,4 @@
 # Below are arguments that would appear in the messages, arguments must be wrapped by curly brackets "{" and "}"
-# If you really need curly brackets "{" or "}" to appear in your message, place a backslash before it
-# In toml the text wrapped by double quotation marks escape the backslashes, so you need two backslashes
-# Or, you can use single quotation marks to wrap you text, and you won't need two backslashes
-# You can refer to https://toml.io/en/v1.0.0 for more details
 # "bot_voice_channel" is the voice channel that the bot is currently staying/joining/leaving, represented by mentioning
 # "title" is the title of the item that is being played/paused/stopped
 # "url" is the url that provided by the users

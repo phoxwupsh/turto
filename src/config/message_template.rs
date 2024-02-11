@@ -27,8 +27,7 @@ fn load_templates(path: impl AsRef<Path>) -> HashMap<String, Template> {
     templates_map
         .into_iter()
         .map(|(k, v)| {
-            let template = Template::parse(&v)
-                .unwrap_or_else(|err| panic!("Error parsing template \"{k}\": {err}"));
+            let template = Template::parse(&v);
             (k, template)
         })
         .collect::<HashMap<_, _>>()
