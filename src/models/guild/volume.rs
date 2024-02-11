@@ -6,7 +6,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct GuildVolume(f32);
 
 impl Default for GuildVolume {

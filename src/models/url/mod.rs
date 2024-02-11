@@ -6,7 +6,8 @@ use url::{ParseError, Url};
 
 use self::youtube_url::YouTubeUrl;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub enum ParsedUrl {
     Youtube(YouTubeUrl),
     Other(String),

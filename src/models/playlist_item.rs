@@ -3,7 +3,7 @@ use serde_json::Value;
 use songbird::input::AuxMetadata;
 use std::time::Duration;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PlaylistItem {
     pub url: String,
     pub title: String,

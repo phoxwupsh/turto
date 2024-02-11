@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serenity::model::prelude::UserId;
 use std::collections::HashSet;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct GuildConfig {
     pub auto_leave: bool,
     pub repeat: bool,
