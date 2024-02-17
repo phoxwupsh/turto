@@ -55,7 +55,7 @@ async fn help(ctx: &Context, msg: &Message) -> CommandResult {
     };
 
     let command_name = match &interaction.data.kind {
-        ComponentInteractionDataKind::StringSelect { values } => values.get(0).unwrap(),
+        ComponentInteractionDataKind::StringSelect { values } => values.first().unwrap(),
         _ => panic!("Invalid help select"),
     };
     let target_help = helps.commands.get(command_name).unwrap_or_else(|| {
