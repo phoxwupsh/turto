@@ -1,4 +1,4 @@
-use crate::utils::template::{Template, TemplateRenderer};
+use crate::utils::template::Template;
 use std::{collections::HashMap, fs, path::Path, sync::OnceLock};
 
 static TEMPLATES: OnceLock<HashMap<String, Template>> = OnceLock::new();
@@ -13,9 +13,6 @@ pub fn get_template(template_name: impl AsRef<str>) -> &'static Template {
                 template_name.as_ref()
             )
         })
-}
-pub fn get_renderer(template_name: impl AsRef<str>) -> TemplateRenderer<'static> {
-    get_template(template_name.as_ref()).renderer()
 }
 
 fn load_templates(path: impl AsRef<Path>) -> HashMap<String, Template> {

@@ -1,5 +1,5 @@
 use crate::{
-    config::message_template::get_renderer,
+    config::message_template::get_template,
     models::{guild::volume::GuildVolume, url::ParsedUrl},
     utils::misc::ToEmoji,
 };
@@ -41,132 +41,93 @@ pub enum TurtoMessage<'a> {
     SetRepeat(Result<bool, ()>),
 }
 
+macro_rules! render {
+    ($f:expr, $template:expr $(, ($key:expr, $value:expr))* $(,)?) => {{
+        $f.write_str(&get_template($template).renderer()
+        $(
+            .add_arg($key, $value)
+        )*
+        .render())
+    }};
+}
+
 impl Display for TurtoMessage<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NotPlaying => f.write_str(&get_renderer("not_playing").render()),
-            Self::UserNotInVoiceChannel => {
-                f.write_str(&get_renderer("user_not_in_voice_channel").render())
-            }
-            Self::BotNotInVoiceChannel => {
-                f.write_str(&get_renderer("bot_not_in_voice_channel").render())
-            }
-            Self::DifferentVoiceChannel { bot } => f.write_str(
-                &get_renderer("different_voice_channel")
-                    .add_arg("bot_voice_channel", &bot.mention())
-                    .render(),
+            Self::NotPlaying => render!(f, "not_playing"),
+            Self::UserNotInVoiceChannel => render!(f, "user_not_in_voice_channel"),
+            Self::BotNotInVoiceChannel => render!(f, "bot_not_in_voice_channel"),
+            Self::DifferentVoiceChannel { bot } => render!(
+                f,
+                "different_voice_channel",
+                ("bot_voice_channel", &bot.mention())
             ),
-            Self::Play { title } => {
-                f.write_str(&get_renderer("play").add_arg("title", title).render())
-            }
-            Self::Pause { title } => {
-                f.write_str(&get_renderer("pause").add_arg("title", title).render())
-            }
-            Self::Stop { title } => {
-                f.write_str(&get_renderer("stop").add_arg("title", title).render())
-            }
-            Self::Skip { title } => {
-                f.write_str(&get_renderer("skip").add_arg("title", title).render())
-            }
-            Self::Join(channel) => f.write_str(
-                &get_renderer("join")
-                    .add_arg("voice_channel", &channel.mention())
-                    .render(),
-            ),
-            Self::Leave(channel) => f.write_str(
-                &get_renderer("leave")
-                    .add_arg("voice_channel", &channel.mention())
-                    .render(),
-            ),
-            Self::Queue { title } => {
-                f.write_str(&get_renderer("queue").add_arg("title", title).render())
-            }
-            Self::Remove { title } => {
-                f.write_str(&get_renderer("remove").add_arg("title", title).render())
-            }
-            Self::RemovaAll => f.write_str(&get_renderer("remove_all").render()),
+            Self::Play { title } => render!(f, "play", ("title", title)),
+            Self::Pause { title } => render!(f, "pause", ("title", title)),
+            Self::Stop { title } => render!(f, "stop", ("title", title)),
+            Self::Skip { title } => render!(f, "skip", ("title", title)),
+            Self::Join(channel) => render!(f, "join", ("voice_channel", &channel.mention())),
+            Self::Leave(channel) => render!(f, "leave", ("voice_channel", &channel.mention())),
+            Self::Queue { title } => render!(f, "queue", ("title", title)),
+            Self::Remove { title } => render!(f, "remove", ("title", title)),
+            Self::RemovaAll => render!(f, "remove_all"),
             Self::InvalidRemove { playlist_length } => match playlist_length {
-                Some(length) => f.write_str(
-                    &get_renderer("invalid_remove_index")
-                        .add_arg("playlist_length", length)
-                        .render(),
-                ),
-                None => f.write_str(&get_renderer("invalid_remove").render()),
+                Some(length) => render!(f, "invalid_remove_index", ("playlist_length", length)),
+                None => render!(f, "invalid_remove"),
             },
             Self::InvalidUrl(url) => match url {
-                Some(url_) => {
-                    f.write_str(&get_renderer("url_not_found").add_arg("url", url_).render())
-                }
-                None => f.write_str(&get_renderer("invalid_url").render()),
+                Some(url_) => render!(f, "url_not_found", ("url", url_)),
+                None => render!(f, "invalid_url"),
             },
             Self::SetVolume(res) => match res {
-                Ok(vol) => f.write_str(
-                    &get_renderer("volume")
-                        .add_arg("volume", &vol.to_emoji())
-                        .render(),
-                ),
-                Err(_) => f.write_str(&get_renderer("invalid_volume").render()),
+                Ok(vol) => render!(f, "volume", ("volume", &vol.to_emoji())),
+                Err(_) => render!(f, "invalid_volume"),
             },
             Self::SetAutoleave(res) => match res {
-                Ok(toggle) => {
-                    let mut res = get_renderer("toggle_autoleave");
-                    let autoleave_status = if *toggle { "✅" } else { "❎" };
-                    f.write_str(&res.add_arg("autoleave_status", &autoleave_status).render())
-                }
-                Err(_) => f.write_str(&get_renderer("invalid_autoleave").render()),
+                Ok(toggle) => match *toggle {
+                    true => render!(f, "toggle_autoleave", ("autoleave_status", &"✅")),
+                    false => render!(f, "toggle_autoleave", ("autoleave_status", &"❎")),
+                },
+                Err(_) => render!(f, "invalid_autoleave"),
             },
-            Self::InvalidSeek { seek_limit } => f.write_str(
-                &get_renderer("invalid_seek")
-                    .add_arg("seek_limit", seek_limit)
-                    .render(),
-            ),
+            Self::InvalidSeek { seek_limit } => {
+                render!(f, "invalid_seek", ("seek_limit", seek_limit))
+            }
             Self::SeekNotAllow { backward } => match *backward {
-                true => f.write_str(&get_renderer("backward_seek_not_allow").render()),
-                false => f.write_str(&get_renderer("seek_not_allow").render()),
+                true => render!(f, "backward_seek_not_allow"),
+                false => render!(f, "seek_not_allow"),
             },
-            Self::SeekNotLongEnough { title, length } => f.write_str(
-                &get_renderer("seek_not_long_enough")
-                    .add_arg("title", title)
-                    .add_arg("length", length)
-                    .render(),
+            Self::SeekNotLongEnough { title, length } => render!(
+                f,
+                "seek_not_long_enough",
+                ("title", title),
+                ("length", length)
             ),
-            Self::AdministratorOnly => f.write_str(&get_renderer("administrator_only").render()),
-            Self::Ban { success, user } => {
-                let mut res = match success {
-                    true => get_renderer("user_got_banned"),
-                    false => get_renderer("user_already_banned"),
-                };
-                f.write_str(&res.add_arg("user", &user.mention()).render())
+            Self::AdministratorOnly => render!(f, "administrator_only"),
+            Self::Ban { success, user } => match *success {
+                true => render!(f, "user_got_banned", ("user", &user.mention())),
+                false => render!(f, "user_already_banned", ("user", &user.mention())),
+            },
+            Self::Unban { success, user } => match *success {
+                true => render!(f, "user_got_unbanned", ("user", &user.mention())),
+                false => render!(f, "user_not_banned", ("user", &user.mention())),
+            },
+            Self::InvalidUser => render!(f, "invalid_user"),
+            Self::BannedUserResponse => render!(f, "banned_user_repsonse"),
+            Self::Help => render!(f, "help"),
+            Self::CommandHelp { command_name } => {
+                render!(f, "command_help", ("command_name", command_name))
             }
-            Self::Unban { success, user } => {
-                let mut res = match success {
-                    true => get_renderer("user_got_unbanned"),
-                    false => get_renderer("user_not_banned"),
-                };
-                f.write_str(&res.add_arg("user", &user.mention()).render())
-            }
-            Self::InvalidUser => f.write_str(&get_renderer("invalid_user").render()),
-            Self::BannedUserResponse => f.write_str(&get_renderer("banned_user_repsonse").render()),
-            Self::Help => f.write_str(&get_renderer("help").render()),
-            Self::CommandHelp { command_name } => f.write_str(
-                &get_renderer("command_help")
-                    .add_arg("command_name", command_name)
-                    .render(),
-            ),
-            Self::Shuffle(res) => {
-                let res = match res {
-                    Ok(_) => get_renderer("shuffle"),
-                    Err(_) => get_renderer("empty_playlist"),
-                };
-                f.write_str(&res.render())
-            }
+            Self::Shuffle(res) => match res {
+                Ok(_) => render!(f, "shuffle"),
+                Err(_) => render!(f, "empty_playlist"),
+            },
             Self::SetRepeat(repeat) => match repeat {
-                Ok(toggle) => {
-                    let mut res = get_renderer("toggle_repeat");
-                    let repeat_status = if *toggle { "✅" } else { "❎" };
-                    f.write_str(&res.add_arg("repeat_status", &repeat_status).render())
-                }
-                Err(_) => f.write_str(&get_renderer("invalid_repeat").render()),
+                Ok(toggle) => match *toggle {
+                    true => render!(f, "toggle_repeat", ("repeat_status", &"✅")),
+                    false => render!(f, "toggle_repeat", ("repeat_status", &"❎")),
+                },
+                Err(_) => render!(f, "invalid_repeat"),
             },
         }
     }
