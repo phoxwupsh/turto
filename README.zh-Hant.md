@@ -2,7 +2,7 @@
 
 [English](https://github.com/phoxwupsh/turto/blob/main/README.md) | [繁體中文](https://github.com/phoxwupsh/turto/blob/main/README.zh-Hant.md)
 
-turto是一個簡單易用的Discord音樂機器人。只要跟著下面的指示，不用幾分鐘你就能擁有自己的turto。
+turto是一個簡單易用而且支援許多自定義選項的Discord音樂機器人，很適合想要自己架設Discord音樂機器人的你。只要跟著下面的指示，不用幾分鐘你就能擁有自己的turto。
 
 ## 部署
 
@@ -14,7 +14,7 @@ turto需要yt-dlp才能運作，如果你還沒有安裝它的話，你可以照
 
 ### 設定
 
-在你確定FFmpeg和yt-dlp都安裝好之後，你可以從[這裡](https://github.com/phoxwupsh/turto/releases)按照你所使用的平台下載我已經預先編譯好的turto版本。如果我沒有幫你用的平台編譯的話，你也可以自己編譯。裡面預設的檔案是英文的，如果你希望turto說中文，可以在同一個頁面下載`zh-Hant.zip`，並用`zh-Hant.zip`中的`help.toml`和`templates.toml`取代原本的檔案。
+在你確定yt-dlp安裝好之後，你可以從[這裡](https://github.com/phoxwupsh/turto/releases)按照你所使用的平台下載我已經預先編譯好的turto版本。如果我沒有幫你正在使用的平台編譯的話，你也可以自己編譯。裡面預設的檔案是英文的，如果你希望turto說中文，可以在同一個頁面下載`zh-Hant.zip`，並用`zh-Hant.zip`中的`help.toml`和`templates.toml`取代原本的檔案。
 
 #### .env
 
@@ -27,7 +27,7 @@ DISCORD_TOKEN=
 
 #### config.toml
 
-在同一個資料夾下你會看到`config.toml`這個檔案，它是turto的設定檔案，要編輯的話可以用記事本打開檔案，基本上每個參數代表的意思已經寫在檔案的註解中，記得編輯的時候要符合[TOML的規定](https://toml.io/en/v1.0.0)。`owner`不一定要設定，沒設定turto也能照常運作。
+在同一個資料夾下你會看到`config.toml`這個檔案，它是turto的設定檔案，要編輯的話可以用記事本打開檔案，基本上每個參數代表的意思已經寫在檔案的註解中，記得編輯的時候要符合[TOML的規定](https://toml.io/en/v1.0.0)。`owner`不一定要設定，沒設定turto也能照常運作。有設定的話，owner能無視管理員權限使用`ban`、`unban`指令，並且`在about`指令中會顯示這個turto屬於誰。
 
 ### 啟動
 
@@ -54,10 +54,10 @@ chmod +x turto
 
 ### 把turto邀請到你的伺服器
 
-你可以去Discord的[Developer Portal](https://discord.com/developers/applications) &rarr; Applications &rarr; *你的機器人的應用程式* &rarr; General Information找到你的應用程式ID，然後用你的應用程式ID取代下面這個網址中的`{your application id}`。
+你可以去Discord的[Developer Portal](https://discord.com/developers/applications) &rarr; Applications &rarr; *你的機器人的應用程式* &rarr; General Information找到你的應用程式ID，然後用你的應用程式ID取代下面這個網址中的`your_application_id`。
 
 ```
-https://discord.com/api/oauth2/authorize?client_id={your application id}&permissions=36727808&scope=bot
+https://discord.com/api/oauth2/authorize?client_id=your_application_id&permissions=36727808&scope=bot
 ```
 
 或是你也可以自己去Discord的Developer Portal &rarr; Applications &rarr; *你的機器人的應用程式* &rarr; OAuth2 &rarr; URL Generator來生成網址，記得要勾選以下的選項
@@ -93,10 +93,10 @@ https://discord.com/api/oauth2/authorize?client_id={your application id}&permiss
 你只需要執行
 
 ```shell
-docker run -e DISCORD_TOKEN={you bot token} ghcr.io/phoxwupsh/turto:latest
+docker run -e DISCORD_TOKEN=your_bot_token ghcr.io/phoxwupsh/turto:latest
 ```
 
-記得用你的Token取代`{you bot token}`，就這麼簡單。
+記得用你自己的Token取代`your_bot_token`，就這麼簡單。
 
 ## 編譯
 
@@ -106,7 +106,7 @@ docker run -e DISCORD_TOKEN={you bot token} ghcr.io/phoxwupsh/turto:latest
 
 你可以直接去[他們的網站](https://www.rust-lang.org/tools/install)按照裡面的指示安裝。
 
-安裝好之後你可以用下面這個指令確定你的Rust版本至少有`1.70.0`。
+安裝好之後你可以用下面這個指令確定你的Rust版本至少有`1.74.0`。
 
 ```shell
 rustc -V

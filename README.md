@@ -2,11 +2,11 @@
 
 [English](https://github.com/phoxwupsh/turto/blob/main/README.md) | [繁體中文](https://github.com/phoxwupsh/turto/blob/main/README.zh-Hant.md)
 
-turto is a simple and easy-to-use Discord music bot that supports customization. Through the following steps, you can have your own turto in minutes.
+turto is a simple, easy-to-use and customizable Discord music bot, especially suitable for self-hosting. Through the following steps, you can have your own turto in minutes.
 
 ## Deployment
 
-turto depends on yt-dlp, make sure you have the tools installed, if you haven't done so, you can follow the following steps to install them. turto also supports Docker, see [here](https://github.com/phoxwupsh/turto#if-you-use-docker) if you want to use turto with Docker.
+turto depends on yt-dlp, make sure you have it installed, if you haven't done so, you can follow the following steps to install it. turto also supports Docker, see [here](https://github.com/phoxwupsh/turto#if-you-use-docker) if you want to use turto with Docker.
 
 ### yt-dlp
 
@@ -14,7 +14,7 @@ For installing yt-dlp, you can refer to [this page on their github repository](h
 
 ### Setup the bot
 
-Since you ensure FFmpeg and yt-dlp are installed, you can download pre-compiled turto binaries from the [release page](https://github.com/phoxwupsh/turto/releases). If the platform that you're using isn't provided, you can also compile it yourself.
+Since you ensure that yt-dlp is installed, you can download pre-compiled turto binaries from the [release page](https://github.com/phoxwupsh/turto/releases). If the platform that you're using isn't provided, you can also compile it yourself.
 
 #### .env
 
@@ -27,7 +27,7 @@ You need to paste you **Token** right after `DISCORD_TOKEN=`, and save the file.
 
 #### config.toml
 
-In the same directory there is also `config.toml`, it's configuration file for the bot. You can edit it with text editor, basically each attributes is just like what the comment said, just make sure you follow the [TOML specification](https://toml.io/en/v1.0.0). The `owner` attribute is optional, the bot can still work if you don't set it.
+In the same directory there is also `config.toml`, it's configuration file for the bot. You can edit it with text editor, basically each attributes is just like what the comment said, just make sure you follow the [TOML specification](https://toml.io/en/v1.0.0). The `owner` attribute is optional, the bot can still work if you don't set it. If `owner` is set, the owner can use `ban` and `unban` commands without administrator permission, and the `about` command will show that this turto is owned by who.
 
 ### Launch the bot
 
@@ -54,10 +54,10 @@ And you can start the bot by
 
 ### Invite the bot to your guild
 
-You can get your application ID in [Discord Developer Portal](https://discord.com/developers/applications) &rarr; Applications &rarr; *Your bot's application* &rarr; General Information, and replace `{your application id}` in the URL below.
+You can get your application ID in [Discord Developer Portal](https://discord.com/developers/applications) &rarr; Applications &rarr; *Your bot's application* &rarr; General Information, and replace `your_application_id` in the URL below.
 
 ```
-https://discord.com/api/oauth2/authorize?client_id={your application id}&permissions=36727808&scope=bot
+https://discord.com/api/oauth2/authorize?client_id=your_application_id&permissions=36727808&scope=bot
 ```
 
 Or, you can generate the URL in Discord Developer Portal &rarr; Applications &rarr; *Your bot's application* &rarr; OAuth2 &rarr; URL Generator. Make sure to select these following options.
@@ -93,10 +93,10 @@ If you want to stop the bot, you should press `Ctrl` + `C`, this make the bot sa
 Run this command
 
 ```shell
-docker run -e DISCORD_TOKEN={you bot token} ghcr.io/phoxwupsh/turto:latest
+docker run -e DISCORD_TOKEN=your_bot_token ghcr.io/phoxwupsh/turto:latest
 ```
 
-You need to replace `{you bot token}` with you bot token, that's it.
+You need to replace `your_bot_token` with your Discord bot token, that's it.
 
 ## Compile
 
@@ -106,7 +106,7 @@ To compile turto, you will need Rust toolchain and CMake.
 
 To install Rust toolchain, you can visit [here](https://www.rust-lang.org/tools/install), and follow the instruction.
 
-After you finish the installation, make sure your Rust version is higher than `1.70.0`, you can check your Rust version by
+After you finish the installation, make sure your Rust version is higher than `1.74.0`, you can check your Rust version by
 
 ```shell
 rustc -V
