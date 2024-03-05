@@ -1,39 +1,55 @@
 use crate::{
-    messages::TurtoMessage,
+    messages::{
+        TurtoMessage,
+        TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Skip},
+    },
+    models::alias::{Context, Error},
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         play::play_next,
     },
 };
-use serenity::{
-    framework::standard::{macros::command, CommandResult},
-    model::prelude::Message,
-    prelude::Context,
-};
 
-#[command]
-#[bucket = "turto"]
-async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
-    let guild = msg.guild(&ctx.cache).unwrap().clone();
-    let bot_id = ctx.cache.current_user().id;
+#[poise::command(slash_command, guild_only)]
+pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let bot_id = ctx.cache().current_user().id;
+    let user_id = ctx.author().id;
+    let vc_stat = ctx.guild().unwrap().cmp_voice_channel(&bot_id, &user_id);
+    let locale = ctx.locale();
 
-    match guild.cmp_voice_channel(&bot_id, &msg.author.id) {
+    match vc_stat {
         VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
-            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: bot_vc })
-                .await?;
+            ctx.say(TurtoMessage {
+                locale,
+                kind: DifferentVoiceChannel { bot: bot_vc },
+            })
+            .await?;
             return Ok(());
         }
         VoiceChannelState::OnlySecond(_) | VoiceChannelState::None => {
-            msg.reply(ctx, TurtoMessage::BotNotInVoiceChannel).await?;
+            ctx.say(TurtoMessage {
+                locale,
+                kind: BotNotInVoiceChannel,
+            })
+            .await?;
             return Ok(());
         }
         VoiceChannelState::Same(_) => (),
     }
 
-    let call = match songbird::get(ctx).await.unwrap().get(guild.id) {
+    let call = match songbird::get(ctx.serenity_context())
+        .await
+        .unwrap()
+        .get(guild_id)
+    {
         Some(handler_lock) => handler_lock,
         None => {
-            msg.reply(ctx, TurtoMessage::NotPlaying).await?;
+            ctx.say(TurtoMessage {
+                locale,
+                kind: NotPlaying,
+            })
+            .await?;
             return Ok(());
         }
     };
@@ -41,13 +57,20 @@ async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
         let mut call = call.lock().await;
         call.stop();
     }
-    if let Some(Ok(meta)) = play_next(call, ctx.data.clone(), msg.guild_id.unwrap()).await {
-        msg.reply(
-            ctx,
-            TurtoMessage::Skip {
+    if let Some(Ok(meta)) = play_next(
+        call,
+        ctx.data().guilds.clone(),
+        ctx.data().playing.clone(),
+        guild_id,
+    )
+    .await
+    {
+        ctx.say(TurtoMessage {
+            locale,
+            kind: Skip {
                 title: meta.title.as_ref().unwrap(),
             },
-        )
+        })
         .await?;
     }
     Ok(())

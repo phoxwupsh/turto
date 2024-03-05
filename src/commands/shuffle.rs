@@ -1,26 +1,34 @@
-use crate::{typemap::guild_data::GuildDataMap, messages::TurtoMessage};
-use rand::{seq::SliceRandom, thread_rng};
-use serenity::{
-    client::Context,
-    framework::standard::{macros::command, CommandResult},
-    model::prelude::Message,
+use crate::{
+    messages::{
+        TurtoMessage,
+        TurtoMessageKind::{EmptyPlaylist, Shuffle},
+    },
+    models::alias::{Context, Error},
 };
+use rand::{seq::SliceRandom, thread_rng};
 
-#[command]
-#[bucket = "turto"]
-async fn shuffle(ctx: &Context, msg: &Message) -> CommandResult {
-    let guild = msg.guild_id.unwrap();
-    let guild_data_map = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
-    let mut guild_data = guild_data_map.entry(guild).or_default();
+#[poise::command(slash_command, guild_only)]
+pub async fn shuffle(ctx: Context<'_>) -> Result<(), Error> {
+    let guild = ctx.guild_id().unwrap();
+    let mut guild_data = ctx.data().guilds.entry(guild).or_default();
+    let locale = ctx.locale();
     if guild_data.playlist.is_empty() {
         drop(guild_data);
-        msg.reply(ctx, TurtoMessage::Shuffle(Err(()))).await?;
+        ctx.say(TurtoMessage {
+            locale,
+            kind: EmptyPlaylist,
+        })
+        .await?;
         return Ok(());
     }
     let playlist = guild_data.playlist.make_contiguous();
     playlist.shuffle(&mut thread_rng());
     drop(guild_data);
 
-    msg.reply(ctx, TurtoMessage::Shuffle(Ok(()))).await?;
+    ctx.say(TurtoMessage {
+        locale,
+        kind: Shuffle,
+    })
+    .await?;
     Ok(())
 }

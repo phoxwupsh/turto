@@ -1,46 +1,37 @@
-use crate::{config::get_config, messages::TurtoMessage, typemap::guild_data::GuildDataMap};
-use serenity::{
-    framework::standard::{macros::command, Args, CommandResult},
-    model::prelude::Message,
-    prelude::Context,
-    utils::parse_user_mention,
+use crate::{
+    config::get_config,
+    messages::{
+        TurtoMessage,
+        TurtoMessageKind::{AdministratorOnly, Unban},
+    },
+    models::alias::{Context, Error},
 };
+use serenity::all::UserId;
 
-#[command]
-#[bucket = "turto"]
-async fn unban(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-    let guild = msg.guild_id.unwrap();
-    let member = guild.member(ctx, &msg.author).await?;
-    if !(member.permissions(ctx).unwrap().administrator() || get_config().is_owner(&msg.author.id))
-    {
-        msg.reply(ctx, TurtoMessage::AdministratorOnly).await?;
+#[poise::command(slash_command, guild_only)]
+pub async fn unban(ctx: Context<'_>, user: UserId) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let user_id = ctx.author().id;
+    let member = ctx.author_member().await.unwrap();
+    let locale = ctx.locale();
+
+    if !(member.permissions(ctx).unwrap().administrator() || get_config().is_owner(&user_id)) {
+        ctx.say(TurtoMessage {
+            locale,
+            kind: AdministratorOnly,
+        })
+        .await?;
         return Ok(());
     }
-    let unbanned = {
-        let Some(unbanned) = parse_user_mention(args.rest()) else {
-            msg.reply(ctx, TurtoMessage::InvalidUser).await?;
-            return Ok(());
-        };
-        if let Ok(unbanned_member) = guild.member(ctx, unbanned).await {
-            unbanned_member
-        } else {
-            msg.reply(ctx, TurtoMessage::InvalidUser).await?;
-            return Ok(());
-        }
-    };
 
-    let guild_data_map = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
-    let mut guild_data = guild_data_map.entry(guild).or_default();
-    let success = guild_data.config.banned.remove(&unbanned.user.id);
+    let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
+    let success = guild_data.config.banned.remove(&user);
     drop(guild_data);
 
-    msg.reply(
-        ctx,
-        TurtoMessage::Unban {
-            success,
-            user: unbanned.user.id,
-        },
-    )
+    ctx.say(TurtoMessage {
+        locale,
+        kind: Unban { success, user },
+    })
     .await?;
 
     Ok(())

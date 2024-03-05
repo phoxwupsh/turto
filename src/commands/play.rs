@@ -1,45 +1,56 @@
 use crate::{
-    messages::TurtoMessage,
-    typemap::playing::PlayingMap,
+    messages::{
+        TurtoMessage,
+        TurtoMessageKind::{DifferentVoiceChannel, InvalidUrl, Join, Play, UserNotInVoiceChannel},
+    },
+    models::alias::{Context, Error},
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         play::{play_next, play_url},
     },
 };
-use serenity::{
-    framework::standard::{macros::command, Args, CommandResult},
-    model::prelude::Message,
-    prelude::Context,
-};
 use songbird::tracks::PlayMode;
 use tracing::error;
 use url::Url;
 
-#[command]
-#[bucket = "turto"]
-async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-    let guild = msg.guild(&ctx.cache).unwrap().clone();
-    let bot_id = ctx.cache.current_user().id;
+#[poise::command(slash_command, guild_only)]
+pub async fn play(ctx: Context<'_>, #[rename = "url"] query: Option<String>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let bot_id = ctx.cache().current_user().id;
+    let user_id = ctx.author().id;
+    let vc_stat = ctx.guild().unwrap().cmp_voice_channel(&bot_id, &user_id);
+    let locale = ctx.locale();
 
-    let call = match guild.cmp_voice_channel(&bot_id, &msg.author.id) {
+    let call = match vc_stat {
         VoiceChannelState::None | VoiceChannelState::OnlyFirst(_) => {
-            msg.reply(ctx, TurtoMessage::UserNotInVoiceChannel).await?;
+            ctx.say(TurtoMessage {
+                locale,
+                kind: UserNotInVoiceChannel,
+            })
+            .await?;
             return Ok(());
         }
         VoiceChannelState::Different(bot_vc, _) => {
-            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: bot_vc })
-                .await?;
+            ctx.say(TurtoMessage {
+                locale,
+                kind: DifferentVoiceChannel { bot: bot_vc },
+            })
+            .await?;
             return Ok(());
         }
         VoiceChannelState::OnlySecond(user_vc) => {
-            match songbird::get(ctx)
+            match songbird::get(ctx.serenity_context())
                 .await
                 .unwrap()
-                .join(guild.id, user_vc)
+                .join(guild_id, user_vc)
                 .await
             {
                 Ok(call) => {
-                    msg.reply(ctx, TurtoMessage::Join(user_vc)).await?;
+                    ctx.say(TurtoMessage {
+                        locale,
+                        kind: Join(user_vc),
+                    })
+                    .await?;
                     call
                 }
                 Err(err) => {
@@ -48,36 +59,60 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
                 }
             }
         }
-        VoiceChannelState::Same(_) => songbird::get(ctx).await.unwrap().get(guild.id).unwrap(),
+        VoiceChannelState::Same(_) => songbird::get(ctx.serenity_context())
+            .await
+            .unwrap()
+            .get(guild_id)
+            .unwrap(),
     };
 
-    let url = args.rest();
-    if !url.is_empty() {
+    let data = ctx.data();
+
+    if let Some(query) = query {
         // If a valid url is provided then play the url
-        if Url::parse(url).is_err() {
-            msg.reply(ctx, TurtoMessage::InvalidUrl(None)).await?;
+        if Url::parse(&query).is_err() {
+            ctx.say(TurtoMessage {
+                locale,
+                kind: InvalidUrl(None),
+            })
+            .await?;
             return Ok(());
         }
 
-        let meta = play_url(call, ctx.data.clone(), guild.id, url).await?;
-        msg.reply(
-            ctx,
-            TurtoMessage::Play {
+        let meta = play_url(
+            call,
+            data.guilds.clone(),
+            data.playing.clone(),
+            guild_id,
+            query,
+        )
+        .await?;
+
+        ctx.say(TurtoMessage {
+            locale,
+            kind: Play {
                 title: meta.title.as_ref().unwrap(),
             },
-        )
+        })
         .await?;
     } else {
         // If no url provided, check if there is a paused track or there is any song in the playlist
-        let playing_lock = ctx.data.read().await.get::<PlayingMap>().unwrap().clone();
-        let playing_map = playing_lock.read().await;
-        if let Some(playing) = playing_map.get(&guild.id) {
+        let playing_map = data.playing.read().await;
+        if let Some(playing) = playing_map.get(&guild_id) {
             if let Ok(current_track_state) = playing.track_handle.get_info().await {
                 if current_track_state.playing == PlayMode::Pause {
                     // If there is a paused song then play it
                     if let Err(why) = playing.track_handle.play() {
                         let uuid = playing.track_handle.uuid();
                         error!("Failed to play track {uuid}: {why}");
+                    } else {
+                        ctx.say(TurtoMessage {
+                            locale,
+                            kind: Play {
+                                title: playing.metadata.title.as_ref().unwrap(),
+                            },
+                        })
+                        .await?;
                     }
                     return Ok(());
                 }
@@ -85,19 +120,27 @@ async fn play(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         }
         drop(playing_map);
 
-        if let Some(Ok(meta)) = play_next(call, ctx.data.clone(), guild.id).await {
+        if let Some(Ok(meta)) =
+            play_next(call, data.guilds.clone(), data.playing.clone(), guild_id).await
+        {
             // if there is any song in the play list
-            msg.reply(
-                ctx,
-                TurtoMessage::Play {
+            ctx.say(TurtoMessage {
+                locale,
+                kind: Play {
                     title: meta.title.as_ref().unwrap(),
                 },
-            )
+            })
             .await?;
         } else {
             // if the playlist is empty
-            msg.reply(ctx, TurtoMessage::InvalidUrl(None)).await?;
+            tracing::warn!("Empty list");
+            ctx.say(TurtoMessage {
+                locale,
+                kind: InvalidUrl(None),
+            })
+            .await?;
         }
     }
+
     Ok(())
 }

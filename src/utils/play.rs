@@ -1,22 +1,23 @@
 use super::get_http_client;
 use crate::{
     handlers::track_end::TrackEndHandler,
-    models::playing::Playing,
-    typemap::{guild_data::GuildDataMap, playing::PlayingMap},
+    models::{guild::data::GuildData, playing::Playing},
 };
-use serenity::{model::prelude::GuildId, prelude::TypeMap};
+use dashmap::DashMap;
+use serenity::model::prelude::GuildId;
 use songbird::{
     input::{AudioStreamError, AuxMetadata, Compose, YoutubeDl},
     tracks::{ControlError, Track},
     Call, Event, TrackEvent,
 };
-use std::{error::Error, fmt::Display, sync::Arc};
+use std::{collections::HashMap, error::Error, fmt::Display, sync::Arc};
 use tokio::sync::{Mutex, RwLock};
 use tracing::error;
 
 pub async fn play_url(
     call: Arc<Mutex<Call>>,
-    data: Arc<RwLock<TypeMap>>,
+    guild_data: Arc<DashMap<GuildId, GuildData>>,
+    guild_playing: Arc<RwLock<HashMap<GuildId, Playing>>>,
     guild_id: GuildId,
     url: impl AsRef<str>,
 ) -> Result<Arc<AuxMetadata>, PlayError> {
@@ -27,8 +28,7 @@ pub async fn play_url(
     };
 
     let track = {
-        let guild_data_map = data.read().await.get::<GuildDataMap>().unwrap().clone();
-        let volume = guild_data_map.entry(guild_id).or_default().config.volume;
+        let volume = guild_data.entry(guild_id).or_default().config.volume;
         Track::from(source).volume(*volume)
     };
 
@@ -39,7 +39,8 @@ pub async fn play_url(
     };
 
     let track_end_handler = TrackEndHandler {
-        data: data.clone(),
+        guild_data: guild_data.clone(),
+        guild_playing: guild_playing.clone(),
         call: call.clone(),
         url: url.as_ref().into(),
         guild_id,
@@ -60,24 +61,23 @@ pub async fn play_url(
     };
 
     // Update the current track
-    let playing_lock = data.read().await.get::<PlayingMap>().unwrap().clone();
-    let _playing = playing_lock.write().await.insert(guild_id, playing);
+    let _playing = guild_playing.write().await.insert(guild_id, playing);
 
     Ok(meta)
 }
 
 pub async fn play_next(
     call: Arc<Mutex<Call>>,
-    data: Arc<RwLock<TypeMap>>,
+    guild_data: Arc<DashMap<GuildId, GuildData>>,
+    guild_playing: Arc<RwLock<HashMap<GuildId, Playing>>>,
     guild_id: GuildId,
 ) -> Option<Result<Arc<AuxMetadata>, PlayError>> {
-    let guild_data_map = data.read().await.get::<GuildDataMap>().unwrap().clone();
-    let mut guild_data = guild_data_map.entry(guild_id).or_default();
-    let next = guild_data.playlist.pop_front();
-    drop(guild_data);
+    let next = guild_data.entry(guild_id).or_default().playlist.pop_front();
 
     match next {
-        Some(next_track) => Some(play_url(call, data, guild_id, &next_track.url).await),
+        Some(next_track) => {
+            Some(play_url(call, guild_data, guild_playing, guild_id, &next_track.url).await)
+        }
         None => None,
     }
 }

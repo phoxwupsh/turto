@@ -1,37 +1,49 @@
 use crate::{
-    messages::TurtoMessage,
+    messages::{
+        TurtoMessage,
+        TurtoMessageKind::{DifferentVoiceChannel, Join, UserNotInVoiceChannel},
+    },
+    models::alias::{Context, Error},
     utils::guild::{GuildUtil, VoiceChannelState},
 };
-use serenity::{
-    client::Context,
-    framework::standard::{macros::command, CommandResult},
-    model::channel::Message,
-};
 
-#[command]
-#[bucket = "turto"]
-async fn join(ctx: &Context, msg: &Message) -> CommandResult {
-    let guild = msg.guild(&ctx.cache).unwrap().clone();
-    let bot_id = ctx.cache.current_user().id;
+#[poise::command(slash_command, guild_only)]
+pub async fn join(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let bot_id = ctx.cache().current_user().id;
+    let user_id = ctx.author().id;
+    let vc_stat = ctx.guild().unwrap().cmp_voice_channel(&bot_id, &user_id);
+    let locale = ctx.locale();
 
-    match guild.cmp_voice_channel(&bot_id, &msg.author.id) {
+    match vc_stat {
         VoiceChannelState::Different(bot_vc, _) => {
-            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: bot_vc })
-                .await?;
+            ctx.say(TurtoMessage {
+                locale,
+                kind: DifferentVoiceChannel { bot: bot_vc },
+            })
+            .await?;
             return Ok(());
         }
         VoiceChannelState::None | VoiceChannelState::OnlyFirst(_) => {
-            msg.reply(ctx, TurtoMessage::UserNotInVoiceChannel).await?;
+            ctx.say(TurtoMessage {
+                locale,
+                kind: UserNotInVoiceChannel,
+            })
+            .await?;
             return Ok(());
         }
         VoiceChannelState::OnlySecond(user_vc) => {
-            let success = songbird::get(ctx)
+            let success = songbird::get(ctx.serenity_context())
                 .await
                 .unwrap()
-                .join(guild.id, user_vc)
+                .join(guild_id, user_vc)
                 .await;
             if success.is_ok() {
-                msg.reply(ctx, TurtoMessage::Join(user_vc)).await?;
+                ctx.say(TurtoMessage {
+                    locale,
+                    kind: Join(user_vc),
+                })
+                .await?;
             }
         }
         VoiceChannelState::Same(_) => (),

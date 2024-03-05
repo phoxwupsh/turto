@@ -1,14 +1,15 @@
-use crate::{config::get_config, utils::misc::sha256_now};
+use crate::{
+    config::get_config,
+    models::alias::{Context, Error},
+    utils::misc::sha256_now,
+};
 use serenity::{
-    builder::{CreateEmbed, CreateEmbedAuthor, CreateMessage},
-    framework::standard::{macros::command, Args, CommandResult},
-    model::prelude::Message,
-    prelude::{Context, Mentionable},
+    builder::{CreateEmbed, CreateEmbedAuthor},
+    prelude::Mentionable,
 };
 
-#[command]
-#[bucket = "turto"]
-async fn about(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
+#[poise::command(slash_command, guild_only)]
+pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
     let mut embed = CreateEmbed::new()
         .author(
             CreateEmbedAuthor::new("phoxwupsh")
@@ -27,9 +28,10 @@ async fn about(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
         embed = embed.field("Owner of this bot", owner.mention().to_string(), true);
     }
 
-    let response = CreateMessage::new().reference_message(msg).embed(embed);
-    msg.channel_id
-        .send_message(ctx, response)
-        .await?;
+    if let Some(locale) = ctx.locale() {
+        println!("locale: {}", locale);
+    }
+
+    ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
 }

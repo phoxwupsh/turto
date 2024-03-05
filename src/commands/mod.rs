@@ -1,11 +1,16 @@
-use self::{
-    about::ABOUT_COMMAND, autoleave::AUTOLEAVE_COMMAND, ban::BAN_COMMAND, help::HELP_COMMAND,
-    join::JOIN_COMMAND, leave::LEAVE_COMMAND, pause::PAUSE_COMMAND, play::PLAY_COMMAND,
-    playlist::PLAYLIST_COMMAND, playwhat::PLAYWHAT_COMMAND, queue::QUEUE_COMMAND,
-    remove::REMOVE_COMMAND, repeat::REPEAT_COMMAND, seek::SEEK_COMMAND, shuffle::SHUFFLE_COMMAND,
-    skip::SKIP_COMMAND, stop::STOP_COMMAND, unban::UNBAN_COMMAND, volume::VOLUME_COMMAND,
+use std::time::Duration;
+
+use crate::{
+    commands::{
+        about::about, autoleave::autoleave, ban::ban, help::help, join::join, leave::leave,
+        pause::pause, play::play, playlist::playlist, playwhat::playwhat, queue::queue,
+        remove::remove, repeat::repeat, seek::seek, shuffle::shuffle, skip::skip, stop::stop,
+        unban::unban, volume::volume,
+    },
+    config::{get_config, help::{get_help, locale_list}},
+    models::alias::Command,
 };
-use serenity::framework::standard::macros::group;
+use tracing::warn;
 
 pub mod about;
 pub mod autoleave;
@@ -27,10 +32,92 @@ pub mod stop;
 pub mod unban;
 pub mod volume;
 
-#[group]
-#[commands(
-    play, pause, playwhat, stop, volume, playlist, queue, remove, join, leave, skip, seek, help,
-    autoleave, ban, unban, shuffle, repeat, about
-)]
-#[only_in(guilds)]
-struct TurtoCommands;
+pub fn create_commands() -> Vec<Command> {
+    let mut commands = vec![
+        about(),
+        autoleave(),
+        ban(),
+        help(),
+        join(),
+        leave(),
+        pause(),
+        play(),
+        playlist(),
+        playwhat(),
+        queue(),
+        remove(),
+        repeat(),
+        seek(),
+        shuffle(),
+        skip(),
+        stop(),
+        unban(),
+        volume(),
+    ];
+
+    for command in commands.iter_mut() {
+        let help = get_help();
+        // add default short description
+        if let Some(command_help) = help
+            .get("default")
+            .and_then(|default_help| default_help.get(&command.name))
+        {
+            command.description = Some(command_help.short_description.to_string());
+            // add default description for each parameter
+            for parameter in command.parameters.iter_mut() {
+                let Some(parameter_description) = command_help
+                    .parameters
+                    .as_ref()
+                    .and_then(|parameters| parameters.get(&parameter.name))
+                else {
+                    warn!(
+                        "Description of parameter {} of command {} not found",
+                        parameter.name, command.name
+                    );
+                    continue;
+                };
+                parameter.description = Some(parameter_description.to_string());
+            }
+        } else {
+            warn!("Short description of command {} not found", command.name);
+        }
+        // add short description for all available locales
+        for locale in locale_list() {
+            if let Some(command_help) = help
+                .get(locale)
+                .and_then(|locale_help| locale_help.get(&command.name))
+            // .map(|command_help| command_help.short_description.as_str())
+            {
+                command.description_localizations.insert(
+                    locale.to_string(),
+                    command_help.short_description.to_string(),
+                );
+                for parameter in command.parameters.iter_mut() {
+                    let Some(parameter_description) = command_help
+                        .parameters
+                        .as_ref()
+                        .and_then(|parameters| parameters.get(&parameter.name))
+                    else {
+                        warn!(
+                            "Description of parameter {} of command {} for locale {} not found",
+                            parameter.name, command.name, locale
+                        );
+                        continue;
+                    };
+                    parameter
+                        .description_localizations
+                        .insert(locale.to_string(), parameter_description.to_string());
+                }
+            } else {
+                warn!(
+                    "Short description of command {} for locale {} not found",
+                    command.name, locale
+                )
+            }
+        }
+        // set command cooldown for each command
+        let command_cooldown = Duration::from_secs(get_config().command_delay);
+        command.cooldown_config.write().unwrap().guild = Some(command_cooldown);
+    }
+    commands
+}

@@ -1,39 +1,48 @@
 use crate::{
-    messages::TurtoMessage,
-    typemap::playing::PlayingMap,
+    messages::{
+        TurtoMessage,
+        TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Pause},
+    },
+    models::alias::{Context, Error},
     utils::guild::{GuildUtil, VoiceChannelState},
-};
-use serenity::{
-    framework::standard::{macros::command, Args, CommandResult},
-    model::prelude::Message,
-    prelude::Context,
 };
 use tracing::error;
 
-#[command]
-#[bucket = "turto"]
-async fn pause(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
-    let guild = msg.guild(&ctx.cache).unwrap().clone();
-    let bot_id = ctx.cache.current_user().id;
+#[poise::command(slash_command, guild_only)]
+pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let bot_id = ctx.cache().current_user().id;
+    let user_id = ctx.author().id;
+    let vc_stat = ctx.guild().unwrap().cmp_voice_channel(&bot_id, &user_id);
+    let locale = ctx.locale();
 
-    match guild.cmp_voice_channel(&bot_id, &msg.author.id) {
+    match vc_stat {
         VoiceChannelState::None | VoiceChannelState::OnlySecond(_) => {
-            msg.reply(ctx, TurtoMessage::BotNotInVoiceChannel).await?;
+            ctx.say(TurtoMessage {
+                locale,
+                kind: BotNotInVoiceChannel,
+            })
+            .await?;
             return Ok(());
         }
         VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
-            msg.reply(ctx, TurtoMessage::DifferentVoiceChannel { bot: bot_vc })
-                .await?;
+            ctx.say(TurtoMessage {
+                locale,
+                kind: DifferentVoiceChannel { bot: bot_vc },
+            })
+            .await?;
             return Ok(());
         }
         VoiceChannelState::Same(_) => (),
     }
 
-    let playing_lock = ctx.data.read().await.get::<PlayingMap>().unwrap().clone();
-
-    let playing_map = playing_lock.read().await;
-    let Some(playing) = playing_map.get(&guild.id) else {
-        msg.reply(ctx, TurtoMessage::NotPlaying).await?;
+    let playing_map = ctx.data().playing.read().await;
+    let Some(playing) = playing_map.get(&guild_id) else {
+        ctx.say(TurtoMessage {
+            locale,
+            kind: NotPlaying,
+        })
+        .await?;
         return Ok(());
     };
 
@@ -42,8 +51,11 @@ async fn pause(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
         error!("Failed to pause track {uuid}: {why}");
     }
     let title = playing.metadata.title.as_ref().unwrap();
-    msg.reply(ctx, TurtoMessage::Pause { title }).await?;
-    drop(playing_map);
+    ctx.say(TurtoMessage {
+        locale,
+        kind: Pause { title },
+    })
+    .await?;
 
     Ok(())
 }

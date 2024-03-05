@@ -1,116 +1,223 @@
-# The placeholder of the help select menu
-placeholder = "Select a command"
-# The text appear as field name of usage field
-usage_field = "Usage"
-# The text appear as field name of example field
-example_field = "Example"
+# Help info for each command
+# the "short_description" is used for slash command previewm, with a 100 characters limit
+# and the "description" is used for help command
+# those ones in "parameters" are parameters of each command
+# turto supports multiple language
+# you can add more language support by copying the default settings
+# just change the "default" to the LCID (Locale ID) you want
+# for example for "Chinese - Taiwan" change from "default" to "zh-TW"
 
-# Help info for each command, you can format your description text with Discord Markdown syntax
-# usage and examples will be wrapped by code blocks automatically
-# There can be multiple example for each command, use comma to seperate the examples, you can refer to https://toml.io/en/v1.0.0 for more details
-[commands.autoleave]
-description = "Enable (`on`) or disable (`off`) automatic leaving. When automatic leave is enabled, turto will leave the voice channel automatically when the playlist is empty after playback ends or is stopped."
-usage = "autoleave on|off"
-example = ["autoleave on", "autoleave off"]
+[default.autoleave]
+short_description = "Toggle automatic leaving."
+description = "Enable (`on`) or disable (`off`) automatic leaving. When automatic leaving is enabled, turto will leave the voice channel automatically when the playlist is empty after playback ends or is stopped."
+[default.autoleave.parameters]
+toggle = "Can be `on` or `off`, to toggle autoleave function"
 
-[commands.join]
-description = "turto will join the voice channel you are in. It has no effect if turto is already in another voice channel."
-usage = "join"
-example = ["join"]
+[default.join]
+short_description = "Let turto join the voice channel you are in."
+description = "Let turto join the voice channel you are in. It has no effect if turto is already in another voice channel."
 
-[commands.leave]
-description = "Make turto leave the current voice channel."
-usage = "leave"
-example = ["leave"]
+[default.leave]
+short_description = "Let turto leave the current voice channel."
+description = "Let turto leave the current voice channel."
 
-[commands.pause]
+[default.pause]
+short_description = "Pause the currently playing item."
 description = "Pause the currently playing item."
-usage = "pause"
-example = ["pause"]
 
-[commands.play]
+[default.play]
+short_description = "Start playback."
 description = """
 Start playback. If turto is not in another voice channel, it will join your current one. Depending on the situation, there are several possibilities:
-1. If you provide a URL (`url`), it will stop the current item (if any) and start playing the content from that URL. Supported sources include YouTube, Bilibili videos (no live streams), and Soundcloud music.
-2. If no URL is provided (`url`) and there is a paused item, it will resume playing that item.
-3. If no URL is provided (`url`) and there is no paused item, it will start playing the playlist from the beginning."""
-usage = "play [url]"
-example = [
-  "play",
-  "play https://youtu.be/dQw4w9WgXcQ",
-  "play https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-  "play https://soundcloud.com/kivawu/the-beautiful-ones",
-  "play https://www.bilibili.com/video/BV178411Y7QB/",
-]
+1. If `url` is provided, it will interrupt the currently playing item, and start playing it. Supported sources include YouTube, Bilibili videos and Soundcloud music (you can try other platform, as long as it's supported by yt-dlp).
+2. If no `url` is provided and there is a paused item, it will resume playing that item.
+3. If no `url` is provided and there is no paused item, it will start playing the playlist from the beginning."""
+[default.play.parameters]
+url = "Optional, the link to what you want to play"
 
-[commands.playlist]
+[default.playlist]
+short_description = "Display the playlist."
 description = "Display the current playlist, which is shared across the entire server."
-usage = "playlist"
-example = ["playlist"]
 
-[commands.playwhat]
+[default.playwhat]
+short_description = "Display the currently playing item."
 description = "Display the currently playing item."
-usage = "playwhat"
-example = ["playwhat"]
 
-[commands.queue]
-description = "Add new URLs (`url`) to the playlist. Supported sources include YouTube, Bilibili videos (no live streams), and Soundcloud music. You can add multiple items at once, separating them with spaces (` `). Additionally, you can directly add entire YouTube playlists, and playlist URLs will be prioritized."
-usage = "queue url"
-example = [
-  "queue https://youtu.be/dQw4w9WgXcQ",
-  "queue https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-  "queue https://soundcloud.com/kivawu/the-beautiful-ones",
-  "queue https://www.bilibili.com/video/BV178411Y7QB/",
-  "queue https://www.youtube.com/playlist?list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj",
-  "queue https://www.youtube.com/watch?v=NjdqQyC7Rkc&list=PL_b-2lmqru6AkZDHmVN9i_gbtJS--hRQj",
-]
+[default.queue]
+short_description = "Add new item to the playlist."
+description = "Add new item to the playlist, the parameter `url` can be any URL. Supported sources includes YouTube, Bilibili videos and Soundcloud music (you can try other platform, as long as it's supported by yt-dlp). You can also directly add entire YouTube playlists, and playlist URLs will be prioritized."
+[default.queue.parameters]
+url = "The link to what you want to queue"
 
-[commands.remove]
-description = "Delete certain items from the playlist. There are two ways to use it: you can use `remove index` to delete the item at position `index`, or you can use `remove from~to` to delete all items between positions `from` and `to`. `index`, `from`, and `to` must be positive integers. If you just want to simply clear the playlist, use `remove all`"
-usage = "remove index|from~to|all"
-example = ["remove 2", "remove 2~4", "remove all"]
+[default.seek]
+short_description = "Seek the currently playing item to certain time"
+description = "If there is a currently playing or paused item, jump to the specified `time` in seconds."
+[default.seek.parameters]
+time = "The time to seek, denoted in second"
 
-[commands.seek]
-description = "If there is a currently playing or paused item, jump to the specified `time` in seconds. `time` must be a positive number."
-usage = "seek time"
-example = ["seek 42"]
+[default.skip]
+short_description = "Skip the currently playing item."
+description = "Skip the currently playing item, and start playing the next item in the playlist."
 
-[commands.skip]
-description = "Skip the currently playing item and start playing the next item in the playlist (if available)."
-usage = "skip"
-example = ["skip"]
-
-[commands.stop]
+[default.stop]
+short_description = "Stop the currently playing item."
 description = "Stop the currently playing item."
-usage = "stop"
-example = ["stop"]
 
-[commands.volume]
-description = "Adjust the volume, where `vol` can range from 0 (mute) to 100. The volume setting is shared across the entire server. If you want to check the current volume, use `volume ?`"
-usage = "volume vol"
-example = ["volume 66", "volume ?"]
+[default.volume]
+short_description = "Adjust the volume"
+description = "Adjust the volume to `value`, which can range from 0 (mute) to 100. The volume setting is shared across the entire server. If you want to check the current volume, "
+[default.volume.parameters]
+value = "The value of volume, range from 0 to 100"
 
-[commands.ban]
-description = "Ban a user, then the banned user won't be able to use any command. You can mention a user (using `@`) to ban that user, you can also use `<@user id>` to specify the user."
-usage = "ban user"
-example = ["ban <@244448189917298698>"]
+[default.ban]
+short_description = "Ban a user"
+description = "Ban a user, then the banned user won't be able to use any command."
+[default.ban.parameters]
+user = "The user to be unbanned"
 
-[commands.unban]
-description = "Unban a user (if banned), then the user will be able to use all commands. You can mention a user (using `@`) to unban that user, you can also use `<@user id>` to specify the user."
-usage = "unban user"
-example = ["unban <@244448189917298698>"]
+[default.unban]
+short_description = "Unban a user"
+description = "Unban a user (if banned), then the user will be able to use all commands."
+[default.unban.parameters]
+user = "The user to be unbanned"
 
-[commands.shuffle]
+[default.shuffle]
+short_description = "Shuffle the playlist."
 description = "Shuffle the playlist."
-usage = "shuffle"
-example = ["shuffle"]
 
-[commands.repeat]
-description = "Enable (`on`) or disable (`off`) repeating. When repeating is enabled, turto will repeatly playing what is being played."
-usage = "repeat on|off"
-example = ["repeat on", "repeat off"]
+[default.repeat]
+short_description = "Toggle repeating"
+description = "Enable (`on`) or disable (`off`) repeating. When repeating is enabled, turto will repeatly playing the currently playing item."
+[default.repeat.parameters]
+toggle = "Can be`on` or `off`, to toggle repeat function"
 
-[commands.about]
+[default.about]
+short_description = "Display the information about this bot."
 description = "Display the information about this bot."
-usage = "about"
-example = ["about"]
+
+[default.remove]
+short_description = "Delete items from the playlist."
+description = """Delete certain items from the playlist, there are two ways to use it: 
+1. You can delete the item at position `which` in the playlist, by specifying the `which` parameter.
+2. You can delete all items between positions `which` and `to_which` in the playlist, by specifying both `which` and `to_which` parameters."""
+[default.remove.parameters]
+which = "Which item to remove"
+to_which = "Optional, if specified, remove all items within the range `which` to `to_which`."
+
+[default.help]
+short_description = "Look up how to use each command"
+[default.help.parameters]
+command = "The command to look up"
+
+
+# 以下是每個指令的幫助資訊
+# "short_description"用於斜線指令預覽，有100個字的限制
+# 而"description"用於help指令
+# "parameters"中的內容是每個指令的各項參數
+# turto支援多國語言
+# 你可以通過複製預設設定來新增語言支援
+# 只需將 "default" 改為你想要的LCID (Locale ID)
+# 例如對於 "Chinese - Taiwan"，需要將"default"改為"zh-TW"
+# 以下是用於中文(台灣)的設定
+
+[zh-TW.autoleave]
+short_description = "開關自動離開"
+description = "啟用(`on`)或停用(`off`)自動離開，如果自動離開有啟用，當播放結束或被停止時播放清單是空的，turto就會自動離開語音頻道。"
+[zh-TW.autoleave.parameters]
+toggle = "可以是`on`或是`off`，啟用或關閉自動離開功能。"
+
+[zh-TW.join]
+short_description = "讓turto加入你所在的語音頻道"
+description = "如果turto不在其他語音頻道中，turto會加入你所在的語音頻道。"
+
+[zh-TW.leave]
+short_description = "讓turto離開目前所在的語音頻道"
+description = "當你跟turto在同一個語音頻道時，讓turto離開目前所在的語音頻道。"
+
+[zh-TW.pause]
+short_description = "暫停正在播放中的的項目"
+description = "暫停正在播放中的的項目。"
+
+[zh-TW.play]
+short_description = "開始播放"
+description = """
+開始播放，如果turto沒有在其他語音頻道的話，就會進入你所在的語音頻道，依照狀況不同有以下幾種可能：
+1. 有指定`url`參數的話，會打斷正在播放的項目，並開始播放指定的內容。目前支援YouTube、Bilibili的影片，和Soundcloud的音樂等等(其他影音平台也可以試試看，只要是yt-dlp有支援的皆可)。
+2. 如果沒有指定`url`參數，且目前有暫停的項目時則會繼續播放。
+3. 如果沒有指定`url`參數，目前也沒有暫停的項目，會從頭開始播放播放清單。"""
+[zh-TW.play.parameters]
+url = "可選參數，要播放的連結"
+
+[zh-TW.playlist]
+short_description = "顯示目前的播放清單"
+description = "顯示目前的播放清單，整個伺服器會共用同一個播放清單。當播放清單中的項目數量超過10個時，會以每頁10個項目分成好幾頁。"
+
+[zh-TW.playwhat]
+short_description = "顯示目前正在播放的項目"
+description = "顯示目前正在播放的項目。"
+
+[zh-TW.queue]
+short_description = "在播放清單中加入新的項目"
+description = "在播放清單中加入新的項目，參數`url`可以是任何連結，目前支援YouTube、Bilibili的影片，和Soundcloud的音樂等等(其他影音平台也可以試試看，只要是yt-dlp有支援的皆可)。你也可以直接加入整個YouTube播放清單，帶有播放清單的YouTube網址會優先加入整個播放清單。"
+[zh-TW.queue.parameters]
+url = "要加入到播放清單中的連結"
+
+[zh-TW.seek]
+short_description = "跳轉到到某個時間點"
+description = "如果目前有正在播放或暫停中的的項目，將播放進度跳轉到第`time`秒。"
+[zh-TW.seek.parameters]
+time = "要跳轉的時間點，以秒來表示"
+
+[zh-TW.skip]
+short_description = "跳過目前正在播放的項目"
+description = "跳過目前正在播放的項目，並開始播放播放清單中的下一個項目(如果有的話)。"
+
+[zh-TW.stop]
+short_description = "停止目前正在播放的項目"
+description = "停止目前正在播放的項目。"
+
+[zh-TW.volume]
+short_description = "調整音量"
+description = "將音量調整為`value`，最小是0(靜音)最大是100。整個伺服器共用同一個音量。如果不指定`value`參數則會顯示目前的音量"
+[zh-TW.volume.parameters]
+value = "音量的數值，最小是0是最大100"
+
+[zh-TW.ban]
+short_description = "封鎖定使用者"
+description = "把指定的使用者(也就是`user`參數)封鎖，被封鎖之後就沒辦法使用任何指令，這個指令只有管理員或擁有者能用。"
+[zh-TW.ban.parameters]
+user = "要封鎖的使用者"
+
+[zh-TW.unban]
+short_description = "解除封鎖使用者"
+description = "把指定的使用者(也就是`user`參數)解封，這個指令只有管理員或擁有者能用。"
+[zh-TW.unban.parameters]
+user = "要解除封鎖的使用者"
+
+[zh-TW.shuffle]
+short_description = "將播放清單隨機洗牌"
+description = "將播放清單隨機洗牌。"
+
+[zh-TW.repeat]
+short_description = "開關單曲循環"
+description = "開啟(`on`)或關閉(`off`)單曲循環。"
+[zh-TW.repeat.parameters]
+toggle = "可以是`on`或是`off`，啟用或關閉單曲循環功能。"
+
+[zh-TW.about]
+short_description = "顯示關於這個機器人的資訊"
+description = "顯示關於這個機器人的資訊。"
+
+[zh-TW.remove]
+short_description = "刪除播放清單中的項目"
+description = """刪除播放清單中的某些項目，有以下兩種用法
+1. 你可以只指定`which`，這會刪除播放清單中第`which`個項目。
+2. 你也可以同時指定`which`和`which`，這會刪除播放清單中從第`which`到第`to_which`之間的所有項目。"""
+[zh-TW.remove.parameters]
+which = "要刪除播放清單中的第幾個項目"
+to_which = "可選項，如果有指定的話會刪除從第`which`個到第`to_which`的所有項目"
+
+[zh-TW.help]
+short_description = "查詢指令的詳細用法"
+[zh-TW.help.parameters]
+command = "要查詢的指令"

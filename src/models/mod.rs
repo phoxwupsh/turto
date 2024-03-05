@@ -1,8 +1,11 @@
+pub mod alias;
 pub mod config;
+pub mod data;
 pub mod guild;
 pub mod help;
+pub mod playing;
 pub mod playlist;
 pub mod playlist_item;
 pub mod url;
 pub mod youtube_playlist;
-pub mod playing;
+pub mod toggle;
