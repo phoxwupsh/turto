@@ -24,6 +24,7 @@ sha256 = "1.4.0"
 which = "4.4.2"
 reqwest = "0.11.22"
 poise = "0.6.1"
+anyhow = "1.0.80"
 
 [dependencies.serenity]
 version = "0.12.0"

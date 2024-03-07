@@ -1,7 +1,29 @@
 use crate::models::help::{CommandHelp, Help};
-use std::{collections::HashMap, sync::OnceLock};
+use anyhow::{anyhow, Context, Result};
+use std::{collections::HashMap, path::Path, sync::OnceLock};
 
-static NEW_HELP: OnceLock<Help> = OnceLock::new();
+static HELP: OnceLock<Help> = OnceLock::new();
+static COMMAND_LIST: [&str; 19] = [
+    "about",
+    "autoleave",
+    "ban",
+    "help",
+    "join",
+    "leave",
+    "pause",
+    "play",
+    "playlist",
+    "playwhat",
+    "queue",
+    "remove",
+    "repeat",
+    "seek",
+    "shuffle",
+    "skip",
+    "stop",
+    "unban",
+    "volume",
+];
 
 pub fn get_locale_help(locale: Option<&str>) -> &HashMap<String, CommandHelp> {
     let help = get_help();
@@ -9,15 +31,12 @@ pub fn get_locale_help(locale: Option<&str>) -> &HashMap<String, CommandHelp> {
         res
     } else {
         // fallback to default if the locale is not available
-        help.get("default")
-            .unwrap_or_else(|| panic!("unable to read default help info"))
+        help.get("default").unwrap()
     }
 }
 
 pub fn get_help() -> &'static Help {
-    NEW_HELP.get_or_init(|| {
-        load_help().unwrap_or_else(|err| panic!("Error loading help.toml: {}", err))
-    })
+    HELP.get().unwrap()
 }
 
 pub fn locale_list() -> Vec<&'static str> {
@@ -28,8 +47,30 @@ pub fn locale_list() -> Vec<&'static str> {
         .collect()
 }
 
-fn load_help() -> Result<Help, Box<dyn std::error::Error>> {
-    let file = std::fs::read_to_string("help.toml")?;
-    let res = toml::from_str::<Help>(&file)?;
-    Ok(res)
+pub fn load_help(help_path: impl AsRef<Path>) -> Result<()> {
+    let help = std::fs::read_to_string(help_path.as_ref())
+        .context(format!(
+            "Failed to load help info from {}",
+            help_path.as_ref().display()
+        ))
+        .and_then(|help_str| {
+            toml::from_str::<Help>(&help_str).context("Failed to parse help info")
+        })?;
+
+    if let Some(default) = help.get("default") {
+        for command_name in COMMAND_LIST {
+            if !default.contains_key(command_name) {
+                return Err(anyhow!(
+                    "Missing default language of help info of command: {}",
+                    command_name
+                ));
+            }
+        }
+    } else {
+        return Err(anyhow!("Missing default language of help info"));
+    }
+
+    HELP.set(help).unwrap();
+
+    Ok(())
 }
