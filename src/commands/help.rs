@@ -47,13 +47,12 @@ enum HelpOption {
 
 #[poise::command(slash_command, guild_only)]
 pub async fn help(ctx: Context<'_>, command: HelpOption) -> Result<(), Error> {
-    // let helps = get_help();
     let helps = get_locale_help(ctx.locale());
     let command_name = command.name();
 
     let target_help = helps
         .get(command_name)
-        .unwrap_or_else(|| panic!("unable to find the command help info: {}", command_name));
+        .unwrap_or(get_locale_help(None).get(command_name).unwrap()); // fallback to default language
 
     let mut embed = CreateEmbed::new()
         .title(command_name)
