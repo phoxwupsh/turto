@@ -6,11 +6,14 @@ use crate::{
 };
 use dashmap::DashMap;
 use poise::{Framework, FrameworkOptions};
-use serenity::{all::ClientBuilder, model::prelude::GuildId, prelude::GatewayIntents, Client};
+use serenity::{
+    all::{ClientBuilder, ShardManager},
+    model::prelude::GuildId,
+    prelude::GatewayIntents,
+    Client,
+};
 use songbird::SerenityInit;
 use std::{io, path::Path, sync::Arc};
-use tokio::{signal::ctrl_c, spawn};
-use tracing::error;
 
 pub struct Turto {
     client: Client,
@@ -49,24 +52,6 @@ impl Turto {
     }
 
     pub async fn start(&mut self) -> Result<(), serenity::Error> {
-        let shard_manager = self.client.shard_manager.clone();
-        let shard_manager_panic = shard_manager.clone();
-
-        let default_hook = std::panic::take_hook();
-        std::panic::set_hook(Box::new(move |panic_info| {
-            default_hook(panic_info);
-            let shard_manager_panic_ = shard_manager_panic.clone();
-            spawn(async move {
-                shard_manager_panic_.shutdown_all().await;
-            });
-        }));
-
-        spawn(async move {
-            match ctrl_c().await {
-                Ok(_) => shard_manager.shutdown_all().await,
-                Err(err) => error!("Error occured while shutdown: {}", err),
-            }
-        });
         self.client.start().await
     }
 
@@ -79,5 +64,9 @@ impl Turto {
     pub async fn save_data(&self, path: impl AsRef<Path>) -> Result<usize, io::Error> {
         let guild_data_map = self.guild_data.clone();
         write_json(&*guild_data_map, path)
+    }
+
+    pub fn shard_manager(&self) -> Arc<ShardManager> {
+        self.client.shard_manager.clone()
     }
 }
