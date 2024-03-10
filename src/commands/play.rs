@@ -1,14 +1,18 @@
 use crate::{
     messages::{
         TurtoMessage,
-        TurtoMessageKind::{DifferentVoiceChannel, InvalidUrl, Join, Play, UserNotInVoiceChannel},
+        TurtoMessageKind::{
+            DifferentVoiceChannel, InvalidUrl, Loading, Play, Querying, UserNotInVoiceChannel,
+        },
     },
     models::alias::{Context, Error},
     utils::{
         guild::{GuildUtil, VoiceChannelState},
+        join_voice_channel,
         play::{play_next, play_url},
     },
 };
+use poise::CreateReply;
 use songbird::tracks::PlayMode;
 use tracing::error;
 use url::Url;
@@ -39,20 +43,8 @@ pub async fn play(ctx: Context<'_>, #[rename = "url"] query: Option<String>) -> 
             return Ok(());
         }
         VoiceChannelState::OnlySecond(user_vc) => {
-            match songbird::get(ctx.serenity_context())
-                .await
-                .unwrap()
-                .join(guild_id, user_vc)
-                .await
-            {
-                Ok(call) => {
-                    ctx.say(TurtoMessage {
-                        locale,
-                        kind: Join(user_vc),
-                    })
-                    .await?;
-                    call
-                }
+            match join_voice_channel(ctx, locale, guild_id, user_vc).await {
+                Ok(call) => call,
                 Err(err) => {
                     error!("Failed to join voice channel {user_vc}: {err}");
                     return Ok(());
@@ -79,6 +71,13 @@ pub async fn play(ctx: Context<'_>, #[rename = "url"] query: Option<String>) -> 
             return Ok(());
         }
 
+        let reply = ctx
+            .say(TurtoMessage {
+                locale,
+                kind: Querying { url: &query },
+            })
+            .await?;
+
         let meta = play_url(
             call,
             data.guilds.clone(),
@@ -88,13 +87,17 @@ pub async fn play(ctx: Context<'_>, #[rename = "url"] query: Option<String>) -> 
         )
         .await?;
 
-        ctx.say(TurtoMessage {
-            locale,
-            kind: Play {
-                title: meta.title.as_ref().unwrap(),
-            },
-        })
-        .await?;
+        reply
+            .edit(
+                ctx,
+                CreateReply::default().content(TurtoMessage {
+                    locale,
+                    kind: Play {
+                        title: meta.title.as_ref().unwrap(),
+                    },
+                }),
+            )
+            .await?;
     } else {
         // If no url provided, check if there is a paused track or there is any song in the playlist
         let playing_map = data.playing.read().await;
@@ -120,25 +123,39 @@ pub async fn play(ctx: Context<'_>, #[rename = "url"] query: Option<String>) -> 
         }
         drop(playing_map);
 
+        let reply = ctx
+            .say(TurtoMessage {
+                locale,
+                kind: Loading,
+            })
+            .await?;
+
         if let Some(Ok(meta)) =
             play_next(call, data.guilds.clone(), data.playing.clone(), guild_id).await
         {
             // if there is any song in the play list
-            ctx.say(TurtoMessage {
-                locale,
-                kind: Play {
-                    title: meta.title.as_ref().unwrap(),
-                },
-            })
-            .await?;
+            reply
+                .edit(
+                    ctx,
+                    CreateReply::default().content(TurtoMessage {
+                        locale,
+                        kind: Play {
+                            title: meta.title.as_ref().unwrap(),
+                        },
+                    }),
+                )
+                .await?;
         } else {
             // if the playlist is empty
-            tracing::warn!("Empty list");
-            ctx.say(TurtoMessage {
-                locale,
-                kind: InvalidUrl(None),
-            })
-            .await?;
+            reply
+                .edit(
+                    ctx,
+                    CreateReply::default().content(TurtoMessage {
+                        locale,
+                        kind: InvalidUrl(None)
+                    }),
+                )
+                .await?;
         }
     }
 

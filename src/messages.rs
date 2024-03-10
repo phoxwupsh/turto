@@ -44,6 +44,8 @@ pub enum TurtoMessageKind<'a> {
     Shuffle,
     SetRepeat(bool),
     EmptyPlaylist,
+    Loading,
+    Querying { url: &'a str },
 }
 
 macro_rules! render {
@@ -142,6 +144,8 @@ impl Display for TurtoMessage<'_> {
                 false => render!(f, "toggle_repeat", locale, ("repeat_status", &"❎")),
             },
             EmptyPlaylist => render!(f, "empty_playlist", locale),
+            Loading => render!(f, "loading", locale),
+            Querying { url } => render!(f, "querying", locale, ("url", url))
         }
     }
 }

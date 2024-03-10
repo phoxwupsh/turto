@@ -1,7 +1,7 @@
 use crate::{
     messages::{
         TurtoMessage,
-        TurtoMessageKind::{InvalidUrl, Queue},
+        TurtoMessageKind::{InvalidUrl, Querying, Queue},
     },
     models::{
         alias::{Context, Error},
@@ -11,6 +11,7 @@ use crate::{
     },
     utils::{get_http_client, ytdl::ytdl_playlist},
 };
+use poise::CreateReply;
 use songbird::input::{Compose, YoutubeDl};
 
 enum QueueType {
@@ -29,76 +30,72 @@ pub async fn queue(ctx: Context<'_>, #[rename = "url"] query: String) -> Result<
         .await?;
         return Ok(());
     };
+    let reply = ctx
+        .say(TurtoMessage {
+            locale,
+            kind: Querying { url: &query },
+        })
+        .await?;
 
     let queue_item = match &parsed {
         ParsedUrl::Youtube(yt_url) => {
             if yt_url.is_playlist() {
-                let Some(yt_playlist) = ytdl_playlist(&yt_url.to_string()) else {
-                    ctx.say(TurtoMessage {
-                        locale,
-                        kind: InvalidUrl(Some(&parsed)),
-                    })
-                    .await?;
-                    return Ok(());
-                };
-                QueueType::Multiple(yt_playlist)
+                ytdl_playlist(&yt_url.to_string()).map(QueueType::Multiple)
             } else {
                 let mut source = YoutubeDl::new(get_http_client(), yt_url.to_string());
                 match source.aux_metadata().await {
-                    Ok(metadata) => QueueType::Single(PlaylistItem::from(metadata)),
-                    Err(_err) => {
-                        ctx.say(TurtoMessage {
-                            locale,
-                            kind: InvalidUrl(Some(&parsed)),
-                        })
-                        .await?;
-                        return Ok(());
-                    }
+                    Ok(metadata) => Some(QueueType::Single(PlaylistItem::from(metadata))),
+                    Err(_err) => None,
                 }
             }
         }
         ParsedUrl::Other(url) => {
             let mut source = YoutubeDl::new(get_http_client(), url.to_string());
             match source.aux_metadata().await {
-                Ok(metadata) => QueueType::Single(PlaylistItem::from(metadata)),
-                Err(_err) => {
-                    ctx.say(TurtoMessage {
-                        locale,
-                        kind: InvalidUrl(Some(&parsed)),
-                    })
-                    .await?;
-                    return Ok(());
-                }
+                Ok(metadata) => Some(QueueType::Single(PlaylistItem::from(metadata))),
+                Err(_err) => None,
             }
         }
     };
 
+    let Some(queue_item) = queue_item else {
+        reply
+            .edit(
+                ctx,
+                CreateReply::default().content(TurtoMessage {
+                    locale,
+                    kind: InvalidUrl(Some(&parsed)),
+                }),
+            )
+            .await?;
+        return Ok(());
+    };
+    
     let guild_id = ctx.guild_id().unwrap();
     let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
 
-    match queue_item {
+    let title = match queue_item {
         QueueType::Single(playlist_item) => {
             let title = playlist_item.title.clone();
-            let response = TurtoMessage {
-                locale,
-                kind: Queue { title: &title },
-            };
             guild_data.playlist.push_back(playlist_item);
             drop(guild_data);
-
-            ctx.say(response).await?;
+            title
         }
         QueueType::Multiple(mut yt_playlist) => {
             let title = yt_playlist.title.take().unwrap_or_default();
             guild_data.playlist.extend(yt_playlist.into_iter());
             drop(guild_data);
-
-            ctx.say(TurtoMessage {
+            title
+        }
+    };
+    reply
+        .edit(
+            ctx,
+            CreateReply::default().content(TurtoMessage {
                 locale,
                 kind: Queue { title: &title },
-            })
-            .await?;
-        }
-    }
+            }),
+        )
+        .await?;
     Ok(())
 }

@@ -3,13 +3,14 @@ use crate::{
     messages::{
         TurtoMessage,
         TurtoMessageKind::{
-            BotNotInVoiceChannel, DifferentVoiceChannel, InvalidSeek, NotPlaying, SeekNotAllow,
-            SeekNotLongEnough, SeekSuccess,
+            BotNotInVoiceChannel, DifferentVoiceChannel, InvalidSeek, Loading, NotPlaying,
+            SeekNotAllow, SeekNotLongEnough, SeekSuccess,
         },
     },
     models::alias::{Context, Error},
     utils::guild::{GuildUtil, VoiceChannelState},
 };
+use poise::CreateReply;
 use songbird::tracks::PlayMode;
 use std::time::Duration;
 use tracing::error;
@@ -96,6 +97,13 @@ pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), Error> {
                 return Ok(());
             }
 
+            let reply = ctx
+                .say(TurtoMessage {
+                    locale,
+                    kind: Loading,
+                })
+                .await?;
+
             if let Err(why) = playing
                 .track_handle
                 .seek_async(Duration::from_secs(time))
@@ -104,11 +112,15 @@ pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), Error> {
                 let uuid = playing.track_handle.uuid();
                 error!("Failed to seek track {uuid}: {why}");
             } else {
-                ctx.say(TurtoMessage {
-                    locale,
-                    kind: SeekSuccess,
-                })
-                .await?;
+                reply
+                    .edit(
+                        ctx,
+                        CreateReply::default().content(TurtoMessage {
+                            locale,
+                            kind: SeekSuccess,
+                        }),
+                    )
+                    .await?;
             }
         }
     }

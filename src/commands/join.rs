@@ -1,11 +1,12 @@
 use crate::{
     messages::{
         TurtoMessage,
-        TurtoMessageKind::{DifferentVoiceChannel, Join, UserNotInVoiceChannel},
+        TurtoMessageKind::{DifferentVoiceChannel, UserNotInVoiceChannel},
     },
     models::alias::{Context, Error},
-    utils::guild::{GuildUtil, VoiceChannelState},
+    utils::{guild::{GuildUtil, VoiceChannelState}, join_voice_channel},
 };
+use tracing::error;
 
 #[poise::command(slash_command, guild_only)]
 pub async fn join(ctx: Context<'_>) -> Result<(), Error> {
@@ -33,17 +34,8 @@ pub async fn join(ctx: Context<'_>) -> Result<(), Error> {
             return Ok(());
         }
         VoiceChannelState::OnlySecond(user_vc) => {
-            let success = songbird::get(ctx.serenity_context())
-                .await
-                .unwrap()
-                .join(guild_id, user_vc)
-                .await;
-            if success.is_ok() {
-                ctx.say(TurtoMessage {
-                    locale,
-                    kind: Join(user_vc),
-                })
-                .await?;
+            if let Err (err) = join_voice_channel(ctx, locale, guild_id, user_vc).await {
+                error!("Failed to join voice channel {user_vc}: {err}");
             }
         }
         VoiceChannelState::Same(_) => (),
