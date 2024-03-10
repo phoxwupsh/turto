@@ -1,6 +1,6 @@
 use crate::{
     config::message_template::get_template,
-    models::{guild::volume::GuildVolume, url::ParsedUrl},
+    models::{autoleave::AutoleaveType, guild::volume::GuildVolume, url::ParsedUrl},
     utils::misc::ToEmoji,
 };
 use serenity::{
@@ -32,7 +32,7 @@ pub enum TurtoMessageKind<'a> {
     InvalidRemove { length: usize },
     InvalidUrl(Option<&'a ParsedUrl>),
     SetVolume(GuildVolume),
-    SetAutoleave(bool),
+    SetAutoleave(AutoleaveType),
     SeekSuccess,
     InvalidSeek { seek_limit: u64 },
     SeekNotAllow { backward: bool },
@@ -92,8 +92,24 @@ impl Display for TurtoMessage<'_> {
             },
             SetVolume(val) => render!(f, "volume", locale, ("volume", &val.to_emoji())),
             SetAutoleave(res) => match res {
-                true => render!(f, "toggle_autoleave", locale, ("autoleave_status", &"✅")),
-                false => render!(f, "toggle_autoleave", locale, ("autoleave_status", &"❎")),
+                AutoleaveType::On => {
+                    render!(f, "toggle_autoleave", locale, ("autoleave_status", &"on"))
+                }
+                AutoleaveType::Empty => render!(
+                    f,
+                    "toggle_autoleave",
+                    locale,
+                    ("autoleave_status", &"empty")
+                ),
+                AutoleaveType::Silent => render!(
+                    f,
+                    "toggle_autoleave",
+                    locale,
+                    ("autoleave_status", &"slient")
+                ),
+                AutoleaveType::Off => {
+                    render!(f, "toggle_autoleave", locale, ("autoleave_status", &"off"))
+                }
             },
             SeekSuccess => render!(f, "seek_success", locale),
             InvalidSeek { seek_limit } => {

@@ -9,9 +9,13 @@
 
 [default.autoleave]
 short_description = "Toggle automatic leaving."
-description = "Enable (`on`) or disable (`off`) automatic leaving. When automatic leaving is enabled, turto will leave the voice channel automatically when the playlist is empty after playback ends or is stopped."
+description = """Enable (`on`, `empty`, `silent`) or disable (`off`) automatic leaving. When automatic leaving is enabled, turto will leave the voice channel automatically when the playlist is empty after playback ends or is stopped.
+- `on`: turto will leave when nothing is playing or no one is in the voice channel
+- `empty`: turto will leave when no one is in the voice channel
+- `silent`: turto will leave when no nothing is playing
+- `off`: turto won't leave automatically"""
 [default.autoleave.parameters]
-toggle = "Can be `on` or `off`, to toggle autoleave function"
+toggle = "Toggle autoleave, refer to help command for usage"
 
 [default.join]
 short_description = "Let turto join the voice channel you are in."
@@ -122,9 +126,13 @@ command = "The command to look up"
 
 [zh-TW.autoleave]
 short_description = "開關自動離開"
-description = "啟用(`on`)或停用(`off`)自動離開，如果自動離開有啟用，當播放結束或被停止時播放清單是空的，turto就會自動離開語音頻道。"
+description = """啟用(`on`、`empty`、`silent`)或停用(`off`)自動離開，如果自動離開有啟用，當播放結束或被停止時播放清單是空的，turto就會自動離開語音頻道。
+- `on`: 當沒有在播放或語音頻道中沒有人時turto會自動離開語音頻道
+- `empty`: 當語音頻道中沒有人時turto會自動離開語音頻道
+- `silent`: 當沒有在播放時turto會自動離開語音頻道
+- `off`: turto不會自動離開"""
 [zh-TW.autoleave.parameters]
-toggle = "可以是`on`或是`off`，啟用或關閉自動離開功能。"
+toggle = "開關自動離開功能，具體用法可以參考help指令中的資訊"
 
 [zh-TW.join]
 short_description = "讓turto加入你所在的語音頻道"

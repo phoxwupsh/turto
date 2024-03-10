@@ -1,5 +1,5 @@
 use crate::{
-    models::{guild::data::GuildData, playing::Playing},
+    models::{autoleave::AutoleaveType, guild::data::GuildData, playing::Playing},
     utils::play::{play_next, play_url},
 };
 use dashmap::DashMap;
@@ -54,7 +54,7 @@ impl EventHandler for TrackEndHandler {
             )
             .await
             .is_none()
-                && auto_leave
+                && (auto_leave == AutoleaveType::Silent || auto_leave == AutoleaveType::On)
             {
                 let mut call = self.call.lock().await;
                 if let Err(err) = call.leave().await {
