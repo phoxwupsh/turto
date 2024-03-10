@@ -14,6 +14,7 @@ use serenity::{
 };
 use songbird::SerenityInit;
 use std::{io, path::Path, sync::Arc};
+use tracing::warn;
 
 pub struct Turto {
     client: Client,
@@ -21,19 +22,26 @@ pub struct Turto {
 }
 
 impl Turto {
-    pub async fn new(token: impl AsRef<str>) -> Result<Self, serenity::Error> {
+    pub async fn new(
+        token: impl AsRef<str>,
+        data_path: impl AsRef<Path>,
+    ) -> Result<Self, serenity::Error> {
         let options = FrameworkOptions {
             commands: create_commands(),
             command_check: Some(before),
             ..Default::default()
         };
 
-        let data = Data::default();
-        let guild_data = data.guilds.clone();
+        let guild_data = Arc::new(load_data(data_path.as_ref()));
+        let data = Data {
+            guilds: guild_data.clone(),
+            ..Default::default()
+        };
+        
         let serenity_event_handler = SerenityEventHandler {
             playing: data.playing.clone(),
             guild_data: guild_data.clone(),
-            voice_channel_counts: Default::default()
+            voice_channel_counts: Default::default(),
         };
         let framework = Framework::builder()
             .setup(|ctx, _ready, framework| {
@@ -57,12 +65,6 @@ impl Turto {
         self.client.start().await
     }
 
-    pub async fn load_data(&mut self, path: impl AsRef<Path>) -> Result<(), io::Error> {
-        let guild_data_map: DashMap<GuildId, GuildData> = read_json(path)?;
-        self.guild_data = Arc::new(guild_data_map);
-        Ok(())
-    }
-
     pub async fn save_data(&self, path: impl AsRef<Path>) -> Result<usize, io::Error> {
         let guild_data_map = self.guild_data.clone();
         write_json(&*guild_data_map, path)
@@ -70,5 +72,19 @@ impl Turto {
 
     pub fn shard_manager(&self) -> Arc<ShardManager> {
         self.client.shard_manager.clone()
+    }
+}
+
+fn load_data(data_path: impl AsRef<Path>) -> DashMap<GuildId, GuildData> {
+    match read_json(data_path.as_ref()) {
+        Ok(data) => data,
+        Err(err) => {
+            warn!(
+                "Failed to load data from {}: {}, will initialize new guilds data",
+                data_path.as_ref().display(),
+                err
+            );
+            Default::default()
+        }
     }
 }

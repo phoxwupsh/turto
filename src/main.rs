@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use std::{env, time::Duration};
 use tokio_graceful_shutdown::{SubsystemBuilder, SubsystemHandle, Toplevel};
-use tracing::{error, info, warn, Level};
+use tracing::{error, info, Level};
 use turto::{
     bot::Turto,
     config::{help::load_help, load_config, message_template::load_templates},
@@ -45,17 +45,11 @@ async fn bot_process(subsys: SubsystemHandle) -> Result<()> {
     if token.is_empty() {
         return Err(anyhow!("DISCORD_TOKEN is not set in the environment"));
     }
-    let mut bot = Turto::new(token)
+    let data_path = "guilds.json";
+    let mut bot = Turto::new(token, data_path)
         .await
         .context("Turto client initialization failed: {}")?;
 
-    let data_path = "guilds.json";
-    bot.load_data(data_path).await.unwrap_or_else(|err| {
-        warn!(
-            "Failed to load data from {}: {}, will initialize new guilds data",
-            data_path, err
-        )
-    });
     let shard_manager = bot.shard_manager();
 
     tokio::select! {
