@@ -2,7 +2,7 @@ use crate::{
     messages::{
         TurtoMessage,
         TurtoMessageKind::{
-            DifferentVoiceChannel, InvalidUrl, Loading, Play, Querying, UserNotInVoiceChannel,
+            DifferentVoiceChannel, InvalidUrl, Play, UserNotInVoiceChannel,
         },
     },
     models::alias::{Context, Error},
@@ -12,7 +12,6 @@ use crate::{
         play::{play_next, play_url},
     },
 };
-use poise::CreateReply;
 use songbird::tracks::PlayMode;
 use tracing::error;
 use url::Url;
@@ -71,13 +70,7 @@ pub async fn play(ctx: Context<'_>, #[rename = "url"] query: Option<String>) -> 
             return Ok(());
         }
 
-        let reply = ctx
-            .say(TurtoMessage {
-                locale,
-                kind: Querying { url: &query },
-            })
-            .await?;
-
+        ctx.defer().await?;
         let meta = play_url(
             call,
             data.guilds.clone(),
@@ -87,17 +80,13 @@ pub async fn play(ctx: Context<'_>, #[rename = "url"] query: Option<String>) -> 
         )
         .await?;
 
-        reply
-            .edit(
-                ctx,
-                CreateReply::default().content(TurtoMessage {
-                    locale,
-                    kind: Play {
-                        title: meta.title.as_ref().unwrap(),
-                    },
-                }),
-            )
-            .await?;
+        ctx.say(TurtoMessage {
+            locale,
+            kind: Play {
+                title: meta.title.as_ref().unwrap(),
+            },
+        })
+        .await?;
     } else {
         // If no url provided, check if there is a paused track or there is any song in the playlist
         let playing_map = data.playing.read().await;
@@ -123,39 +112,25 @@ pub async fn play(ctx: Context<'_>, #[rename = "url"] query: Option<String>) -> 
         }
         drop(playing_map);
 
-        let reply = ctx
-            .say(TurtoMessage {
-                locale,
-                kind: Loading,
-            })
-            .await?;
-
+        ctx.defer().await?;
         if let Some(Ok(meta)) =
             play_next(call, data.guilds.clone(), data.playing.clone(), guild_id).await
         {
             // if there is any song in the play list
-            reply
-                .edit(
-                    ctx,
-                    CreateReply::default().content(TurtoMessage {
-                        locale,
-                        kind: Play {
-                            title: meta.title.as_ref().unwrap(),
-                        },
-                    }),
-                )
-                .await?;
+            ctx.say(TurtoMessage {
+                locale,
+                kind: Play {
+                    title: meta.title.as_ref().unwrap(),
+                },
+            })
+            .await?;
         } else {
             // if the playlist is empty
-            reply
-                .edit(
-                    ctx,
-                    CreateReply::default().content(TurtoMessage {
-                        locale,
-                        kind: InvalidUrl(None)
-                    }),
-                )
-                .await?;
+            ctx.say(TurtoMessage {
+                locale,
+                kind: InvalidUrl(None),
+            })
+            .await?;
         }
     }
 

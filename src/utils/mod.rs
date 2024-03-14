@@ -1,11 +1,10 @@
 use crate::{
     messages::{
         TurtoMessage,
-        TurtoMessageKind::{Join, Loading},
+        TurtoMessageKind::Join,
     },
     models::alias::{Context, Error},
 };
-use poise::CreateReply;
 use reqwest::Client;
 use serenity::all::{ChannelId, GuildId};
 use songbird::Call;
@@ -32,13 +31,8 @@ pub async fn join_voice_channel(
 ) -> Result<Arc<Mutex<Call>>, Error> {
     // there is some time limit of a command to be response,
     // joining a voice can take time and cause timeout
-    // so add a dummy message to prevent timeout
-    let reply = ctx
-        .say(TurtoMessage {
-            locale,
-            kind: Loading,
-        })
-        .await?;
+    // so use defer to prevent timeout
+    ctx.defer().await?;
     let success = songbird::get(ctx.serenity_context())
         .await
         .unwrap()
@@ -46,15 +40,11 @@ pub async fn join_voice_channel(
         .await;
     match success {
         Ok(call) => {
-            reply
-                .edit(
-                    ctx,
-                    CreateReply::default().content(TurtoMessage {
-                        locale,
-                        kind: Join(channel_id),
-                    }),
-                )
-                .await?;
+            ctx.say(TurtoMessage {
+                locale,
+                kind: Join(channel_id),
+            })
+            .await?;
             Ok(call)
         }
         Err(err) => Err(Box::new(err)),

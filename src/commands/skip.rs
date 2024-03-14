@@ -1,10 +1,8 @@
-use poise::CreateReply;
-
 use crate::{
     messages::{
         TurtoMessage,
         TurtoMessageKind::{
-            BotNotInVoiceChannel, DifferentVoiceChannel, Loading, NotPlaying, Skip,
+            BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Skip,
         },
     },
     models::alias::{Context, Error},
@@ -61,12 +59,8 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         let mut call = call.lock().await;
         call.stop();
     }
-    let reply = ctx
-        .say(TurtoMessage {
-            locale,
-            kind: Loading,
-        })
-        .await?;
+    
+    ctx.defer().await?;
     if let Some(Ok(meta)) = play_next(
         call,
         ctx.data().guilds.clone(),
@@ -75,19 +69,13 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
     )
     .await
     {
-        reply
-            .edit(
-                ctx,
-                CreateReply::default().content(TurtoMessage {
-                    locale,
-                    kind: Skip {
-                        title: meta.title.as_ref().unwrap(),
-                    },
-                }),
-            )
-            .await?;
-    } else {
-        reply.delete(ctx).await?;
+        ctx.say(TurtoMessage {
+            locale,
+            kind: Skip {
+                title: meta.title.as_ref().unwrap(),
+            },
+        })
+        .await?;
     }
     Ok(())
 }

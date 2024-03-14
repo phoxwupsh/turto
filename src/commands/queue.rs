@@ -1,7 +1,7 @@
 use crate::{
     messages::{
         TurtoMessage,
-        TurtoMessageKind::{InvalidUrl, Querying, Queue},
+        TurtoMessageKind::{InvalidUrl, Queue},
     },
     models::{
         alias::{Context, Error},
@@ -11,7 +11,6 @@ use crate::{
     },
     utils::{get_http_client, ytdl::ytdl_playlist},
 };
-use poise::CreateReply;
 use songbird::input::{Compose, YoutubeDl};
 
 enum QueueType {
@@ -30,12 +29,7 @@ pub async fn queue(ctx: Context<'_>, #[rename = "url"] query: String) -> Result<
         .await?;
         return Ok(());
     };
-    let reply = ctx
-        .say(TurtoMessage {
-            locale,
-            kind: Querying { url: &query },
-        })
-        .await?;
+    ctx.defer().await?;
 
     let queue_item = match &parsed {
         ParsedUrl::Youtube(yt_url) => {
@@ -59,18 +53,14 @@ pub async fn queue(ctx: Context<'_>, #[rename = "url"] query: String) -> Result<
     };
 
     let Some(queue_item) = queue_item else {
-        reply
-            .edit(
-                ctx,
-                CreateReply::default().content(TurtoMessage {
-                    locale,
-                    kind: InvalidUrl(Some(&parsed)),
-                }),
-            )
-            .await?;
+        ctx.say(TurtoMessage {
+            locale,
+            kind: InvalidUrl(Some(&parsed)),
+        })
+        .await?;
         return Ok(());
     };
-    
+
     let guild_id = ctx.guild_id().unwrap();
     let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
 
@@ -88,14 +78,11 @@ pub async fn queue(ctx: Context<'_>, #[rename = "url"] query: String) -> Result<
             title
         }
     };
-    reply
-        .edit(
-            ctx,
-            CreateReply::default().content(TurtoMessage {
-                locale,
-                kind: Queue { title: &title },
-            }),
-        )
-        .await?;
+
+    ctx.say(TurtoMessage {
+        locale,
+        kind: Queue { title: &title },
+    })
+    .await?;
     Ok(())
 }

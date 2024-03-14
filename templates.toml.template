@@ -52,8 +52,6 @@ banned_user_repsonse = "You are not allow to invoke any command because you are 
 empty_playlist = "The playlist is empty."
 shuffle = "🔀✅"
 toggle_repeat = "🔂{repeat_status}"
-loading = "⏳"
-querying = "🔍 <{url}>"
 
 
 # 以下是出現在訊息中的參數，參數必須用大括號 "{" 和 "}" 包住
@@ -106,5 +104,3 @@ banned_user_repsonse = "你被封鎖了。"
 empty_playlist = "播放清單裡面沒有東西。"
 shuffle = "🔀✅"
 toggle_repeat = "🔂{repeat_status}"
-loading = "⏳"
-querying = "🔍 <{url}>"
