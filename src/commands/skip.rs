@@ -1,9 +1,7 @@
 use crate::{
     messages::{
         TurtoMessage,
-        TurtoMessageKind::{
-            BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Skip,
-        },
+        TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Skip},
     },
     models::alias::{Context, Error},
     utils::{
@@ -59,7 +57,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         let mut call = call.lock().await;
         call.stop();
     }
-    
+
     ctx.defer().await?;
     if let Some(Ok(meta)) = play_next(
         call,
@@ -72,8 +70,14 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         ctx.say(TurtoMessage {
             locale,
             kind: Skip {
-                title: meta.title.as_ref().unwrap(),
+                title: Some(meta.title.as_ref().unwrap()),
             },
+        })
+        .await?;
+    } else {
+        ctx.say(TurtoMessage {
+            locale,
+            kind: Skip { title: None },
         })
         .await?;
     }

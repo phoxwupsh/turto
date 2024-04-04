@@ -22,7 +22,7 @@ pub enum TurtoMessageKind<'a> {
     DifferentVoiceChannel { bot: ChannelId },
     Play { title: &'a str },
     Pause { title: &'a str },
-    Skip { title: &'a str },
+    Skip { title: Option<&'a str> },
     Stop { title: &'a str },
     Join(ChannelId),
     Leave(ChannelId),
@@ -72,7 +72,10 @@ impl Display for TurtoMessage<'_> {
             Play { title } => render!(f, "play", locale, ("title", title)),
             Pause { title } => render!(f, "pause", locale, ("title", title)),
             Stop { title } => render!(f, "stop", locale, ("title", title)),
-            Skip { title } => render!(f, "skip", locale, ("title", title)),
+            Skip { title } => match title {
+                Some(title) => render!(f, "skip", locale, ("title", title)),
+                None => render!(f, "skip_success", locale)
+            }
             Join(channel) => render!(f, "join", locale, ("voice_channel", &channel.mention())),
             Leave(channel) => render!(f, "leave", locale, ("voice_channel", &channel.mention())),
             Queue { title } => render!(f, "queue", locale, ("title", title)),
