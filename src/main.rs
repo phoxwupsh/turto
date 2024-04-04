@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use std::{env, time::Duration};
 use tokio_graceful_shutdown::{SubsystemBuilder, SubsystemHandle, Toplevel};
-use tracing::{error, info, Level};
+use tracing::{error, info, warn, Level};
 use turto::{
     bot::Turto,
     config::{help::load_help, load_config, message_template::load_templates},
@@ -32,7 +32,9 @@ fn setup_env() -> Result<()> {
         .finish();
     tracing::subscriber::set_global_default(subscriber).unwrap();
 
-    dotenv::dotenv().context("Failed to load .env file")?;
+    if let Err(err) = dotenv::dotenv() {
+        warn!("Failed to load .env file: {}", err);
+    }
     which_global("yt-dlp").context("yt-dlp is not installed")?;
     load_config("config.toml")?;
     load_help("help.toml")?;
