@@ -17,7 +17,7 @@ If you are upgrading from version 0.x.x, you might need to kick the bot from you
 
 ## Deployment
 
-turto depends on yt-dlp, make sure you have it installed, if you haven't done so, you can follow these steps to install it. turto also supports Docker, see [here](https://github.com/phoxwupsh/turto#if-you-use-docker) if you want to use turto with Docker.
+turto depends on yt-dlp, make sure you have it installed, if you haven't done so, you can follow these steps to install it. turto also supports Docker, see [here](https://github.com/phoxwupsh/turto#use-turto-with-docker) if you want to use turto with Docker.
 
 ### yt-dlp
 
