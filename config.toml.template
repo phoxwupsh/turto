@@ -1,6 +1,3 @@
-# The prefix of your commands, for example, when you set it to "!" then you have to input !join to invoke the command join
-command_prefix = "!"
-
 # Seeking can be "expensive", and causing the bot lagging, generally it can be controlled with limiting the seeking duration, set to false to disable seeking
 allow_seek = true
 

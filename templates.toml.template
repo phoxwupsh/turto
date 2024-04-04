@@ -1,4 +1,8 @@
 # Below are arguments that would appear in the messages, arguments must be wrapped by curly brackets "{" and "}"
+# If you really need curly brackets "{" or "}" to appear in your message, place a backslash before it
+# In toml the text wrapped by double quotation marks escape the backslashes, so you need two backslashes
+# Or, you can use single quotation marks to wrap you text, and you won't need two backslashes
+# You can refer to https://toml.io/en/v1.0.0 for more details
 # "bot_voice_channel" is the voice channel that the bot is currently staying/joining/leaving, represented by mentioning
 # "title" is the title of the item that is being played/paused/stopped
 # "url" is the url that provided by the users
@@ -10,6 +14,12 @@
 # "user" is the user that is being banned/unbanned, represented by mentioning
 # "command_name" is the name of commands that is querying
 # "repeat_status" is the status of repeat, can be on or off, represented by emojis
+# turto supports multiple language
+# you can add more language support by copying the default settings
+# just change the "default" to the LCID (Locale ID) you want
+# for example for "Chinese - Taiwan" change from "default" to "zh-TW"
+
+[default]
 not_playing = "Not playing now."
 user_not_in_voice_channel = "You are not in a voice channel."
 bot_not_in_voice_channel = "turto is not in a voice channel."
@@ -17,20 +27,19 @@ different_voice_channel = "You are not in {bot_voice_channel}"
 play = "▶️ {title}"
 pause = "⏸️ {title}"
 skip = "⏭️ {title}"
+skip_success = "⏭️✅"
 stop = "⏹️ {title}"
 join = "{voice_channel}⬅️🐢"
 leave = "⬅️🐢{voice_channel}"
 queue = "✅ {title}"
 remove = "❎ {title}"
 remove_all = "The playlist has been cleared."
-invalid_remove = "Please enter a positive number to remove one, or a range to remove multiple, or `all` to clear the playlist."
 invalid_remove_index = "Please enter a number or range between 1 and {playlist_length}."
 url_not_found = "Can't find `{url}`"
 invalid_url = "Please provide a valid url."
 volume = "🔊{volume}"
-invalid_volume = "Enter a number ranges from 0 to 100."
-toggle_autoleave = "Autoleave: {autoleave_status}"
-invalid_autoleave = "Please specify whether to turn on or off autoleave."
+toggle_autoleave = "Autoleave: `{autoleave_status}`"
+seek_success = "⏩✅"
 invalid_seek = "Please enter a number between 0 and the seek limitation {seek_limit}."
 seek_not_allow = "Seeking is not allow."
 backward_seek_not_allow = "Backward seeking is not allowed."
@@ -41,10 +50,59 @@ user_already_banned = "{user} had already been banned."
 user_got_unbanned = "{user} has been unbanned."
 user_not_banned = "{user} hasn't been banned yet."
 banned_user_repsonse = "You are not allow to invoke any command because you are banned."
-invalid_user = "Please specify a user by mentioning."
-help = "Here are all the available commands, you can use the menu below to see detailed usage for each command. Remember to prefix any command with an exclamation mark (`!`)."
-command_help = "Here is how to use `{command_name}`. Remember to prefix any command with an exclamation mark (`!`)."
 empty_playlist = "The playlist is empty."
 shuffle = "🔀✅"
 toggle_repeat = "🔂{repeat_status}"
-invalid_repeat = "Please specify whether to turn on or off repeat."
+
+
+# 以下是出現在訊息中的參數，參數必須用大括號 "{" 和 "}" 包住
+# "bot_voice_channel" 是機器人目前所在/加入/離開的語音頻道，以提及方式表示
+# "title" 是正在播放/暫停/停止的項目的標題
+# "volume" 是設定的音量，以數字表情符號表示，範圍從 0 到 100
+# "autoleave_status" 是自動離開的狀態，可以是開啟或關閉，以表情符號表示
+# "playlist_length" 是伺服器播放清單的長度
+# "length" 是當前正在播放的項目的長度
+# "seek_limit" 是跳轉的時間限制，對應到 config.toml 中的相同名稱的參數
+# "user" 是正在封鎖/解封的使用者，以提及方式表示
+# "command_name" 是正在查詢的指令名稱
+# "repeat_status" 是單曲循環的狀態，可以是開啟或關閉，以表情符號表示
+# turto支援多國語言
+# 你可以通過複製預設設定來新增語言支援
+# 只需將 "default" 改為你想要的LCID (Locale ID)
+# 例如對於 "Chinese - Taiwan"，需要將"default"改為"zh-TW"
+# 以下是用於中文(台灣)的設定
+
+[zh-TW]
+not_playing = "現在沒有在播放任何東西。"
+user_not_in_voice_channel = "你不在任何語音頻道中。"
+bot_not_in_voice_channel = "turto不在任何語音頻道中。"
+different_voice_channel = "你不在{bot_voice_channel}裡面"
+play = "▶️ {title}"
+pause = "⏸️ {title}"
+skip = "⏭️ {title}"
+skip_success = "⏭️✅"
+stop = "⏹️ {title}"
+join = "{voice_channel}⬅️🐢"
+leave = "⬅️🐢{voice_channel}"
+queue = "✅ {title}"
+remove = "❎ {title}"
+remove_all = "播放清單已經被清空了。"
+invalid_remove_index = "你必須輸入一個介於1和{playlist_length}的數字。"
+url_not_found = "找不到`{url}`。"
+invalid_url = "請輸入一個正確的網址。"
+volume = "🔊{volume}"
+toggle_autoleave = "自動離開：`{autoleave_status}`"
+seek_success = "⏩✅"
+invalid_seek = "請輸入一個介於0和{seek_limit}之間的數字。"
+seek_not_allow = "跳轉功能已被關閉。"
+backward_seek_not_allow = "倒轉功能已被關閉。"
+seek_not_long_enough = "`{title}`的長度只有{length}秒而已。"
+administrator_only = "這個指令只有管理員能用。"
+user_got_banned = "成功封鎖{user}"
+user_already_banned = "{user}之前就已經被封鎖過了。"
+user_got_unbanned = "成功解封{user}"
+user_not_banned = "{user}還沒被封鎖。"
+banned_user_repsonse = "你被封鎖了。"
+empty_playlist = "播放清單裡面沒有東西。"
+shuffle = "🔀✅"
+toggle_repeat = "🔂{repeat_status}"

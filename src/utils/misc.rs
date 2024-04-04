@@ -29,7 +29,7 @@ impl ToEmoji for usize {
 pub fn sha256_now() -> String {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap_or_else(|err| panic!("Failed to get system time: {}", err))
+        .unwrap()
         .as_secs()
         .to_be_bytes();
     digest(&now)

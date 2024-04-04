@@ -1,20 +1,21 @@
-use std::sync::Arc;
-
 use crate::{
-    typemap::guild_data::GuildDataMap,
+    models::{autoleave::AutoleaveType, guild::data::GuildData, playing::Playing},
     utils::play::{play_next, play_url},
 };
-use serenity::{async_trait, model::prelude::GuildId, prelude::TypeMap};
+use dashmap::DashMap;
+use serenity::{async_trait, model::prelude::GuildId};
 use songbird::{
     events::{Event, EventContext, EventHandler},
     tracks::PlayMode,
     Call,
 };
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{Mutex, RwLock};
 use tracing::error;
 
 pub struct TrackEndHandler {
-    pub data: Arc<RwLock<TypeMap>>,
+    pub guild_data: Arc<DashMap<GuildId, GuildData>>,
+    pub guild_playing: Arc<RwLock<HashMap<GuildId, Playing>>>,
     pub call: Arc<Mutex<Call>>,
     pub url: Arc<str>,
     pub guild_id: GuildId,
@@ -23,17 +24,10 @@ pub struct TrackEndHandler {
 #[async_trait]
 impl EventHandler for TrackEndHandler {
     async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
-        let guild_data_map = self
-            .data
-            .read()
-            .await
-            .get::<GuildDataMap>()
-            .unwrap()
-            .clone();
-        let guild_data = guild_data_map.entry(self.guild_id).or_default();
+        let data = self.guild_data.entry(self.guild_id).or_default();
 
-        if guild_data.config.repeat {
-            drop(guild_data);
+        if data.config.repeat {
+            drop(data);
             let EventContext::Track(ctx) = ctx else {
                 return None;
             };
@@ -41,7 +35,8 @@ impl EventHandler for TrackEndHandler {
             if state.playing != PlayMode::Stop {
                 let _meta = play_url(
                     self.call.clone(),
-                    self.data.clone(),
+                    self.guild_data.clone(),
+                    self.guild_playing.clone(),
                     self.guild_id,
                     self.url.clone(),
                 )
@@ -49,12 +44,17 @@ impl EventHandler for TrackEndHandler {
             }
             None
         } else {
-            let auto_leave = guild_data.config.auto_leave;
-            drop(guild_data);
-            if play_next(self.call.clone(), self.data.clone(), self.guild_id)
-                .await
-                .is_none()
-                && auto_leave
+            let auto_leave = data.config.auto_leave;
+            drop(data);
+            if play_next(
+                self.call.clone(),
+                self.guild_data.clone(),
+                self.guild_playing.clone(),
+                self.guild_id,
+            )
+            .await
+            .is_none()
+                && (auto_leave == AutoleaveType::Silent || auto_leave == AutoleaveType::On)
             {
                 let mut call = self.call.lock().await;
                 if let Err(err) = call.leave().await {

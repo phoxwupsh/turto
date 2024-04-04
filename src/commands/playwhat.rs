@@ -1,32 +1,47 @@
-use crate::{messages::TurtoMessage, typemap::playing::PlayingMap};
-use serenity::{
-    builder::{CreateEmbed, CreateMessage},
-    framework::standard::{macros::command, Args, CommandResult},
-    model::prelude::Message,
-    prelude::Context,
+use crate::{
+    messages::{
+        TurtoMessage,
+        TurtoMessageKind::{NotPlaying, Pause, Play},
+    },
+    models::alias::{Context, Error},
 };
+use poise::CreateReply;
+use serenity::builder::CreateEmbed;
 use songbird::tracks::PlayMode;
 use tracing::error;
 
-#[command]
-#[bucket = "turto"]
-async fn playwhat(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
-    let guild = msg.guild_id.unwrap();
+#[poise::command(slash_command, guild_only)]
+pub async fn playwhat(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let locale = ctx.locale();
 
-    let playing_lock = ctx.data.read().await.get::<PlayingMap>().unwrap().clone();
-    let playing_map = playing_lock.read().await;
-    let Some(playing) = playing_map.get(&guild) else {
-        msg.reply(ctx, TurtoMessage::NotPlaying).await?;
+    let playing_map = ctx.data().playing.read().await;
+    let Some(playing) = playing_map.get(&guild_id) else {
+        ctx.say(TurtoMessage {
+            locale,
+            kind: NotPlaying,
+        })
+        .await?;
         return Ok(());
     };
 
     let title = playing.metadata.title.clone().unwrap_or_default();
     let embed_title = match playing.track_handle.get_info().await {
         Ok(track_state) => match track_state.playing {
-            PlayMode::Play => TurtoMessage::Play { title: &title },
-            PlayMode::Pause => TurtoMessage::Pause { title: &title },
+            PlayMode::Play => TurtoMessage {
+                locale,
+                kind: Play { title: &title },
+            },
+            PlayMode::Pause => TurtoMessage {
+                locale,
+                kind: Pause { title: &title },
+            },
             _ => {
-                msg.reply(ctx, TurtoMessage::NotPlaying).await?;
+                ctx.say(TurtoMessage {
+                    locale,
+                    kind: NotPlaying,
+                })
+                .await?;
                 return Ok(());
             }
         },
@@ -48,12 +63,8 @@ async fn playwhat(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
     }
     drop(playing_map);
 
-    let response = CreateMessage::new()
-        .content(String::default())
-        .reference_message(msg)
-        .embed(embed);
-
-    msg.channel_id.send_message(ctx, response).await?;
+    let response = CreateReply::default().embed(embed);
+    ctx.send(response).await?;
 
     Ok(())
 }

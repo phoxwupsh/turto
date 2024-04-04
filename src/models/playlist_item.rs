@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 use songbird::input::AuxMetadata;
 use std::time::Duration;
 
@@ -25,9 +25,7 @@ impl From<AuxMetadata> for PlaylistItem {
 }
 
 impl PlaylistItem {
-    pub fn try_from_ytdl_output(value: &Value) -> Option<Self> {
-        let obj = value.as_object()?;
-
+    pub fn try_from_ytdl_output(obj: &Map<String, Value>) -> Option<Self> {
         let url = obj
             .get("webpage_url")
             .and_then(Value::as_str)

@@ -1,27 +1,33 @@
-use crate::{typemap::guild_data::GuildDataMap, utils::misc::ToEmoji};
+use crate::{
+    messages::{TurtoMessage, TurtoMessageKind::EmptyPlaylist},
+    models::alias::{Context, Error},
+    utils::misc::ToEmoji,
+};
+use poise::{CreateReply, ReplyHandle};
 use serenity::{
-    all::ComponentInteractionDataKind,
+    all::{ComponentInteractionDataKind, EditMessage},
     builder::{
-        CreateActionRow, CreateInteractionResponse, CreateInteractionResponseMessage,
-        CreateMessage, CreateSelectMenu, CreateSelectMenuKind, CreateSelectMenuOption,
+        CreateActionRow, CreateInteractionResponse, CreateSelectMenu, CreateSelectMenuKind,
+        CreateSelectMenuOption,
     },
-    framework::standard::{macros::command, CommandResult},
-    futures::StreamExt,
-    model::prelude::Message,
-    prelude::Context,
+    collector::ComponentInteractionCollector,
 };
 use std::time::Duration;
 
-#[command]
-#[bucket = "turto"]
-async fn playlist(ctx: &Context, msg: &Message) -> CommandResult {
-    let guild_data_map = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
-    let guild_data = guild_data_map.entry(msg.guild_id.unwrap()).or_default();
-    let waiting: Option<Message>;
+#[poise::command(slash_command, guild_only)]
+pub async fn playlist(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let guild_data = ctx.data().guilds.entry(guild_id).or_default();
+    let waiting: Option<ReplyHandle>;
+    let custom_id = ctx.id();
 
     if guild_data.playlist.is_empty() {
         drop(guild_data);
-        msg.reply(ctx, "🈳").await?;
+        ctx.say(TurtoMessage {
+            locale: ctx.locale(),
+            kind: EmptyPlaylist,
+        })
+        .await?;
         return Ok(());
     } else if guild_data.playlist.len() <= 10 {
         // directly display if the playlist has less than 10 items
@@ -30,7 +36,7 @@ async fn playlist(ctx: &Context, msg: &Message) -> CommandResult {
             .iter()
             .enumerate()
             .map(|(index, playlist_item)| {
-                let mut line = (index + 1).to_emoji();
+                let mut line = (index + 1).to_string() + ". ";
                 line.push(' ');
                 line.push_str(&playlist_item.title);
                 line
@@ -40,7 +46,7 @@ async fn playlist(ctx: &Context, msg: &Message) -> CommandResult {
             .to_owned();
         drop(guild_data);
 
-        msg.reply(ctx, response).await?;
+        ctx.say(response).await?;
         return Ok(());
     } else {
         // show the select menu if the playlist has more than 10 items (discord text message has a length limitation of 2000 unicode chars)
@@ -53,73 +59,65 @@ async fn playlist(ctx: &Context, msg: &Message) -> CommandResult {
             })
             .collect::<Vec<_>>();
         let action = CreateActionRow::SelectMenu(
-            CreateSelectMenu::new("page_select", CreateSelectMenuKind::String { options })
-                .placeholder("📖❓"),
+            CreateSelectMenu::new(
+                custom_id.to_string(),
+                CreateSelectMenuKind::String { options },
+            )
+            .placeholder("📖❓"),
         );
 
-        let select_msg = msg
-            .channel_id
-            .send_message(
-                ctx,
-                CreateMessage::new()
-                    .reference_message(msg)
-                    .components(vec![action]),
-            )
-            .await?;
+        let select_response = CreateReply::default().components(vec![action]);
+        let select_msg = ctx.send(select_response).await?;
         waiting = Some(select_msg)
     }
 
-    if let Some(waiting) = waiting {
-        let mut interactions = waiting
-            .await_component_interactions(ctx)
-            .timeout(Duration::from_secs(60))
-            .stream();
-
-        let interaction = loop {
-            match interactions.next().await {
-                Some(interaction) => {
-                    if interaction.user == msg.author {
-                        // response only if the interaction is send by the user who invoke the help command
-                        break interaction;
-                    }
-                }
-                None => {
-                    // if there is no interaction sended, delete the select menu
-                    waiting.delete(ctx).await?;
-                    return Ok(());
-                }
-            }
-        };
-
-        let page: usize = match &interaction.data.kind {
-            ComponentInteractionDataKind::StringSelect { values } => values[0].parse().unwrap(),
-            _ => panic!("Invalid playlist select"),
-        };
-
-        let page_index = page - 1;
-        let guild_data = guild_data_map.entry(msg.guild_id.unwrap()).or_default();
-        let response_content = guild_data
-            .playlist
-            .iter()
-            .enumerate()
-            .filter(|(index, _playlist_item)| index / 10 == page_index)
-            .map(|(index, playlist_item)| {
-                let mut line = (index + 1).to_emoji();
-                line.push(' ');
-                line.push_str(&playlist_item.title);
-                line
-            })
-            .fold(String::new(), |acc, title| acc + &title + "\n")
-            .trim_end()
-            .to_owned();
-        drop(guild_data);
-
-        let response = CreateInteractionResponse::UpdateMessage(
-            CreateInteractionResponseMessage::new().content(response_content),
-        );
-        interaction.create_response(ctx, response).await?;
+    let Some(mut mci) = ComponentInteractionCollector::new(ctx)
+        .author_id(ctx.author().id)
+        .channel_id(ctx.channel_id())
+        .timeout(Duration::from_secs(60))
+        .filter(move |mci| mci.data.custom_id == custom_id.to_string())
+        .await
+    else {
+        // delete the select menu if not selected after timeout
+        if let Some(waiting) = waiting {
+            waiting.delete(ctx).await?;
+        }
         return Ok(());
-    }
+    };
 
+    let page = match &mci.data.kind {
+        ComponentInteractionDataKind::StringSelect { values } => {
+            values[0].parse::<usize>().unwrap()
+        }
+        _ => unreachable!(),
+    };
+
+    let page_index = page - 1;
+    let guild_data = ctx.data().guilds.entry(guild_id).or_default();
+    let response_content = guild_data
+        .playlist
+        .iter()
+        .enumerate()
+        .filter(|(index, _playlist_item)| index / 10 == page_index)
+        .map(|(index, playlist_item)| {
+            let mut line = (index + 1).to_string() + ". ";
+            line.push_str(&playlist_item.title);
+            line
+        })
+        .fold(String::new(), |acc, title| acc + &title + "\n")
+        .trim_end()
+        .to_owned();
+    drop(guild_data);
+
+    mci.message
+        .edit(
+            ctx,
+            EditMessage::new()
+                .components(vec![])
+                .content(response_content),
+        )
+        .await?;
+    mci.create_response(ctx, CreateInteractionResponse::Acknowledge)
+        .await?;
     Ok(())
 }

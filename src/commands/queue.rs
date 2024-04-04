@@ -1,13 +1,15 @@
 use crate::{
-    messages::TurtoMessage,
-    models::{playlist_item::PlaylistItem, url::ParsedUrl, youtube_playlist::YouTubePlaylist},
-    typemap::guild_data::GuildDataMap,
-    utils::{ytdl::ytdl_playlist, get_http_client},
-};
-use serenity::{
-    framework::standard::{macros::command, Args, CommandResult},
-    model::prelude::Message,
-    prelude::Context,
+    messages::{
+        TurtoMessage,
+        TurtoMessageKind::{InvalidUrl, Queue},
+    },
+    models::{
+        alias::{Context, Error},
+        playlist_item::PlaylistItem,
+        url::ParsedUrl,
+        youtube_playlist::YouTubePlaylist,
+    },
+    utils::{get_http_client, ytdl::ytdl_playlist},
 };
 use songbird::input::{Compose, YoutubeDl};
 
@@ -16,71 +18,71 @@ enum QueueType {
     Multiple(YouTubePlaylist),
 }
 
-#[command]
-#[bucket = "turto"]
-async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    while !args.is_empty() {
-        let arg = args.single::<String>().unwrap();
-        let Ok(parsed) = arg.parse::<ParsedUrl>() else {
-            msg.reply(ctx, TurtoMessage::InvalidUrl(None)).await?;
-            continue;
-        };
+#[poise::command(slash_command, guild_only)]
+pub async fn queue(ctx: Context<'_>, #[rename = "url"] query: String) -> Result<(), Error> {
+    let locale = ctx.locale();
+    let Ok(parsed) = query.parse::<ParsedUrl>() else {
+        ctx.say(TurtoMessage {
+            locale,
+            kind: InvalidUrl(None),
+        })
+        .await?;
+        return Ok(());
+    };
+    ctx.defer().await?;
 
-        let queue_item = match &parsed {
-            ParsedUrl::Youtube(yt_url) => {
-                if yt_url.is_playlist() {
-                    let Some(yt_playlist) = ytdl_playlist(&yt_url.to_string()) else {
-                        msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed)))
-                            .await?;
-                        continue;
-                    };
-                    QueueType::Multiple(yt_playlist)
-                } else {
-                    let mut source = YoutubeDl::new(get_http_client(), yt_url.to_string());
-                    match source.aux_metadata().await {
-                        Ok(metadata) => QueueType::Single(PlaylistItem::from(metadata)),
-                        Err(_err) => {
-                            msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed)))
-                                .await?;
-                            continue;
-                        }
-                    }
-                }
-            }
-            ParsedUrl::Other(url) => {
-                let mut source = YoutubeDl::new(get_http_client(), url.to_string());
+    let queue_item = match &parsed {
+        ParsedUrl::Youtube(yt_url) => {
+            if yt_url.is_playlist() {
+                ytdl_playlist(&yt_url.to_string()).map(QueueType::Multiple)
+            } else {
+                let mut source = YoutubeDl::new(get_http_client(), yt_url.to_string());
                 match source.aux_metadata().await {
-                    Ok(metadata) => QueueType::Single(PlaylistItem::from(metadata)),
-                    Err(_err) => {
-                        msg.reply(ctx, TurtoMessage::InvalidUrl(Some(&parsed)))
-                            .await?;
-                        continue;
-                    }
+                    Ok(metadata) => Some(QueueType::Single(PlaylistItem::from(metadata))),
+                    Err(_err) => None,
                 }
-            }
-        };
-
-        let guild_data_map = ctx.data.read().await.get::<GuildDataMap>().unwrap().clone();
-        let mut guild_data = guild_data_map.entry(msg.guild_id.unwrap()).or_default();
-
-        match queue_item {
-            QueueType::Single(playlist_item) => {
-                let title = playlist_item.title.clone();
-                let response = TurtoMessage::Queue { title: &title };
-                guild_data.playlist.push_back(playlist_item);
-                drop(guild_data);
-
-                msg.reply(ctx, response).await?;
-            }
-            QueueType::Multiple(mut yt_playlist) => {
-                let title = yt_playlist.title.take().unwrap_or_default();
-                guild_data.playlist.extend(yt_playlist.into_iter());
-                drop(guild_data);
-
-                msg.reply(ctx, TurtoMessage::Queue { title: &title })
-                    .await?;
             }
         }
-    }
+        ParsedUrl::Other(url) => {
+            let mut source = YoutubeDl::new(get_http_client(), url.to_string());
+            match source.aux_metadata().await {
+                Ok(metadata) => Some(QueueType::Single(PlaylistItem::from(metadata))),
+                Err(_err) => None,
+            }
+        }
+    };
+
+    let Some(queue_item) = queue_item else {
+        ctx.say(TurtoMessage {
+            locale,
+            kind: InvalidUrl(Some(&parsed)),
+        })
+        .await?;
+        return Ok(());
+    };
+
+    let guild_id = ctx.guild_id().unwrap();
+    let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
+
+    let title = match queue_item {
+        QueueType::Single(playlist_item) => {
+            let title = playlist_item.title.clone();
+            guild_data.playlist.push_back(playlist_item);
+            drop(guild_data);
+            title
+        }
+        QueueType::Multiple(mut yt_playlist) => {
+            let title = yt_playlist.title.take().unwrap_or_default();
+            guild_data.playlist.extend(yt_playlist.into_iter());
+            drop(guild_data);
+            title
+        }
+    };
+
+    ctx.say(TurtoMessage {
+        locale,
+        kind: Queue { title: &title },
+    })
+    .await?;
     Ok(())
 }
