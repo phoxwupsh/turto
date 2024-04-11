@@ -28,7 +28,10 @@ impl YouTubeUrl {
         }
     }
     pub fn is_playlist(&self) -> bool {
-        matches!(self, Self::Playlist { .. })
+        match self {
+            Self::Video { playlist_id, .. } => playlist_id.is_some(),
+            Self::Playlist { .. } => true,
+        }
     }
     pub fn is_video(&self) -> bool {
         matches!(self, Self::Video { .. })
