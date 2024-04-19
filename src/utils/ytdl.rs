@@ -27,11 +27,9 @@ pub fn ytdl_playlist(url: &str) -> Option<YouTubePlaylist> {
     };
 
     let mut res = YouTubePlaylist::new();
-    let mut iter_read = reader.lines().flatten();
+    let mut iter_read = reader.lines().map_while(Result::ok);
 
-    let Some(first) = iter_read.next() else {
-        return None;
-    };
+    let first = iter_read.next()?;
     let obj = match serde_json::from_str::<Map<String, Value>>(&first) {
         Ok(obj) => obj,
         Err(err) => {
