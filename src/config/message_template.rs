@@ -41,12 +41,11 @@ static TEMPLATES_LIST: [&str; 32] = [
 ];
 
 pub fn get_template(template_name: &str, locale: Option<&str>) -> &'static Template {
-    TEMPLATES
-        .get()
-        .unwrap()
-        .get(locale.unwrap_or("default"))
-        .and_then(|templates| templates.get(template_name))
-        .unwrap()
+    let langs = TEMPLATES.get().unwrap();
+    match langs.get(&locale.unwrap_or("default").to_ascii_lowercase()) { // case insensitive for locale ID
+        Some(templates) => templates.get(template_name),
+        None => langs.get("default").unwrap().get(template_name),
+    }.unwrap()
 }
 
 pub fn load_templates(path: impl AsRef<Path>) -> Result<()> {
@@ -70,22 +69,53 @@ pub fn load_templates(path: impl AsRef<Path>) -> Result<()> {
                     (template_name, template)
                 })
                 .collect::<HashMap<_, _>>();
-            (locale, templates)
+            (locale.to_ascii_lowercase(), templates) // case insensitive for locale ID
         })
         .collect::<HashMap<_, _>>();
-    
+
     if let Some(default_templates) = templates.get("default") {
         for template_name in TEMPLATES_LIST {
             if default_templates.get(template_name).is_none() {
-                return Err(anyhow!("Missing default language message template: {}", template_name,));
+                return Err(anyhow!(
+                    "Missing default language message template: {}",
+                    template_name,
+                ));
             }
         }
     } else {
         return Err(anyhow!("Missing default message template"));
     }
 
-
     TEMPLATES.set(templates).unwrap();
 
     Ok(())
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::{get_template, load_templates};
+
+    #[test]
+    fn test_get_unsupported_lang() {
+        load_templates("templates.toml.template").unwrap();
+        let cn = get_template("not_playing", Some("zh-CN")).renderer().render();
+        let ja = get_template("empty_playlist", Some("ja")).renderer().render();
+        let none = get_template("user_not_in_voice_channel", None).renderer().render();
+        assert_eq!(cn.as_str(), "Not playing now.");
+        assert_eq!(ja.as_str(), "The playlist is empty.");
+        assert_eq!(none.as_str(), "You are not in a voice channel.");
+    }
+    
+    #[test]
+    fn test_get_supported_lang() {
+        load_templates("templates.toml.template").unwrap();
+        let upper = get_template("not_playing", Some("ZH-TW")).renderer().render();
+        let lower = get_template("not_playing", Some("zh-tw")).renderer().render();
+        let mixed = get_template("not_playing", Some("zh-TW")).renderer().render();
+        assert_eq!(upper.as_str(), "現在沒有在播放任何東西。");
+        assert_eq!(lower.as_str(), "現在沒有在播放任何東西。");
+        assert_eq!(mixed.as_str(), "現在沒有在播放任何東西。");
+    
+    }
 }
