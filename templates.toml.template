@@ -14,6 +14,8 @@
 # "user" is the user that is being banned/unbanned, represented by mentioning
 # "command_name" is the name of commands that is querying
 # "repeat_status" is the status of repeat, can be on or off, represented by emojis
+# "total_pages" is the total number of pages in the playlist (when there's more than 25 pages)
+# "removed_number" is the number removed from the playlist (when you remove more than 10 item)
 # turto supports multiple language
 # you can add more language support by copying the default settings
 # just change the "default" to the LCID (Locale ID) you want
@@ -53,6 +55,8 @@ banned_user_repsonse = "You are not allow to invoke any command because you are 
 empty_playlist = "The playlist is empty."
 shuffle = "🔀✅"
 toggle_repeat = "🔂{repeat_status}"
+invalid_playlist_page = "There's only {total_pages} in the playlist."
+remove_many = "🗑️{removed_number}"
 
 
 # 以下是出現在訊息中的參數，參數必須用大括號 "{" 和 "}" 包住
@@ -66,6 +70,8 @@ toggle_repeat = "🔂{repeat_status}"
 # "user" 是正在封鎖/解封的使用者，以提及方式表示
 # "command_name" 是正在查詢的指令名稱
 # "repeat_status" 是單曲循環的狀態，可以是開啟或關閉，以表情符號表示
+# "total_pages" 是播放清單中的總頁數(當總頁數超過25頁時顯示)
+# "removed_number" 是從播放清單中移除的項目數量(當一次移除超過10個項目時顯示)
 # turto支援多國語言
 # 你可以通過複製預設設定來新增語言支援
 # 只需將 "default" 改為你想要的LCID (Locale ID)
@@ -106,3 +112,5 @@ banned_user_repsonse = "你被封鎖了。"
 empty_playlist = "播放清單裡面沒有東西。"
 shuffle = "🔀✅"
 toggle_repeat = "🔂{repeat_status}"
+invalid_playlist_page = "播放清單只有{total_pages}頁"
+remove_many = "🗑️{removed_number}"

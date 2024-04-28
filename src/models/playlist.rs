@@ -5,12 +5,33 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+const PAGE_SIZE: usize = 10;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Playlist(VecDeque<PlaylistItem>);
 
 impl Playlist {
     pub fn new() -> Self {
         Playlist(VecDeque::<PlaylistItem>::new())
+    }
+
+    pub fn total_pages(&self) -> usize {
+        (self.0.len() + PAGE_SIZE - 1) / PAGE_SIZE
+    }
+
+    pub fn page_with_indices(&self, index: usize) -> Option<Vec<(usize, &PlaylistItem)>> {
+        if index - 1 > self.total_pages() {
+            return None;
+        }
+        let start = (index - 1) * PAGE_SIZE;
+        let res = self
+            .0
+            .iter()
+            .enumerate()
+            .skip(start)
+            .take(PAGE_SIZE)
+            .collect();
+        Some(res)
     }
 }
 
@@ -39,5 +60,11 @@ impl IntoIterator for Playlist {
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
+    }
+}
+
+impl From<Vec<PlaylistItem>> for Playlist {
+    fn from(value: Vec<PlaylistItem>) -> Self {
+        Self(VecDeque::from(value))
     }
 }

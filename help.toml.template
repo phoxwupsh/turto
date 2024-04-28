@@ -41,7 +41,9 @@ url = "Optional, the link to what you want to play"
 
 [default.playlist]
 short_description = "Display the playlist."
-description = "Display the current playlist, which is shared across the entire server."
+description = "Display the current playlist, which is shared across the entire server. You can specify `page` for the page number to directly display certain page, or use the select menu. Discord has a limitation of 25 options of select menu, so you need to specify `page` if there are more than 250 item in the playlist"
+[default.playlist.parameters]
+page = "Optional, the page to display"
 
 [default.playwhat]
 short_description = "Display the currently playing item."
@@ -158,7 +160,9 @@ url = "可選參數，要播放的連結"
 
 [zh-TW.playlist]
 short_description = "顯示目前的播放清單"
-description = "顯示目前的播放清單，整個伺服器會共用同一個播放清單。當播放清單中的項目數量超過10個時，會以每頁10個項目分成好幾頁。"
+description = "顯示目前的播放清單，整個伺服器會共用同一個播放清單。當播放清單中的項目數量超過10個時，會以每頁10個項目分成好幾頁。你可以輸入`page`來指定頁數，或是直接用選單來指定頁數。因為Discord的選單有25個選項的限制，當播放清單中有超過250個項目時就必須輸入`page`。"
+[zh-TW.playlist.parameters]
+page = "可選項，要顯示的頁數"
 
 [zh-TW.playwhat]
 short_description = "顯示目前正在播放的項目"

@@ -44,6 +44,8 @@ pub enum TurtoMessageKind<'a> {
     Shuffle,
     SetRepeat(bool),
     EmptyPlaylist,
+    InvalidPlaylistPage { total_pages: usize },
+    RemoveMany { removed_number: usize },
 }
 
 macro_rules! render {
@@ -74,8 +76,8 @@ impl Display for TurtoMessage<'_> {
             Stop { title } => render!(f, "stop", locale, ("title", title)),
             Skip { title } => match title {
                 Some(title) => render!(f, "skip", locale, ("title", title)),
-                None => render!(f, "skip_success", locale)
-            }
+                None => render!(f, "skip_success", locale),
+            },
             Join(channel) => render!(f, "join", locale, ("voice_channel", &channel.mention())),
             Leave(channel) => render!(f, "leave", locale, ("voice_channel", &channel.mention())),
             Queue { title } => render!(f, "queue", locale, ("title", title)),
@@ -145,6 +147,18 @@ impl Display for TurtoMessage<'_> {
                 false => render!(f, "toggle_repeat", locale, ("repeat_status", &"❎")),
             },
             EmptyPlaylist => render!(f, "empty_playlist", locale),
+            InvalidPlaylistPage { total_pages } => render!(
+                f,
+                "invalid_playlist_page",
+                locale,
+                ("total_pages", &total_pages.to_emoji()),
+            ),
+            RemoveMany { removed_number } => render!(
+                f,
+                "remove_many",
+                locale,
+                ("removed_number", &removed_number.to_emoji())
+            ),
         }
     }
 }

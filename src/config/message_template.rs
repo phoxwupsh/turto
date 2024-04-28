@@ -5,7 +5,7 @@ use std::{collections::HashMap, fs, path::Path, sync::OnceLock};
 type Templates = HashMap<String, HashMap<String, Template>>;
 
 static TEMPLATES: OnceLock<Templates> = OnceLock::new();
-static TEMPLATES_LIST: [&str; 32] = [
+static TEMPLATES_LIST: [&str; 34] = [
     "not_playing",
     "user_not_in_voice_channel",
     "bot_not_in_voice_channel",
@@ -38,6 +38,8 @@ static TEMPLATES_LIST: [&str; 32] = [
     "empty_playlist",
     "shuffle",
     "toggle_repeat",
+    "invalid_playlist_page",
+    "remove_many",
 ];
 
 pub fn get_template(template_name: &str, locale: Option<&str>) -> &'static Template {

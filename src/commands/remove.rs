@@ -1,7 +1,7 @@
 use crate::{
     messages::{
         TurtoMessage,
-        TurtoMessageKind::{InvalidRemove, Remove},
+        TurtoMessageKind::{InvalidRemove, Remove, RemoveMany},
     },
     models::alias::{Context, Error},
 };
@@ -14,8 +14,8 @@ enum RemoveType {
 #[poise::command(slash_command, guild_only)]
 pub async fn remove(
     ctx: Context<'_>,
-    #[min = 0] which: usize,
-    #[min = 0] to_which: Option<usize>,
+    #[min = 1] which: usize,
+    #[min = 1] to_which: Option<usize>,
 ) -> Result<(), Error> {
     let remove_item = match to_which {
         Some(to_which) => RemoveType::Range {
@@ -28,59 +28,66 @@ pub async fn remove(
     let guild_id = ctx.guild_id().unwrap();
     let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
     let locale = ctx.locale();
+    let length = guild_data.playlist.len();
+
+    // make sure the indices are not out of bounds first
+    if match remove_item {
+        RemoveType::Index(index) => length <= index,
+        RemoveType::Range { from, to } => from > to || length <= from || length <= to,
+    } {
+        drop(guild_data);
+        ctx.say(TurtoMessage {
+            locale,
+            kind: InvalidRemove { length },
+        })
+        .await?;
+        return Ok(());
+    }
 
     match remove_item {
         RemoveType::Index(index) => {
-            let title: String;
-            let response = if let Some(removed) = guild_data.playlist.remove(index) {
-                title = removed.title.clone();
-                TurtoMessage {
-                    locale,
-                    kind: Remove { title: &title },
-                }
-            } else {
-                TurtoMessage {
-                    locale,
-                    kind: InvalidRemove {
-                        length: guild_data.playlist.len(),
-                    },
-                }
-            };
+            let removed = guild_data.playlist.remove(index).unwrap();
             drop(guild_data);
 
-            ctx.say(response).await?;
+            ctx.say(TurtoMessage {
+                locale,
+                kind: Remove {
+                    title: &removed.title,
+                },
+            })
+            .await?;
+            return Ok(());
         }
         RemoveType::Range { from, to } => {
-            let playlist_range = 0..=guild_data.playlist.len();
-            let response =
-                if playlist_range.contains(&from) && playlist_range.contains(&to) && from < to {
-                    let drained = guild_data.playlist.drain(from..to);
-                    drained
-                        .into_iter()
-                        .map(|drained_item| {
-                            TurtoMessage {
-                                locale,
-                                kind: Remove {
-                                    title: &drained_item.title,
-                                },
-                            }
-                            .to_string()
-                        })
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                } else {
+            let drained = guild_data
+                .playlist
+                .drain(from..to)
+                .map(|drained_item| {
                     TurtoMessage {
                         locale,
-                        kind: InvalidRemove {
-                            length: guild_data.playlist.len(),
+                        kind: Remove {
+                            title: &drained_item.title,
                         },
                     }
                     .to_string()
-                };
+                })
+                .collect::<Vec<_>>();
             drop(guild_data);
+
+            let response = if drained.len() > 10 {
+                TurtoMessage {
+                    locale,
+                    kind: RemoveMany {
+                        removed_number: drained.len(),
+                    },
+                }
+                .to_string()
+            } else {
+                drained.join("\n")
+            };
 
             ctx.say(response).await?;
         }
-    }
+    };
     Ok(())
 }
