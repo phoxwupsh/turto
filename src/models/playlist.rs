@@ -20,7 +20,7 @@ impl Playlist {
     }
 
     pub fn page_with_indices(&self, index: usize) -> Option<Vec<(usize, &PlaylistItem)>> {
-        if index - 1 > self.total_pages() {
+        if index > self.total_pages() {
             return None;
         }
         let start = (index - 1) * PAGE_SIZE;
