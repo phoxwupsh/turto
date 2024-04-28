@@ -20,3 +20,4 @@ config.toml
 help.toml
 templates.toml
 guilds.json
+*.log
