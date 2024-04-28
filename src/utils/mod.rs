@@ -1,8 +1,5 @@
 use crate::{
-    messages::{
-        TurtoMessage,
-        TurtoMessageKind::Join,
-    },
+    messages::{TurtoMessage, TurtoMessageKind::Join},
     models::alias::{Context, Error},
 };
 use reqwest::Client;
@@ -15,6 +12,7 @@ pub mod guild;
 pub mod json;
 pub mod misc;
 pub mod play;
+pub mod queue;
 pub mod template;
 pub mod ytdl;
 

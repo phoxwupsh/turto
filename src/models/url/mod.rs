@@ -31,7 +31,7 @@ impl FromStr for ParsedUrl {
         };
         let queries = parsed.query_pairs().collect::<HashMap<_, _>>();
         match parsed.host_str() {
-            Some("www.youtube.com") | Some("youtu.be") => {
+            Some("www.youtube.com") | Some("youtube.com") | Some("youtu.be") => {
                 let mut res = YouTubeUrl::builder();
                 match parsed.path_segments() {
                     Some(mut segs) => match segs.next() {
@@ -51,8 +51,8 @@ impl FromStr for ParsedUrl {
                         Some(video_id) => {
                             res.video_id(video_id.to_owned());
                         }
-                        None => ()
-                    }
+                        None => (),
+                    },
                     None => return Ok(Self::Other(s.to_owned())),
                 }
                 if let Some(time) = queries
@@ -63,7 +63,7 @@ impl FromStr for ParsedUrl {
                 }
                 match res.build() {
                     Some(yt_url) => Ok(Self::Youtube(yt_url)),
-                    None => Ok(Self::Other(s.to_owned()))
+                    None => Ok(Self::Other(s.to_owned())),
                 }
             }
             Some(_other) => Ok(Self::Other(s.to_owned())),

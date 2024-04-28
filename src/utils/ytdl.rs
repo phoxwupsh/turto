@@ -26,7 +26,7 @@ pub fn ytdl_playlist(url: &str) -> Option<YouTubePlaylist> {
         return None;
     };
 
-    let mut res = YouTubePlaylist::new();
+    let mut res = YouTubePlaylist::default();
     let mut iter_read = reader.lines().map_while(Result::ok);
 
     let first = iter_read.next()?;
@@ -51,14 +51,14 @@ pub fn ytdl_playlist(url: &str) -> Option<YouTubePlaylist> {
         .and_then(Value::as_str)
         .map(str::to_string);
     if let Some(first_) = PlaylistItem::try_from_ytdl_output(&obj) {
-        res.push_back(first_);
+        res.push(first_);
     }
 
     for line in iter_read {
         if let Ok(Some(new_playlist_item)) = serde_json::from_str::<Map<String, Value>>(&line)
             .map(|value| PlaylistItem::try_from_ytdl_output(&value))
         {
-            res.push_back(new_playlist_item);
+            res.push(new_playlist_item);
         }
     }
     Some(res)

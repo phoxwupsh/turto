@@ -1,6 +1,6 @@
 use crate::{
     config::message_template::get_template,
-    models::{autoleave::AutoleaveType, guild::volume::GuildVolume, url::ParsedUrl},
+    models::{autoleave::AutoleaveType, guild::volume::GuildVolume},
     utils::misc::ToEmoji,
 };
 use serenity::{
@@ -30,7 +30,7 @@ pub enum TurtoMessageKind<'a> {
     Remove { title: &'a str },
     RemovaAll,
     InvalidRemove { length: usize },
-    InvalidUrl(Option<&'a ParsedUrl>),
+    InvalidUrl(Option<&'a str>),
     SetVolume(GuildVolume),
     SetAutoleave(AutoleaveType),
     SeekSuccess,

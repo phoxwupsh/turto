@@ -1,36 +1,25 @@
 use super::{playlist::Playlist, playlist_item::PlaylistItem};
 use std::{
-    collections::vec_deque::IntoIter,
     ops::{Deref, DerefMut},
+    vec::IntoIter,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct YouTubePlaylist {
     pub title: Option<String>,
     pub author: Option<String>,
     pub playlist_id: Option<String>,
-    playlist: Playlist,
+    playlist: Vec<PlaylistItem>,
 }
 
 impl YouTubePlaylist {
-    pub fn new() -> Self {
-        Self {
-            title: None,
-            author: None,
-            playlist_id: None,
-            playlist: Playlist::new(),
-        }
-    }
-}
-
-impl Default for YouTubePlaylist {
-    fn default() -> Self {
-        Self::new()
+    pub fn into_playlist(self) -> Playlist {
+        Playlist::from(self.playlist)
     }
 }
 
 impl Deref for YouTubePlaylist {
-    type Target = Playlist;
+    type Target = Vec<PlaylistItem>;
     fn deref(&self) -> &Self::Target {
         &self.playlist
     }

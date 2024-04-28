@@ -2,12 +2,15 @@ use std::time::Duration;
 
 use crate::{
     commands::{
-        about::about, autoleave::autoleave, ban::ban, help::help, join::join, leave::leave,
-        pause::pause, play::play, playlist::playlist, playwhat::playwhat, queue::queue,
-        remove::remove, repeat::repeat, seek::seek, shuffle::shuffle, skip::skip, stop::stop,
-        unban::unban, volume::volume,
+        about::about, autoleave::autoleave, ban::ban, help::help, insert::insert, join::join,
+        leave::leave, pause::pause, play::play, playlist::playlist, playwhat::playwhat,
+        queue::queue, remove::remove, repeat::repeat, seek::seek, shuffle::shuffle, skip::skip,
+        stop::stop, unban::unban, volume::volume,
     },
-    config::{get_config, help::{get_help, locale_list}},
+    config::{
+        get_config,
+        help::{get_help, locale_list},
+    },
     models::alias::Command,
 };
 use tracing::warn;
@@ -16,6 +19,7 @@ pub mod about;
 pub mod autoleave;
 pub mod ban;
 pub mod help;
+pub mod insert;
 pub mod join;
 pub mod leave;
 pub mod pause;
@@ -38,6 +42,7 @@ pub fn create_commands() -> Vec<Command> {
         autoleave(),
         ban(),
         help(),
+        insert(),
         join(),
         leave(),
         pause(),

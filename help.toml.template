@@ -50,8 +50,8 @@ short_description = "Display the currently playing item."
 description = "Display the currently playing item."
 
 [default.queue]
-short_description = "Add new item to the playlist."
-description = "Add new item to the playlist, the parameter `url` can be any URL. Supported sources includes YouTube, Bilibili videos and Soundcloud music (you can try other platform, as long as it's supported by yt-dlp). You can also directly add entire YouTube playlists, and playlist URLs will be prioritized."
+short_description = "Add new item to the end of playlist."
+description = "Add new item to the end of playlist, the parameter `url` can be any URL. Supported various platforms, as long as it's supported by yt-dlp. You can also directly add entire YouTube playlists, and playlist URLs will be prioritized."
 [default.queue.parameters]
 url = "The link to what you want to queue"
 
@@ -115,6 +115,12 @@ short_description = "Look up how to use each command"
 [default.help.parameters]
 command = "The command to look up"
 
+[default.insert]
+short_description = "Add new item to the beginning of playlist."
+description = "Add new item to the beginning of playlist, the parameter `url` can be any URL. Supported various platforms, as long as it's supported by yt-dlp. You can also directly add entire YouTube playlists, and playlist URLs will be prioritized."
+[default.insert.parameters]
+url = "The link to what you want to queue"
+
 
 # 以下是每個指令的幫助資訊
 # "short_description"用於斜線指令預覽，有100個字的限制
@@ -169,8 +175,8 @@ short_description = "顯示目前正在播放的項目"
 description = "顯示目前正在播放的項目。"
 
 [zh-TW.queue]
-short_description = "在播放清單中加入新的項目"
-description = "在播放清單中加入新的項目，參數`url`可以是任何連結，目前支援YouTube、Bilibili的影片，和Soundcloud的音樂等等(其他影音平台也可以試試看，只要是yt-dlp有支援的皆可)。你也可以直接加入整個YouTube播放清單，帶有播放清單的YouTube網址會優先加入整個播放清單。"
+short_description = "在播放清單的最後面加入新的項目"
+description = "在播放清單的最後面加入新的項目，參數`url`可以是任何連結，支援多種影音平台，只要是yt-dlp有支援的皆可。你也可以直接加入整個YouTube播放清單，帶有播放清單的YouTube網址會優先加入整個播放清單。"
 [zh-TW.queue.parameters]
 url = "要加入到播放清單中的連結"
 
@@ -233,3 +239,9 @@ to_which = "可選項，如果有指定的話會刪除從第`which`個到第`to_
 short_description = "查詢指令的詳細用法"
 [zh-TW.help.parameters]
 command = "要查詢的指令"
+
+[zh-TW.insert]
+short_description = "在播放清單的最前面加入新的項目"
+description = "在播放清單的最前面加入新的項目，參數`url`可以是任何連結，支援多種影音平台，只要是yt-dlp有支援的皆可。你也可以直接加入整個YouTube播放清單，帶有播放清單的YouTube網址會優先加入整個播放清單。"
+[zh-TW.insert.parameters]
+url = "要加入到播放清單中的連結"

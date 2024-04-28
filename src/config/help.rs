@@ -3,11 +3,12 @@ use anyhow::{anyhow, Context, Result};
 use std::{collections::HashMap, path::Path, sync::OnceLock};
 
 static HELP: OnceLock<Help> = OnceLock::new();
-static COMMAND_LIST: [&str; 19] = [
+static COMMAND_LIST: [&str; 20] = [
     "about",
     "autoleave",
     "ban",
     "help",
+    "insert",
     "join",
     "leave",
     "pause",
