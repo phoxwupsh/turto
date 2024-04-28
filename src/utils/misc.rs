@@ -7,9 +7,10 @@ pub trait ToEmoji {
 
 impl ToEmoji for usize {
     fn to_emoji(&self) -> String {
-        self.to_string()
-            .chars()
-            .map(|ch| match ch {
+        let s = self.to_string();
+        let mut result = String::with_capacity(s.len() * 7);
+        for c in s.chars() {
+            result.push_str(match c {
                 '0' => "0️⃣",
                 '1' => "1️⃣",
                 '2' => "2️⃣",
@@ -20,9 +21,10 @@ impl ToEmoji for usize {
                 '7' => "7️⃣",
                 '8' => "8️⃣",
                 '9' => "9️⃣",
-                _ => unreachable!(),
+                _ => unreachable!(), // since input is guaranteed to be a digit
             })
-            .collect()
+        }
+        result
     }
 }
 
