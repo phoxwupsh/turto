@@ -100,6 +100,29 @@ https://discord.com/api/oauth2/authorize?client_id=your_application_id&permissio
 
 當你要讓turto停止運作的時候，你要在終端機視窗中按下`Ctrl`和`C`，這樣turto才會把資料(例如播放清單和各伺服器設定)儲存起來，反之如果你直接把視窗關掉那資料就不會儲存。
 
+## 除錯模式
+
+除錯模式會顯示更多程式運作的資訊，建議在回報bug前先啟用除錯模式，並提供log記錄檔。
+
+### Windows
+
+**PowerShell**
+```powershell
+$env:TURTO_LOG="debug"
+.\turto
+```
+**Command Prompt**
+```batch
+set TURTO_LOG=debug
+.\turto
+```
+
+### Linux/macOS
+```shell
+export TURTO_LOG=debug
+./turto
+```
+
 ## 用Docker容器來執行turto
 
 你只需要執行

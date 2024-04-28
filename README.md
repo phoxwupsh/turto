@@ -99,7 +99,30 @@ All you need to do is type `/` to see a list of all commands available in turto.
 
 If you want to stop the bot, you should press `Ctrl` + `C`, this make the bot save data of each guilds (like playlist and settings) then shutdown. If you close the terminal window directly, the bot would not save the data.
 
-### Use turto with Docker
+## Debug mode
+
+Debug mode shows more information of the program, which is useful for debugging, if you are about to report bugs, it would be better to enable debug mode and provide logs.
+
+### Windows
+
+**PowerShell**
+```powershell
+$env:TURTO_LOG="debug"
+.\turto
+```
+**Command Prompt**
+```batch
+set TURTO_LOG=debug
+.\turto
+```
+
+### Linux/macOS
+```shell
+export TURTO_LOG=debug
+./turto
+```
+
+## Use turto with Docker
 
 Run this command
 
