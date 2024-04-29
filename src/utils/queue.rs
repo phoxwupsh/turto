@@ -6,10 +6,10 @@ use crate::{
     models::{
         alias::{Context, Error},
         queue_item::{QueueItem, QueueItemKind},
-        url::ParsedUrl,
     },
 };
 use std::mem::replace;
+use url::Url;
 
 pub enum QueueType {
     Front,
@@ -18,7 +18,7 @@ pub enum QueueType {
 
 pub async fn enqueue(ctx: Context<'_>, query: String, queue_type: QueueType) -> Result<(), Error> {
     let locale = ctx.locale();
-    let Ok(parsed) = query.parse::<ParsedUrl>() else {
+    let Ok(parsed) = Url::parse(&query) else {
         ctx.say(TurtoMessage {
             locale,
             kind: InvalidUrl(None),

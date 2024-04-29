@@ -1,9 +1,10 @@
-use super::{playlist_item::PlaylistItem, url::ParsedUrl, youtube_playlist::YouTubePlaylist};
-use crate::utils::{get_http_client, ytdl::ytdl_playlist};
+use super::{playlist_item::PlaylistItem, youtube_playlist::YouTubePlaylist};
+use crate::utils::{get_http_client, url::UrlExt, ytdl::ytdl_playlist};
 use songbird::input::{Compose, YoutubeDl};
+use url::Url;
 
 pub struct QueueItem {
-    url: ParsedUrl,
+    url: Url,
 }
 
 pub enum QueueItemKind {
@@ -12,30 +13,20 @@ pub enum QueueItemKind {
 }
 
 impl QueueItem {
-    pub fn new(url: ParsedUrl) -> Self {
+    pub fn new(url: Url) -> Self {
         Self { url }
     }
 
     pub async fn query(self) -> Option<QueueItemKind> {
-        match self.url {
-            ParsedUrl::Youtube(yt_url) => {
-                if yt_url.is_playlist() {
-                    ytdl_playlist(&yt_url.to_string()).map(QueueItemKind::Playlist)
-                } else {
-                    query_single(yt_url.to_string()).await
-                }
-            }
-            ParsedUrl::Other(url) => query_single(url).await,
+        if self.url.is_yt_playlist() {
+            ytdl_playlist(self.url.as_str()).map(QueueItemKind::Playlist)
+        } else {
+            YoutubeDl::new(get_http_client(), self.url.to_string())
+                .aux_metadata()
+                .await
+                .map(PlaylistItem::from)
+                .map(QueueItemKind::Single)
+                .ok()
         }
     }
-}
-
-async fn query_single(url: String) -> Option<QueueItemKind> {
-    let mut source = YoutubeDl::new(get_http_client(), url);
-    source
-        .aux_metadata()
-        .await
-        .map(PlaylistItem::from)
-        .map(QueueItemKind::Single)
-        .ok()
 }

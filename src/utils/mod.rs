@@ -15,6 +15,7 @@ pub mod play;
 pub mod queue;
 pub mod template;
 pub mod ytdl;
+pub mod url;
 
 pub fn get_http_client() -> Client {
     static HTTP_CLIENT: OnceLock<Client> = OnceLock::new();
