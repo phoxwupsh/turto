@@ -1,6 +1,7 @@
 use super::{playlist_item::PlaylistItem, youtube_playlist::YouTubePlaylist};
 use crate::utils::{get_http_client, url::UrlExt, ytdl::ytdl_playlist};
 use songbird::input::{Compose, YoutubeDl};
+use anyhow::Result;
 use url::Url;
 
 pub struct QueueItem {
@@ -17,16 +18,17 @@ impl QueueItem {
         Self { url }
     }
 
-    pub async fn query(self) -> Option<QueueItemKind> {
+    pub async fn query(self) -> Result<QueueItemKind> {
         if self.url.is_yt_playlist() {
-            ytdl_playlist(self.url.as_str()).map(QueueItemKind::Playlist)
+            Ok(ytdl_playlist(&self.url)
+                .await
+                .map(QueueItemKind::Playlist)?)
         } else {
-            YoutubeDl::new(get_http_client(), self.url.to_string())
+            Ok(YoutubeDl::new(get_http_client(), self.url.to_string())
                 .aux_metadata()
                 .await
                 .map(PlaylistItem::from)
-                .map(QueueItemKind::Single)
-                .ok()
+                .map(QueueItemKind::Single)?)
         }
     }
 }

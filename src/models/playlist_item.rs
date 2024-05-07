@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
 use songbird::input::AuxMetadata;
 use std::time::Duration;
 
@@ -21,46 +20,5 @@ impl From<AuxMetadata> for PlaylistItem {
             duration: value.duration.unwrap_or_default(),
             thumbnail: value.thumbnail.unwrap_or_default(),
         }
-    }
-}
-
-impl PlaylistItem {
-    pub fn try_from_ytdl_output(obj: &Map<String, Value>) -> Option<Self> {
-        let url = obj
-            .get("webpage_url")
-            .and_then(Value::as_str)
-            .map(str::to_string)?;
-
-        let title = obj
-            .get("title")
-            .and_then(Value::as_str)
-            .map(str::to_string)?;
-
-        let channel = obj
-            .get("channel")
-            .and_then(Value::as_str)
-            .map(str::to_string)?;
-
-        let duration = obj
-            .get("duration")
-            .and_then(Value::as_f64)
-            .map(Duration::from_secs_f64)?;
-
-        let thumbnail = obj
-            .get("thumbnails")
-            .and_then(Value::as_array)
-            .map(|t| t.last().unwrap_or(&Value::Null))
-            .and_then(Value::as_object)
-            .and_then(|t| t.get("url"))
-            .and_then(Value::as_str)
-            .map(str::to_string)?;
-
-        Some(Self {
-            url,
-            title,
-            channel,
-            duration,
-            thumbnail,
-        })
     }
 }

@@ -30,7 +30,7 @@ pub async fn enqueue(ctx: Context<'_>, query: String, queue_type: QueueType) -> 
 
     let queue_item = QueueItem::new(parsed);
 
-    let Some(queue_item_kind) = queue_item.query().await else {
+    let Ok(queue_item_kind) = queue_item.query().await else {
         ctx.say(TurtoMessage {
             locale,
             kind: InvalidUrl(Some(&query)),
