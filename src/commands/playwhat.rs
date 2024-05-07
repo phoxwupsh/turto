@@ -55,8 +55,8 @@ pub async fn playwhat(ctx: Context<'_>) -> Result<(), Error> {
     if let Some(url) = &playing.metadata.source_url {
         embed = embed.url(url);
     }
-    if let Some(artist) = &playing.metadata.artist {
-        embed = embed.description(artist);
+    if let Some(channel) = playing.metadata.artist.as_deref().or(playing.metadata.channel.as_deref()) {
+        embed = embed.description(channel);
     }
     if let Some(thumbnail) = &playing.metadata.thumbnail {
         embed = embed.image(thumbnail);
