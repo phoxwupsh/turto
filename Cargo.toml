@@ -52,8 +52,8 @@ version = "5.5.3"
 features = ["serde"]
 
 [dependencies.symphonia]
-version = "0.5.3"
-features = ["mp3", "aac", "vorbis"]
+version = "0.5.4"
+features = ["mp3", "aac", "vorbis", "isomp4"]
 
 [profile.release]
 opt-level = 3
