@@ -45,7 +45,7 @@ version = "1.32.0"
 features = ["macros", "rt-multi-thread", "signal"]
 
 [dependencies.songbird]
-version = "0.4.0"
+version = "0.4.3"
 
 [dependencies.dashmap]
 version = "5.5.3"
