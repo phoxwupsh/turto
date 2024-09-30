@@ -7,7 +7,9 @@ pub struct TurtoConfig {
     pub allow_backward_seek: bool,
     pub seek_limit: u64,
     pub command_delay: u64,
-    pub owner: Option<UserId>
+    pub owner: Option<UserId>,
+    pub auto_save: bool,
+    pub auto_save_interval: u64
 }
 
 impl TurtoConfig {
