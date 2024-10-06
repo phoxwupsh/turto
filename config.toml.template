@@ -12,3 +12,9 @@ command_delay = 1
 
 # Uncomment the below line to set the of owner of this bot, you need to set with a user id, which you can copy from a user's Discord page with your Developer mode enabled
 #owner = 
+
+# `true` to turn on and `false` to turn off auto saving, if it's on the data will be automatically saved at certain intervals, otherwise the data will only be saved when shutdown
+auto_save = true
+
+# The data will be automatically saved at a intervals specified by this value, denoted by seconds
+auto_save_interval = 3600

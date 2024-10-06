@@ -4,6 +4,7 @@ pub mod config;
 pub mod handlers;
 pub mod messages;
 pub mod models;
+pub mod signal;
 pub mod utils;
 
 #[cfg(test)]

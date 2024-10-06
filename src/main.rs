@@ -1,13 +1,13 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use chrono::Local;
-use std::{env, time::Duration};
-use tokio_graceful_shutdown::{SubsystemBuilder, SubsystemHandle, Toplevel};
-use tracing::{error, info, level_filters::LevelFilter, warn};
+use std::env;
+use tracing::{error, level_filters::LevelFilter, warn};
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{fmt::layer, layer::SubscriberExt, EnvFilter};
 use turto::{
     bot::Turto,
     config::{help::load_help, load_config, message_template::load_templates},
+    signal::wait_shutdown_signal,
 };
 use which::which_global;
 
@@ -22,20 +22,26 @@ async fn main() {
     };
 
     if let Err(err) = setup_env() {
-        error!("{:#}", err);
-        return;
+        return error!("{:#}", err);
     }
 
-    let res = Toplevel::new(|subsystem| async move {
-        subsystem.start(SubsystemBuilder::new("bot", bot_process));
-    })
-    .catch_signals()
-    .handle_shutdown_requests(Duration::from_secs(10))
-    .await;
+    let token = match env::var("DISCORD_TOKEN") {
+        Ok(token) => {
+            if token.is_empty() {
+                return error!("DISCORD_TOKEN is not set in the environment");
+            }
+            token
+        }
+        Err(err) => return error!("Failed to load DISCORD_TOKEN from the environment: {}", err),
+    };
 
-    if let Err(err) = res {
-        error!("Error occured while shutdown: {}", err);
-    }
+    let data_path = "guilds.json".to_string();
+    let bot = match Turto::new(token, data_path).await {
+        Ok(bot) => bot,
+        Err(err) => return error!("Turto client initialization failed: {}", err),
+    };
+
+    bot_process(bot).await;
 }
 
 fn setup_env() -> Result<()> {
@@ -72,29 +78,11 @@ fn setup_log() -> Result<WorkerGuard> {
     Ok(guard)
 }
 
-async fn bot_process(subsys: SubsystemHandle) -> Result<()> {
-    let token = env::var("DISCORD_TOKEN").context("DISCORD_TOKEN is not set in the environment")?;
-    if token.is_empty() {
-        return Err(anyhow!("DISCORD_TOKEN is not set in the environment"));
-    }
-    let data_path = "guilds.json";
-    let mut bot = Turto::new(token, data_path)
-        .await
-        .context("Turto client initialization failed: {}")?;
-
-    let shard_manager = bot.shard_manager();
-
+async fn bot_process(mut bot: Turto) {
     tokio::select! {
-        _ = subsys.on_shutdown_requested() => {
-            shard_manager.shutdown_all().await;
+        _ = wait_shutdown_signal() => {
+            bot.shutdown().await;
         }
         _ = bot.start() => ()
     }
-
-    let bytes = bot
-        .save_data(data_path)
-        .await
-        .context(format!("Failed to write data to {}", data_path))?;
-    info!("Write {} bytes to {}", bytes, data_path);
-    Ok(())
 }
