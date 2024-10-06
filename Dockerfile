@@ -1,4 +1,4 @@
-FROM rust:1.74-alpine as builder
+FROM rust:1.81-alpine as builder
 WORKDIR /build
 COPY . .
 # it seems openssl does not work thus switch to libressl
