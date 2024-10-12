@@ -6,7 +6,7 @@ use crate::{
 use dashmap::DashMap;
 use serenity::model::prelude::GuildId;
 use songbird::{
-    input::{AudioStreamError, AuxMetadata, Compose, YoutubeDl},
+    input::{AudioStreamError, AuxMetadata, Compose, Input, LiveInput, YoutubeDl},
     tracks::Track,
     Call, Event, TrackEvent,
 };
@@ -21,10 +21,24 @@ pub async fn play_url(
     url: impl AsRef<str>,
 ) -> Result<Arc<AuxMetadata>, AudioStreamError> {
     let mut source = YoutubeDl::new(get_http_client(), url.as_ref().to_string());
-    let meta = Arc::new(source.aux_metadata().await?);
+    
+    // If doing this here it will call `YoutubeDl::query` which invoke yt-dlp
+    // https://github.com/serenity-rs/songbird/blob/current/src/input/sources/ytdl.rs#L222
+    // And since YoutubeDl is lazily instantiated which will become `Input::Lazy`
+    // When we try to play `Input::Lazy` it calls `Compose::create_async` which also calls `YoutubeDl::query`
+    // https://github.com/serenity-rs/songbird/blob/current/src/driver/tasks/mixer/track.rs#L199
+    // https://github.com/serenity-rs/songbird/blob/current/src/driver/tasks/mixer/pool.rs#L31
+    // This will cause yt-dlp to be invoke twice
+    // let meta = Arc::new(source.aux_metadata().await?);
+
+    // So we do it manually
+    // This will make sure the metadata available
+    let audio = source.create_async().await?;
+    let meta = Arc::new(source.aux_metadata().await.unwrap());
+    let input = Input::Live(LiveInput::Raw(audio), Some(Box::new(source)));
 
     let volume = guild_data.entry(guild_id).or_default().config.volume;
-    let track = Track::from(source).volume(*volume);
+    let track = Track::from(input).volume(*volume);
 
     let track_handle = {
         let mut call = call.lock().await;
