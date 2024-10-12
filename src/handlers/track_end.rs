@@ -25,43 +25,48 @@ pub struct TrackEndHandler {
 impl EventHandler for TrackEndHandler {
     async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
         let data = self.guild_data.entry(self.guild_id).or_default();
+        let repeat = data.config.repeat;
+        let auto_leave = data.config.auto_leave;
+        drop(data);
 
-        if data.config.repeat {
-            drop(data);
-            let EventContext::Track(ctx) = ctx else {
-                return None;
-            };
-            let (state, _handle) = ctx[0];
-            if state.playing != PlayMode::Stop {
-                let _meta = play_url(
-                    self.call.clone(),
-                    self.guild_data.clone(),
-                    self.guild_playing.clone(),
-                    self.guild_id,
-                    self.url.clone(),
-                )
-                .await;
-            }
-            None
-        } else {
-            let auto_leave = data.config.auto_leave;
-            drop(data);
-            if play_next(
-                self.call.clone(),
-                self.guild_data.clone(),
-                self.guild_playing.clone(),
-                self.guild_id,
-            )
-            .await
-            .is_none()
-                && (auto_leave == AutoleaveType::Silent || auto_leave == AutoleaveType::On)
-            {
-                let mut call = self.call.lock().await;
-                if let Err(err) = call.leave().await {
-                    error!("Failed to leave voice channel: {}", err);
+        let EventContext::Track(ctx) = ctx else {
+            return None;
+        };
+        let (state, _handle) = ctx[0];
+
+        match &state.playing {
+            PlayMode::End => {
+                if repeat {
+                    let _meta = play_url(
+                        self.call.clone(),
+                        self.guild_data.clone(),
+                        self.guild_playing.clone(),
+                        self.guild_id,
+                        self.url.clone(),
+                    )
+                    .await;
+                    None
+                } else {
+                    if play_next(
+                        self.call.clone(),
+                        self.guild_data.clone(),
+                        self.guild_playing.clone(),
+                        self.guild_id,
+                    )
+                    .await
+                    .is_none()
+                        && (auto_leave == AutoleaveType::Silent || auto_leave == AutoleaveType::On)
+                    {
+                        let mut call = self.call.lock().await;
+                        if let Err(err) = call.leave().await {
+                            error!("Failed to leave voice channel: {}", err);
+                        }
+                    }
+                    None
                 }
             }
-            None
+            PlayMode::Stop => return None,
+            _ => return None,
         }
     }
 }
