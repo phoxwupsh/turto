@@ -17,18 +17,18 @@ pub async fn stop(ctx: Context<'_>) -> Result<(), Error> {
     let locale = ctx.locale();
 
     match vc_stat {
-        VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
+        VoiceChannelState::None | VoiceChannelState::OnlySecond(_) => {
             ctx.say(TurtoMessage {
                 locale,
-                kind: DifferentVoiceChannel { bot: bot_vc },
+                kind: BotNotInVoiceChannel,
             })
             .await?;
             return Ok(());
         }
-        VoiceChannelState::OnlySecond(_) | VoiceChannelState::None => {
+        VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
             ctx.say(TurtoMessage {
                 locale,
-                kind: BotNotInVoiceChannel,
+                kind: DifferentVoiceChannel { bot: bot_vc },
             })
             .await?;
             return Ok(());
