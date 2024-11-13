@@ -28,8 +28,9 @@ pub enum TurtoMessageKind<'a> {
     Leave(ChannelId),
     Queue { title: &'a str },
     Remove { title: &'a str },
-    RemovaAll,
+    RemoveAll,
     InvalidRemove { length: usize },
+    InvalidRangeRemove { from: usize, to: usize, length: usize },
     InvalidUrl(Option<&'a str>),
     SetVolume(GuildVolume),
     SetAutoleave(AutoleaveType),
@@ -82,7 +83,7 @@ impl Display for TurtoMessage<'_> {
             Leave(channel) => render!(f, "leave", locale, ("voice_channel", &channel.mention())),
             Queue { title } => render!(f, "queue", locale, ("title", title)),
             Remove { title } => render!(f, "remove", locale, ("title", title)),
-            RemovaAll => render!(f, "remove_all", locale),
+            RemoveAll => render!(f, "remove_all", locale),
             InvalidRemove { length } => {
                 render!(
                     f,
@@ -91,6 +92,14 @@ impl Display for TurtoMessage<'_> {
                     ("playlist_length", length)
                 )
             }
+            InvalidRangeRemove { from, to, length } => render!(
+                f,
+                "invalid_remove_range",
+                locale,
+                ("from", from),
+                ("to", to),
+                ("playlist_length", length)
+            ),
             InvalidUrl(url) => match url {
                 Some(url) => render!(f, "url_not_found", locale, ("url", url)),
                 None => render!(f, "invalid_url", locale),

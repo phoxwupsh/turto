@@ -1,7 +1,7 @@
 use crate::{
     messages::{
         TurtoMessage,
-        TurtoMessageKind::{InvalidRemove, Remove, RemoveMany},
+        TurtoMessageKind::{InvalidRemove, InvalidRangeRemove, Remove, RemoveMany},
     },
     models::alias::{Context, Error},
 };
@@ -30,22 +30,18 @@ pub async fn remove(
     let locale = ctx.locale();
     let length = guild_data.playlist.len();
 
-    // make sure the indices are not out of bounds first
-    if match remove_item {
-        RemoveType::Index(index) => length <= index,
-        RemoveType::Range { from, to } => from > to || length <= from || length <= to,
-    } {
-        drop(guild_data);
-        ctx.say(TurtoMessage {
-            locale,
-            kind: InvalidRemove { length },
-        })
-        .await?;
-        return Ok(());
-    }
-
     match remove_item {
         RemoveType::Index(index) => {
+            // Check if the index is out of bounds
+            if index >= length {
+                drop(guild_data);
+                ctx.say(TurtoMessage {
+                    locale,
+                    kind: InvalidRemove { length },
+                })
+                .await?;
+                return Ok(());
+            }
             let removed = guild_data.playlist.remove(index).unwrap();
             drop(guild_data);
 
@@ -56,9 +52,18 @@ pub async fn remove(
                 },
             })
             .await?;
-            return Ok(());
         }
         RemoveType::Range { from, to } => {
+            // Check if the range is invalid
+            if from > to || length <= from || length <= to {
+                drop(guild_data);
+                ctx.say(TurtoMessage {
+                    locale,
+                    kind: InvalidRangeRemove { from, to, length },
+                })
+                .await?;
+                return Ok(());
+            }
             let drained = guild_data
                 .playlist
                 .drain(from..to)
@@ -85,9 +90,8 @@ pub async fn remove(
             } else {
                 drained.join("\n")
             };
-
             ctx.say(response).await?;
         }
-    };
+    }
     Ok(())
 }
