@@ -1,8 +1,10 @@
-FROM rust:1.81-alpine as builder
+FROM rust:1.81-alpine AS builder
 WORKDIR /build
-COPY . .
 # it seems openssl does not work thus switch to libressl
 RUN apk update && apk add git make cmake musl-dev libressl-dev
+
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
 RUN cargo build --release
 
 FROM alpine:3.18
@@ -16,8 +18,11 @@ RUN wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /us
 
 # copy bot binary
 COPY --from=builder /build/target/release/turto .
-COPY --from=builder /build/config.toml.template ./config.toml
-COPY --from=builder /build/help.toml.template ./help.toml
-COPY --from=builder /build/templates.toml.template ./templates.toml
+
+# copy config files
+COPY config.toml ./config.toml
+COPY help.toml ./help.toml
+COPY templates.toml ./templates.toml
+COPY .env ./.env
 
 ENTRYPOINT ["/app/turto"]

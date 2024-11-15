@@ -110,6 +110,9 @@ description = """Delete certain items from the playlist, there are two ways to u
 which = "Which item to remove"
 to_which = "Optional, if specified, remove all items within the range `which` to `to_which`."
 
+[default.clear]
+short_description = "Clear the playlist."
+
 [default.help]
 short_description = "Look up how to use each command"
 [default.help.parameters]
@@ -234,6 +237,9 @@ description = """刪除播放清單中的某些項目，有以下兩種用法
 [zh-TW.remove.parameters]
 which = "要刪除播放清單中的第幾個項目"
 to_which = "可選項，如果有指定的話會刪除從第`which`個到第`to_which`的所有項目"
+
+[zh-TW.clear]
+short_description = "清空播放清單"
 
 [zh-TW.help]
 short_description = "查詢指令的詳細用法"
