@@ -58,3 +58,4 @@ features = ["mp3", "aac", "vorbis", "isomp4"]
 opt-level = 3
 lto = true
 strip = true
+panic = "abort"
