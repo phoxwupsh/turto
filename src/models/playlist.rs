@@ -16,7 +16,7 @@ impl Playlist {
     }
 
     pub fn total_pages(&self) -> usize {
-        (self.0.len() + PAGE_SIZE - 1) / PAGE_SIZE
+        self.0.len().div_ceil(PAGE_SIZE)
     }
 
     pub fn page_with_indices(&self, index: usize) -> Option<Vec<(usize, &PlaylistItem)>> {
