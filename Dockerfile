@@ -20,9 +20,9 @@ RUN wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /us
 COPY --from=builder /build/target/release/turto .
 
 # copy config files
-COPY config.toml ./config.toml
-COPY help.toml ./help.toml
-COPY templates.toml ./templates.toml
-COPY .env ./.env
+COPY config.toml.template ./config.toml
+COPY help.toml.template ./help.toml
+COPY templates.toml.template ./templates.toml
+COPY .env.template ./.env
 
 ENTRYPOINT ["/app/turto"]
