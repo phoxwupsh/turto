@@ -12,10 +12,18 @@ use serenity::all::UserId;
 pub async fn ban(ctx: Context<'_>, user: UserId) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap();
     let user_id = ctx.author().id;
-    let member = ctx.author_member().await.unwrap();
+
+    // Since this is a guild only command interaction
+    let is_admin = ctx
+        .author_member()
+        .await
+        .unwrap()
+        .permissions
+        .unwrap()
+        .administrator();
     let locale = ctx.locale();
 
-    if !(member.permissions(ctx).unwrap().administrator() || get_config().is_owner(&user_id)) {
+    if !(is_admin || get_config().is_owner(&user_id)) {
         ctx.say(TurtoMessage {
             locale,
             kind: AdministratorOnly,
