@@ -140,7 +140,7 @@ To compile turto, you will need Rust toolchain and CMake.
 
 To install Rust toolchain, you can visit [here](https://www.rust-lang.org/tools/install), and follow the instruction.
 
-After you finish the installation, make sure your Rust version is higher than `1.74.0`, you can check your Rust version by
+After you finish the installation, make sure your Rust version is higher than `1.80.0`, you can check your Rust version by
 
 ```shell
 rustc -V

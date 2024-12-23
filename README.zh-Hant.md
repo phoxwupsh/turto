@@ -141,7 +141,7 @@ docker run -e DISCORD_TOKEN=your_bot_token ghcr.io/phoxwupsh/turto:latest
 
 你可以直接去[Rust的官網](https://www.rust-lang.org/tools/install)按照裡面的指示安裝。
 
-安裝好之後你可以用下面這個指令確定你的Rust版本至少有`1.74.0`。
+安裝好之後你可以用下面這個指令確定你的Rust版本至少有`1.80.0`。
 
 ```shell
 rustc -V
