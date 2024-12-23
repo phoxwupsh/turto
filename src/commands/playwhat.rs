@@ -8,6 +8,7 @@ use crate::{
 use poise::CreateReply;
 use serenity::builder::CreateEmbed;
 use songbird::tracks::PlayMode;
+use tracing::error;
 
 #[poise::command(slash_command, guild_only)]
 pub async fn playwhat(ctx: Context<'_>) -> Result<(), Error> {
@@ -44,7 +45,8 @@ pub async fn playwhat(ctx: Context<'_>) -> Result<(), Error> {
                 return Ok(());
             }
         },
-        Err(_) => {
+        Err(err) => {
+            error!("Error getting track: {err}");
             ctx.say(TurtoMessage {
                 locale,
                 kind: NotPlaying,
