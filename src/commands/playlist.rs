@@ -7,7 +7,7 @@ use crate::{
         alias::{Context, Error},
         playlist::Playlist,
     },
-    utils::misc::ToEmoji,
+    utils::{misc::ToEmoji, turto_say},
 };
 use poise::CreateReply;
 use serenity::{
@@ -28,11 +28,7 @@ pub async fn playlist(ctx: Context<'_>, #[min = 1] page: Option<usize>) -> Resul
 
     if guild_data.playlist.is_empty() {
         drop(guild_data);
-        ctx.say(TurtoMessage {
-            locale: ctx.locale(),
-            kind: EmptyPlaylist,
-        })
-        .await?;
+        turto_say(ctx, EmptyPlaylist).await?;
         return Ok(());
     } 
 

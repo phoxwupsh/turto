@@ -1,10 +1,8 @@
 use crate::{
     config::get_config,
-    messages::{
-        TurtoMessage,
-        TurtoMessageKind::{AdministratorOnly, Ban},
-    },
+    messages::TurtoMessageKind::{AdministratorOnly, Ban},
     models::alias::{Context, Error},
+    utils::turto_say,
 };
 use serenity::all::UserId;
 
@@ -21,14 +19,9 @@ pub async fn ban(ctx: Context<'_>, user: UserId) -> Result<(), Error> {
         .permissions
         .unwrap()
         .administrator();
-    let locale = ctx.locale();
 
     if !(is_admin || get_config().is_owner(&user_id)) {
-        ctx.say(TurtoMessage {
-            locale,
-            kind: AdministratorOnly,
-        })
-        .await?;
+        turto_say(ctx, AdministratorOnly).await?;
         return Ok(());
     }
 
@@ -36,11 +29,6 @@ pub async fn ban(ctx: Context<'_>, user: UserId) -> Result<(), Error> {
     let success = guild_data.config.banned.insert(user);
     drop(guild_data);
 
-    ctx.say(TurtoMessage {
-        locale,
-        kind: Ban { success, user },
-    })
-    .await?;
-
+    turto_say(ctx, Ban { success, user }).await?;
     Ok(())
 }

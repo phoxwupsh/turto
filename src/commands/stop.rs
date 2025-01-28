@@ -1,10 +1,10 @@
 use crate::{
-    messages::{
-        TurtoMessage,
-        TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Stop},
-    },
+    messages::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Stop},
     models::alias::{Context, Error},
-    utils::guild::{GuildUtil, VoiceChannelState},
+    utils::{
+        guild::{GuildUtil, VoiceChannelState},
+        turto_say,
+    },
 };
 use tracing::error;
 
@@ -14,23 +14,14 @@ pub async fn stop(ctx: Context<'_>) -> Result<(), Error> {
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
     let vc_stat = ctx.guild().unwrap().cmp_voice_channel(&bot_id, &user_id);
-    let locale = ctx.locale();
 
     match vc_stat {
         VoiceChannelState::None | VoiceChannelState::OnlySecond(_) => {
-            ctx.say(TurtoMessage {
-                locale,
-                kind: BotNotInVoiceChannel,
-            })
-            .await?;
+            turto_say(ctx, BotNotInVoiceChannel).await?;
             return Ok(());
         }
-        VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
-            ctx.say(TurtoMessage {
-                locale,
-                kind: DifferentVoiceChannel { bot: bot_vc },
-            })
-            .await?;
+        VoiceChannelState::Different(bot, _) | VoiceChannelState::OnlyFirst(bot) => {
+            turto_say(ctx, DifferentVoiceChannel { bot }).await?;
             return Ok(());
         }
         VoiceChannelState::Same(_) => (),
@@ -38,11 +29,7 @@ pub async fn stop(ctx: Context<'_>) -> Result<(), Error> {
 
     let mut playing_map = ctx.data().playing.write().await;
     let Some(playing) = playing_map.remove(&guild_id) else {
-        ctx.say(TurtoMessage {
-            locale,
-            kind: NotPlaying,
-        })
-        .await?;
+        turto_say(ctx, NotPlaying).await?;
         return Ok(());
     };
     drop(playing_map);
@@ -52,12 +39,7 @@ pub async fn stop(ctx: Context<'_>) -> Result<(), Error> {
         error!("Failed to stop track {uuid}: {why}");
     }
 
-    let title = playing.metadata.title.clone().unwrap();
-    ctx.say(TurtoMessage {
-        locale,
-        kind: Stop { title: &title },
-    })
-    .await?;
-
+    let title = playing.metadata.title.as_deref().unwrap();
+    turto_say(ctx, Stop { title }).await?;
     Ok(())
 }

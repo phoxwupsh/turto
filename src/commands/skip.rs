@@ -1,8 +1,5 @@
 use crate::{
-    messages::{
-        TurtoMessage,
-        TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Skip},
-    },
+    messages::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Skip},
     models::{
         alias::{Context, Error},
         autoleave::AutoleaveType,
@@ -10,6 +7,7 @@ use crate::{
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         play::play_next,
+        turto_say,
     },
 };
 
@@ -19,23 +17,14 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
     let vc_stat = ctx.guild().unwrap().cmp_voice_channel(&bot_id, &user_id);
-    let locale = ctx.locale();
 
     match vc_stat {
-        VoiceChannelState::Different(bot_vc, _) | VoiceChannelState::OnlyFirst(bot_vc) => {
-            ctx.say(TurtoMessage {
-                locale,
-                kind: DifferentVoiceChannel { bot: bot_vc },
-            })
-            .await?;
+        VoiceChannelState::Different(bot, _) | VoiceChannelState::OnlyFirst(bot) => {
+            turto_say(ctx, DifferentVoiceChannel { bot }).await?;
             return Ok(());
         }
         VoiceChannelState::OnlySecond(_) | VoiceChannelState::None => {
-            ctx.say(TurtoMessage {
-                locale,
-                kind: BotNotInVoiceChannel,
-            })
-            .await?;
+            turto_say(ctx, BotNotInVoiceChannel).await?;
             return Ok(());
         }
         VoiceChannelState::Same(_) => (),
@@ -46,11 +35,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         .unwrap()
         .get(guild_id)
     else {
-        ctx.say(TurtoMessage {
-            locale,
-            kind: NotPlaying,
-        })
-        .await?;
+        turto_say(ctx, NotPlaying).await?;
         return Ok(());
     };
     {
@@ -75,11 +60,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         meta.is_none() && (auto_leave == AutoleaveType::On || auto_leave == AutoleaveType::Silent);
 
     let title = meta.as_ref().and_then(|meta| meta.title.as_deref());
-    ctx.say(TurtoMessage {
-        locale,
-        kind: Skip { title },
-    })
-    .await?;
+    turto_say(ctx, Skip { title }).await?;
 
     if should_leave {
         let mut call = call.lock().await;

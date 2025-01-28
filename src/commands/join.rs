@@ -1,10 +1,10 @@
 use crate::{
-    messages::{
-        TurtoMessage,
-        TurtoMessageKind::{DifferentVoiceChannel, UserNotInVoiceChannel},
-    },
+    messages::TurtoMessageKind::{DifferentVoiceChannel, UserNotInVoiceChannel},
     models::alias::{Context, Error},
-    utils::{guild::{GuildUtil, VoiceChannelState}, join_voice_channel},
+    utils::{
+        guild::{GuildUtil, VoiceChannelState},
+        join_voice_channel, turto_say,
+    },
 };
 use tracing::error;
 
@@ -14,27 +14,18 @@ pub async fn join(ctx: Context<'_>) -> Result<(), Error> {
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
     let vc_stat = ctx.guild().unwrap().cmp_voice_channel(&bot_id, &user_id);
-    let locale = ctx.locale();
 
     match vc_stat {
-        VoiceChannelState::Different(bot_vc, _) => {
-            ctx.say(TurtoMessage {
-                locale,
-                kind: DifferentVoiceChannel { bot: bot_vc },
-            })
-            .await?;
+        VoiceChannelState::Different(bot, _) => {
+            turto_say(ctx, DifferentVoiceChannel { bot }).await?;
             return Ok(());
         }
         VoiceChannelState::None | VoiceChannelState::OnlyFirst(_) => {
-            ctx.say(TurtoMessage {
-                locale,
-                kind: UserNotInVoiceChannel,
-            })
-            .await?;
+            turto_say(ctx, UserNotInVoiceChannel).await?;
             return Ok(());
         }
         VoiceChannelState::OnlySecond(user_vc) => {
-            if let Err (err) = join_voice_channel(ctx, locale, guild_id, user_vc).await {
+            if let Err(err) = join_voice_channel(ctx, guild_id, user_vc).await {
                 error!("Failed to join voice channel {user_vc}: {err}");
             }
         }

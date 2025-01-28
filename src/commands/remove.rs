@@ -1,9 +1,10 @@
 use crate::{
     messages::{
         TurtoMessage,
-        TurtoMessageKind::{InvalidRemove, InvalidRangeRemove, Remove, RemoveMany},
+        TurtoMessageKind::{InvalidRangeRemove, InvalidRemove, Remove, RemoveMany},
     },
     models::alias::{Context, Error},
+    utils::turto_say,
 };
 
 enum RemoveType {
@@ -35,33 +36,19 @@ pub async fn remove(
             // Check if the index is out of bounds
             if index >= length {
                 drop(guild_data);
-                ctx.say(TurtoMessage {
-                    locale,
-                    kind: InvalidRemove { length },
-                })
-                .await?;
+                turto_say(ctx, InvalidRemove { length }).await?;
                 return Ok(());
             }
             let removed = guild_data.playlist.remove(index).unwrap();
+            let title = removed.title.as_str();
             drop(guild_data);
-
-            ctx.say(TurtoMessage {
-                locale,
-                kind: Remove {
-                    title: &removed.title,
-                },
-            })
-            .await?;
+            turto_say(ctx, Remove { title }).await?;
         }
         RemoveType::Range { from, to } => {
             // Check if the range is invalid
             if from > to || length <= from || length <= to {
                 drop(guild_data);
-                ctx.say(TurtoMessage {
-                    locale,
-                    kind: InvalidRangeRemove { from, to, length },
-                })
-                .await?;
+                turto_say(ctx, InvalidRangeRemove { from, to, length }).await?;
                 return Ok(());
             }
             let drained = guild_data

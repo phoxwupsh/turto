@@ -1,9 +1,10 @@
 use crate::{
-    messages::{TurtoMessage, TurtoMessageKind::SetVolume},
+    messages::TurtoMessageKind::SetVolume,
     models::{
         alias::{Context, Error},
         guild::volume::GuildVolume,
     },
+    utils::turto_say,
 };
 use tracing::error;
 
@@ -15,7 +16,6 @@ pub async fn volume(
     value: Option<usize>,
 ) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap();
-    let locale = ctx.locale();
 
     if let Some(vol) = value {
         // Update the volume if there is a currently playing TrackHandle
@@ -34,20 +34,11 @@ pub async fn volume(
         guild_data.config.volume = new_vol;
         drop(guild_data);
 
-        ctx.say(TurtoMessage {
-            locale,
-            kind: SetVolume(new_vol),
-        })
-        .await?;
-
+        turto_say(ctx, SetVolume(new_vol)).await?;
         Ok(())
     } else {
         let curr_vol = ctx.data().guilds.entry(guild_id).or_default().config.volume;
-        ctx.say(TurtoMessage {
-            locale,
-            kind: SetVolume(curr_vol),
-        })
-        .await?;
+        turto_say(ctx, SetVolume(curr_vol)).await?;
         Ok(())
     }
 }

@@ -1,6 +1,7 @@
 use crate::{
-    messages::{TurtoMessage, TurtoMessageKind::BannedUserResponse},
+    messages::TurtoMessageKind::BannedUserResponse,
     models::alias::{Context, Error},
+    utils::turto_say,
 };
 use std::{future::Future, pin::Pin};
 
@@ -18,11 +19,7 @@ pub fn before(ctx: Context<'_>) -> Pin<Box<dyn Future<Output = Result<bool, Erro
                 .contains(&user_id);
 
             if is_banned {
-                ctx.say(TurtoMessage {
-                    locale: ctx.locale(),
-                    kind: BannedUserResponse,
-                })
-                .await?;
+                turto_say(ctx, BannedUserResponse).await?;
             }
 
             return Ok(!is_banned);
