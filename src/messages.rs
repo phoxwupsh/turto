@@ -49,125 +49,98 @@ pub enum TurtoMessageKind<'a> {
     RemoveMany { removed_number: usize },
 }
 
-macro_rules! render {
-    ($f:expr, $template:expr, $locale:expr $(, ($key:expr, $value:expr))* $(,)?) => {{
-        $f.write_str(&get_template($template, $locale).renderer()
-        $(
-            .add_arg($key, $value)
-        )*
-        .render())
-    }};
-}
-
 impl Display for TurtoMessage<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let locale = self.locale;
-        match &self.kind {
-            NotPlaying => render!(f, "not_playing", locale),
-            UserNotInVoiceChannel => render!(f, "user_not_in_voice_channel", locale),
-            BotNotInVoiceChannel => render!(f, "bot_not_in_voice_channel", locale),
+
+        macro_rules! render {
+            ($template:expr $(, ($key:expr, $value:expr))* $(,)?) => {{
+                f.write_str(&get_template($template, locale).renderer()
+                $(.add_arg($key, &$value))*
+                .render())
+            }};
+        }
+
+        match self.kind {
+            NotPlaying => render!("not_playing"),
+            UserNotInVoiceChannel => render!("user_not_in_voice_channel"),
+            BotNotInVoiceChannel => render!("bot_not_in_voice_channel"),
             DifferentVoiceChannel { bot } => render!(
-                f,
                 "different_voice_channel",
-                locale,
-                ("bot_voice_channel", &bot.mention())
+                ("bot_voice_channel", bot.mention())
             ),
-            Play { title } => render!(f, "play", locale, ("title", title)),
-            Pause { title } => render!(f, "pause", locale, ("title", title)),
-            Stop { title } => render!(f, "stop", locale, ("title", title)),
+            Play { title } => render!("play", ("title", title)),
+            Pause { title } => render!("pause", ("title", title)),
+            Stop { title } => render!("stop", ("title", title)),
             Skip { title } => match title {
-                Some(title) => render!(f, "skip", locale, ("title", title)),
-                None => render!(f, "skip_success", locale),
+                Some(title) => render!("skip", ("title", title)),
+                None => render!("skip_success"),
             },
-            Join(channel) => render!(f, "join", locale, ("voice_channel", &channel.mention())),
-            Leave(channel) => render!(f, "leave", locale, ("voice_channel", &channel.mention())),
-            Queue { title } => render!(f, "queue", locale, ("title", title)),
-            Remove { title } => render!(f, "remove", locale, ("title", title)),
-            RemoveAll => render!(f, "remove_all", locale),
+            Join(channel) => render!("join", ("voice_channel", channel.mention())),
+            Leave(channel) => render!("leave", ("voice_channel", channel.mention())),
+            Queue { title } => render!("queue", ("title", title)),
+            Remove { title } => render!("remove", ("title", title)),
+            RemoveAll => render!("remove_all"),
             InvalidRemove { length } => {
-                render!(
-                    f,
-                    "invalid_remove_index",
-                    locale,
-                    ("playlist_length", length)
-                )
+                render!("invalid_remove_index", ("playlist_length", length))
             }
             InvalidRangeRemove { from, to, length } => render!(
-                f,
                 "invalid_remove_range",
-                locale,
                 ("from", from),
                 ("to", to),
                 ("playlist_length", length)
             ),
             InvalidUrl(url) => match url {
-                Some(url) => render!(f, "url_not_found", locale, ("url", url)),
-                None => render!(f, "invalid_url", locale),
+                Some(url) => render!("url_not_found", ("url", url)),
+                None => render!("invalid_url"),
             },
-            SetVolume(val) => render!(f, "volume", locale, ("volume", &val.to_emoji())),
+            SetVolume(val) => render!("volume", ("volume", val.to_emoji())),
             SetAutoleave(res) => match res {
                 AutoleaveType::On => {
-                    render!(f, "toggle_autoleave", locale, ("autoleave_status", &"on"))
+                    render!("toggle_autoleave", ("autoleave_status", "on"))
                 }
-                AutoleaveType::Empty => render!(
-                    f,
-                    "toggle_autoleave",
-                    locale,
-                    ("autoleave_status", &"empty")
-                ),
-                AutoleaveType::Silent => render!(
-                    f,
-                    "toggle_autoleave",
-                    locale,
-                    ("autoleave_status", &"slient")
-                ),
+                AutoleaveType::Empty => render!("toggle_autoleave", ("autoleave_status", "empty")),
+                AutoleaveType::Silent => {
+                    render!("toggle_autoleave", ("autoleave_status", "slient"))
+                }
                 AutoleaveType::Off => {
-                    render!(f, "toggle_autoleave", locale, ("autoleave_status", &"off"))
+                    render!("toggle_autoleave", ("autoleave_status", "off"))
                 }
             },
-            SeekSuccess => render!(f, "seek_success", locale),
+            SeekSuccess => render!("seek_success"),
             InvalidSeek { seek_limit } => {
-                render!(f, "invalid_seek", locale, ("seek_limit", seek_limit))
+                render!("invalid_seek", ("seek_limit", seek_limit))
             }
-            SeekNotAllow { backward } => match *backward {
-                true => render!(f, "backward_seek_not_allow", locale),
-                false => render!(f, "seek_not_allow", locale),
+            SeekNotAllow { backward } => match backward {
+                true => render!("backward_seek_not_allow"),
+                false => render!("seek_not_allow"),
             },
-            SeekNotLongEnough { title, length } => render!(
-                f,
-                "seek_not_long_enough",
-                locale,
-                ("title", title),
-                ("length", length)
-            ),
-            AdministratorOnly => render!(f, "administrator_only", locale),
-            Ban { success, user } => match *success {
-                true => render!(f, "user_got_banned", locale, ("user", &user.mention())),
-                false => render!(f, "user_already_banned", locale, ("user", &user.mention())),
+            SeekNotLongEnough { title, length } => {
+                render!("seek_not_long_enough", ("title", title), ("length", length))
+            }
+            AdministratorOnly => render!("administrator_only"),
+            Ban { success, user } => match success {
+                true => render!("user_got_banned", ("user", user.mention())),
+                false => render!("user_already_banned", ("user", user.mention())),
             },
-            Unban { success, user } => match *success {
-                true => render!(f, "user_got_unbanned", locale, ("user", &user.mention())),
-                false => render!(f, "user_not_banned", locale, ("user", &user.mention())),
+            Unban { success, user } => match success {
+                true => render!("user_got_unbanned", ("user", user.mention())),
+                false => render!("user_not_banned", ("user", user.mention())),
             },
-            BannedUserResponse => render!(f, "banned_user_repsonse", locale),
-            Shuffle => render!(f, "shuffle", locale),
+            BannedUserResponse => render!("banned_user_repsonse"),
+            Shuffle => render!("shuffle"),
             SetRepeat(repeat) => match repeat {
-                true => render!(f, "toggle_repeat", locale, ("repeat_status", &"✅")),
-                false => render!(f, "toggle_repeat", locale, ("repeat_status", &"❎")),
+                true => render!("toggle_repeat", ("repeat_status", "✅")),
+                false => render!("toggle_repeat", ("repeat_status", "❎")),
             },
-            EmptyPlaylist => render!(f, "empty_playlist", locale),
+            EmptyPlaylist => render!("empty_playlist"),
             InvalidPlaylistPage { total_pages } => render!(
-                f,
                 "invalid_playlist_page",
-                locale,
-                ("total_pages", &total_pages.to_emoji()),
+                ("total_pages", total_pages.to_emoji()),
             ),
-            RemoveMany { removed_number } => render!(
-                f,
-                "remove_many",
-                locale,
-                ("removed_number", &removed_number.to_emoji())
-            ),
+            RemoveMany { removed_number } => {
+                render!("remove_many", ("removed_number", removed_number.to_emoji()))
+            }
         }
     }
 }
