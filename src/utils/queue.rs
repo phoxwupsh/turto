@@ -1,8 +1,6 @@
+use super::turto_say;
 use crate::{
-    messages::{
-        TurtoMessage,
-        TurtoMessageKind::{InvalidUrl, Queue},
-    },
+    messages::TurtoMessageKind::{InvalidUrl, Queue},
     models::{
         alias::{Context, Error},
         queue_item::{QueueItem, QueueItemKind},
@@ -17,13 +15,8 @@ pub enum QueueType {
 }
 
 pub async fn enqueue(ctx: Context<'_>, query: String, queue_type: QueueType) -> Result<(), Error> {
-    let locale = ctx.locale();
     let Ok(parsed) = Url::parse(&query) else {
-        ctx.say(TurtoMessage {
-            locale,
-            kind: InvalidUrl(None),
-        })
-        .await?;
+        turto_say(ctx, InvalidUrl(None)).await?;
         return Ok(());
     };
     ctx.defer().await?;
@@ -31,11 +24,7 @@ pub async fn enqueue(ctx: Context<'_>, query: String, queue_type: QueueType) -> 
     let queue_item = QueueItem::new(parsed);
 
     let Ok(queue_item_kind) = queue_item.query().await else {
-        ctx.say(TurtoMessage {
-            locale,
-            kind: InvalidUrl(Some(&query)),
-        })
-        .await?;
+        turto_say(ctx, InvalidUrl(Some(&query))).await?;
         return Ok(());
     };
 
@@ -67,10 +56,6 @@ pub async fn enqueue(ctx: Context<'_>, query: String, queue_type: QueueType) -> 
         }
     };
 
-    ctx.say(TurtoMessage {
-        locale,
-        kind: Queue { title: &title },
-    })
-    .await?;
+    turto_say(ctx, Queue { title: &title }).await?;
     Ok(())
 }

@@ -1,9 +1,10 @@
 use crate::{
-    messages::{TurtoMessage, TurtoMessageKind::SetRepeat},
+    messages::TurtoMessageKind::SetRepeat,
     models::{
         alias::{Context, Error},
         toggle::ToggleOption,
     },
+    utils::turto_say,
 };
 
 #[poise::command(slash_command, guild_only)]
@@ -21,11 +22,6 @@ pub async fn repeat(ctx: Context<'_>, toggle: ToggleOption) -> Result<(), Error>
     guild_data.config.repeat = toggle;
     drop(guild_data);
 
-    ctx.say(TurtoMessage {
-        locale: ctx.locale(),
-        kind: SetRepeat(toggle),
-    })
-    .await?;
-
+    turto_say(ctx, SetRepeat(toggle)).await?;
     Ok(())
 }
