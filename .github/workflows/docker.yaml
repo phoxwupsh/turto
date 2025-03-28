@@ -13,6 +13,8 @@ on:
 jobs:
   build-and-publish-amd64:
     runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.build.outputs.imageid }}
     steps:
       - name: Repository checkout
         uses: actions/checkout@v4
@@ -35,12 +37,11 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }}
-      
-      - name: Output Image ID
-        run: echo "AMD64_TAG=${{ steps.build.outputs.imageid }}" >> $GITHUB_OUTPUT
 
   build-and-publish-arm64:
     runs-on: ubuntu-24.04-arm
+    outputs:
+      tag_name: ${{ steps.build.outputs.imageid }}
     steps:
       - name: Repository checkout
         uses: actions/checkout@v4
@@ -56,14 +57,13 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push Docker image (arm64)
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/arm64
           push: true
           tags: ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }}
-      - name: Output Image ID
-        run: echo "ARM64_TAG=${{ steps.build.outputs.imageid }}" >> $GITHUB_OUTPUT
 
   create-and-push-manifest:
     name: Create and Push Multi-Arch Manifest
@@ -84,14 +84,14 @@ jobs:
 
       - name: Create and push manifest list
         run: |
-          docker manifest create ghcr.io/phoxwupsh/turto:${{ github.ref_name }} \
-            --amend ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }}@${{ needs.build-and-publish-amd64.outputs.AMD64_TAG }} \
-            --amend ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }}@${{ needs.build-and-publish-arm64.outputs.ARM64_TAG }}
-          docker manifest push ghcr.io/phoxwupsh/turto:${{ github.ref_name }}
+          docker manifest create ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }} \
+            --amend ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }}@${{ needs.build-and-publish-amd64.outputs.tag_name }} \
+            --amend ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }}@${{ needs.build-and-publish-arm64.outputs.tag_name }}
+          docker manifest push ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }}
 
       - name: Create and push manifest list for latest tag
         run: |
           docker manifest create ghcr.io/phoxwupsh/turto:latest \
-            --amend ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }}@${{ needs.build-and-publish-amd64.outputs.AMD64_TAG }} \
-            --amend ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }}@${{ needs.build-and-publish-arm64.outputs.ARM64_TAG }}
+            --amend ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }}@${{ needs.build-and-publish-amd64.outputs.tag_name }} \
+            --amend ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }}@${{ needs.build-and-publish-arm64.outputs.tag_name }}
           docker manifest push ghcr.io/phoxwupsh/turto:latest
