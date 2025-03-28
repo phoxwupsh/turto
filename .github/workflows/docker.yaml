@@ -85,13 +85,13 @@ jobs:
       - name: Create and push manifest list
         run: |
           docker manifest create ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }} \
-            --amend ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }}@${{ needs.build-and-publish-amd64.outputs.tag_name }} \
-            --amend ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }}@${{ needs.build-and-publish-arm64.outputs.tag_name }}
+            --amend ghcr.io/phoxwupsh/turto@${{ needs.build-and-publish-amd64.outputs.tag_name }} \
+            --amend ghcr.io/phoxwupsh/turto@${{ needs.build-and-publish-arm64.outputs.tag_name }}
           docker manifest push ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }}
 
       - name: Create and push manifest list for latest tag
         run: |
           docker manifest create ghcr.io/phoxwupsh/turto:latest \
-            --amend ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }}@${{ needs.build-and-publish-amd64.outputs.tag_name }} \
-            --amend ghcr.io/phoxwupsh/turto:${{ github.event.inputs.tag_name || github.ref_name }}@${{ needs.build-and-publish-arm64.outputs.tag_name }}
+            --amend ghcr.io/phoxwupsh/turto@${{ needs.build-and-publish-amd64.outputs.tag_name }} \
+            --amend ghcr.io/phoxwupsh/turto@${{ needs.build-and-publish-arm64.outputs.tag_name }}
           docker manifest push ghcr.io/phoxwupsh/turto:latest
