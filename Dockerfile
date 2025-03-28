@@ -10,11 +10,12 @@ RUN cargo build --release
 FROM alpine:3.18
 WORKDIR /app
 
-RUN apk add --no-cache python3 xz
+RUN apk add --no-cache python3 ca-certificates dcron
 
-# download yt-dlp
-RUN wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp \
-    && chmod a+rx /usr/local/bin/yt-dlp
+# setup yt-dlp update cron job
+RUN mkdir -p /etc/periodic/daily/
+COPY update-yt-dlp.sh /etc/periodic/daily/update-yt-dlp
+RUN chmod a+rx /etc/periodic/daily/update-yt-dlp
 
 # copy bot binary
 COPY --from=builder /build/target/release/turto .
@@ -25,4 +26,5 @@ COPY help.toml.template ./help.toml
 COPY templates.toml.template ./templates.toml
 COPY .env.template ./.env
 
-ENTRYPOINT ["/app/turto"]
+# download latest yt-dlp when container start
+ENTRYPOINT ["sh", "-c", "/etc/periodic/daily/update-yt-dlp && crond -b -l 1 && /app/turto"]
