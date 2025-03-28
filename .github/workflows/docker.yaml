@@ -1,9 +1,7 @@
 name: Docker Image CI
 
 on:
-  push:
-    tags: 
-      - 'v*.*.*'
+  workflow_dispatch
 
 jobs:
   build-and-publish-amd64:
@@ -11,51 +9,82 @@ jobs:
     steps:
       - name: Repository checkout
         uses: actions/checkout@v4
-      - name: Login to gchr.io
+
+      - name: Login to ghcr.io
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Get metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/phoxwupsh/turto
-      - name: Build & Push Docker Image
+
+      - name: Build and push Docker image (amd64)
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
+          push: true
+          tags: ghcr.io/phoxwupsh/turto:${{ github.ref_name }}
+      
+      - name: Output Image ID
+        run: echo "AMD64_TAG=${{ steps.build.outputs.imageid }}" >> $GITHUB_OUTPUT
 
   build-and-publish-arm64:
     runs-on: ubuntu-24.04-arm
     steps:
       - name: Repository checkout
         uses: actions/checkout@v4
-      - name: Login to gchr.io
+
+      - name: Login to ghcr.io
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Get metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/phoxwupsh/turto
-      - name: Build & Push Docker Image
+
+      - name: Build and push Docker image (arm64)
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/arm64
+          push: true
+          tags: ghcr.io/phoxwupsh/turto:${{ github.ref_name }}
+      - name: Output Image ID
+        run: echo "ARM64_TAG=${{ steps.build.outputs.imageid }}" >> $GITHUB_OUTPUT
+
+  create-and-push-manifest:
+    name: Create and Push Multi-Arch Manifest
+    needs:
+      - build-and-publish-amd64
+      - build-and-publish-arm64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create and push manifest list
+        run: |
+          docker manifest create ghcr.io/phoxwupsh/turto:${{ github.ref_name }} \
+            --amend ghcr.io/phoxwupsh/turto:${{ github.ref_name }}@$AMD64_TAG \
+            --amend ghcr.io/phoxwupsh/turto:${{ github.ref_name }}@$ARM64_TAG
+          docker manifest push ghcr.io/phoxwupsh/turto:${{ github.ref_name }}
+
+      - name: Create and push manifest list for latest tag
+        run: |
+          docker manifest create ghcr.io/phoxwupsh/turto:latest \
+            --amend ghcr.io/phoxwupsh/turto:${{ github.ref_name }}@$AMD64_TAG \
+            --amend ghcr.io/phoxwupsh/turto:${{ github.ref_name }}@$ARM64_TAG
+          docker manifest push ghcr.io/phoxwupsh/turto:latest
