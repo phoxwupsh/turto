@@ -133,6 +133,30 @@ docker run -e DISCORD_TOKEN=your_bot_token ghcr.io/phoxwupsh/turto:latest
 
 記得用你自己的Token取代`your_bot_token`，就這麼簡單。
 
+### 設定Docker中的turto
+
+我們可以用Docker volume來設定Docker中的turto，我們先把設定檔放在宿主的任意一處，然後就可以像這樣掛載它們
+
+```shell
+docker run \
+  -e DISCORD_TOKEN=your_bot_token \
+  -v /path/to/your/config.toml:/app/config.toml \
+  -v /path/to/your/help.toml:/app/help.toml \
+  -v /path/to/your/templates.toml:/app/templates.toml \
+  ghcr.io/phoxwupsh/turto:latest
+```
+
+其中`/path/to/your/config.toml`就是宿主上的`config.toml`設定檔，`help.toml`和`templates.toml`同理，接著你就可以直接在編輯本機檔案，啟動容器後就會生效。
+
+你也可以讓資料`guilds.json`儲存在宿主上，只需要這樣掛載你的`guilds.json`。
+
+```shell
+docker run \
+  -e DISCORD_TOKEN=your_bot_token \
+  -v /path/to/your/guilds.json:/app/guilds.json \
+  ghcr.io/phoxwupsh/turto:latest
+```
+
 ## 編譯
 
 要自己編譯turto你會需要Rust工具鏈和CMake。

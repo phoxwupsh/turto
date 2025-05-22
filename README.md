@@ -132,6 +132,31 @@ docker run -e DISCORD_TOKEN=your_bot_token ghcr.io/phoxwupsh/turto:latest
 
 You need to replace `your_bot_token` with your Discord bot token, that's it.
 
+### Configure turto in Docker
+
+To configure turto in Docker we need to setup Docker volume, we place and modify the configuration files somethere in your host, then mount them like this:
+
+```shell
+docker run \
+  -e DISCORD_TOKEN=your_bot_token \
+  -v /path/to/your/config.toml:/app/config.toml \
+  -v /path/to/your/help.toml:/app/help.toml \
+  -v /path/to/your/templates.toml:/app/templates.toml \
+  ghcr.io/phoxwupsh/turto:latest
+```
+
+That `/path/to/your/config.toml` is  the `config.toml` in your host, the same goes for `help.toml` and `tempaltes.toml`, 
+then you can edit them in your host, which will be applied after the Docker container starts.
+
+You can also store the data in your host, by mounting `guilds.json`
+
+```shell
+docker run \
+  -e DISCORD_TOKEN=your_bot_token \
+  -v /path/to/your/guilds.json:/app/guilds.json \
+  ghcr.io/phoxwupsh/turto:latest
+```
+
 ## Compile
 
 To compile turto, you will need Rust toolchain and CMake.
