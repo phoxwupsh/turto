@@ -18,3 +18,6 @@ auto_save = true
 
 # The data will be automatically saved at a intervals specified by this value, denoted by seconds
 auto_save_interval = 3600
+
+# The path to your YouTube cookies in Netscape format, you can use extension like "Get cookies.txt LOCALLY" to get it
+#cookies_path = ""
