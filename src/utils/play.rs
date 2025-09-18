@@ -1,5 +1,6 @@
 use super::get_http_client;
 use crate::{
+    config::get_config,
     handlers::track_end::TrackEndHandler,
     models::{guild::data::GuildData, playing::Playing},
 };
@@ -20,8 +21,16 @@ pub async fn play_url(
     guild_id: GuildId,
     url: impl AsRef<str>,
 ) -> Result<Arc<AuxMetadata>, AudioStreamError> {
-    let mut source = YoutubeDl::new(get_http_client(), url.as_ref().to_string());
-    
+    let mut source = {
+        let source = YoutubeDl::new(get_http_client(), url.as_ref().to_string());
+        if let Some(arg) = get_config().cookies_path.clone() {
+            let args = vec!["--cookies".to_owned(), arg];
+            source.user_args(args)
+        } else {
+            source
+        }
+    };
+
     // If doing this here it will call `YoutubeDl::query` which invoke yt-dlp
     // https://github.com/serenity-rs/songbird/blob/current/src/input/sources/ytdl.rs#L222
     // And since YoutubeDl is lazily instantiated which will become `Input::Lazy`
@@ -55,7 +64,9 @@ pub async fn play_url(
     };
 
     // This is infallible
-    track_handle.add_event(Event::Track(TrackEvent::End), track_end_handler).unwrap();
+    track_handle
+        .add_event(Event::Track(TrackEvent::End), track_end_handler)
+        .unwrap();
     let playing = Playing {
         track_handle,
         metadata: meta.clone(),
@@ -76,9 +87,7 @@ pub async fn play_next(
     let next = guild_data.entry(guild_id).or_default().playlist.pop_front();
 
     match next {
-        Some(next) => {
-            Some(play_url(call, guild_data, guild_playing, guild_id, next.url).await)
-        }
+        Some(next) => Some(play_url(call, guild_data, guild_playing, guild_id, next.url).await),
         None => None,
     }
 }

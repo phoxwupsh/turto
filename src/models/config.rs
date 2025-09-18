@@ -9,7 +9,8 @@ pub struct TurtoConfig {
     pub command_delay: u64,
     pub owner: Option<UserId>,
     pub auto_save: bool,
-    pub auto_save_interval: u64
+    pub auto_save_interval: u64,
+    pub cookies_path: Option<String>
 }
 
 impl TurtoConfig {
