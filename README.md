@@ -67,6 +67,9 @@ In the same folder as the turto executable, you'll find files like `config.toml`
 
 `config.toml` is used for configuring turto, the purpose of each parameter is described in the comments within the file. The `owner` parameter does not necessarily need to be set, but if it is, the owner has the ability to bypass admin permissions to use the `/ban` and `/unban` commands, and the `/about` command will display who turto belongs to.
 
+> [!TIP]
+> For `cookies_path`, you can get cookies by using extension like [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc), which should be a Netscape format text file.
+
 ### Multilingual Support
 turto supports multiple languages and will display responses in the language corresponding to the user's regional settings, with English and Traditional Chinese being the default supported languages. To add support for new languages or to modify responses, you can edit `help.toml` and `template.toml`. In these files, you will see sections like `default` and `zh-TW`. turto will prioritize using a supported language, but if there’s no support for the user's language, it will respond with the content from the default section. You can also edit the content of the default section to have turto use a different default language (or whatever you want it to say). Detailed configuration instructions are written in the comments of both `help.toml` and `template.toml`.
 

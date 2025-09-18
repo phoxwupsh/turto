@@ -67,6 +67,9 @@ turto執行檔所在的資料夾下有`config.toml`、`help.toml`跟`template.to
 
 `config.toml`用於turto的設定，每個參數的用途已經寫在檔案的註解中。`owner`則不一定要設定，如果有設定的話，owner能無視管理員權限使用`/ban`、`/unban`指令，並且在`/about`指令中會顯示這個turto屬於誰。
 
+> [!TIP]
+> 你可以用 [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) 之類的工具來取得 Netscape 格式的 cookies 文字檔，即可應用於 `cookies_path` 設定。
+
 ### 多國語言設定
 
 turto支援多國語言，會依照使用者的地區設定來顯示對應語言的回應，預設支援英文與繁體中文。需要新增語言支援或是修改回應的話可以編輯`help.toml`跟`template.toml`這兩個檔案，在這兩個檔案中你會看到有`default`的區塊以及`zh-TW`的區塊，turto會優先使用有支援的語言，如果沒有支援該語言則會使用`default`的內容來回應。你也可以以編輯`default`區塊的內容讓turto預設使用其他種語言(或是任何你想讓它說的話)，詳細的設定說明都寫在`help.toml`跟`template.toml`的註解中。
