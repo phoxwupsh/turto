@@ -55,7 +55,7 @@ impl Template {
         }
     }
 
-    pub fn renderer(&self) -> TemplateRenderer {
+    pub fn renderer(&'_ self) -> TemplateRenderer<'_> {
         TemplateRenderer {
             template: self,
             args: HashMap::<_, _>::new(),
