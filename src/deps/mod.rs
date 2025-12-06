@@ -4,12 +4,12 @@ use crate::{models::config::YtdlpConfig, utils::get_http_client};
 use reqwest::header::{ACCEPT, HeaderName, HeaderValue, USER_AGENT};
 use zip::ZipArchive;
 
-pub mod deno;
+pub mod bun;
 pub mod ytdlp;
 
 pub async fn setup_ext_deps(config: &YtdlpConfig) -> anyhow::Result<()> {
     ytdlp::setup_ytdlp(config, "yt-dlp").await?;
-    deno::setup_deno(config, "deno").await?;
+    bun::setup_bun(config, "bun").await?;
     Ok(())
 }
 
