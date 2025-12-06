@@ -14,12 +14,6 @@ pub mod version;
 
 static YTDLP_PATH: OnceLock<ArcSwap<PathBuf>> = OnceLock::new();
 
-// static YTDLP: OnceLock<String> = OnceLock::new();
-
-// pub fn get_ytdlp_path() -> &'static str {
-//     YTDLP.get().unwrap()
-// }
-
 pub fn get_ytdlp_path() -> Arc<PathBuf> {
     YTDLP_PATH.get().unwrap().load_full()
 }
@@ -66,7 +60,6 @@ pub async fn setup_ytdlp(config: &YtdlpConfig, ytdlp_dir: impl AsRef<Path>) -> a
         }
     };
 
-    // YTDLP.set(exec_path.to_string_lossy().into_owned()).unwrap();
     YTDLP_PATH.set(ArcSwap::from_pointee(exec_path)).unwrap();
     Ok(())
 }
