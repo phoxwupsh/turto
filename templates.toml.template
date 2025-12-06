@@ -58,6 +58,7 @@ shuffle = "🔀✅"
 toggle_repeat = "🔂{repeat_status}"
 invalid_playlist_page = "There's only {total_pages} in the playlist."
 remove_many = "🗑️{removed_number}"
+invalid_remove_range = "Unable to remove from {from} to {to} in playlist"
 
 
 # 以下是出現在訊息中的參數，參數必須用大括號 "{" 和 "}" 包住
@@ -116,3 +117,4 @@ shuffle = "🔀✅"
 toggle_repeat = "🔂{repeat_status}"
 invalid_playlist_page = "播放清單只有{total_pages}頁"
 remove_many = "🗑️{removed_number}"
+invalid_remove_range = "無法移除撥放清單中從第{from}項到第{to}項"
