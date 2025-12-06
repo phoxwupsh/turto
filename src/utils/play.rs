@@ -1,6 +1,6 @@
 use crate::{
     handlers::{track_end::TrackEndHandler, track_error::TrackErrorHandler},
-    models::{alias::Context, guild::Guilds, playing::Playing},
+    models::{alias::Context, config::YtdlpConfig, guild::Guilds, playing::Playing},
     ytdl::{YouTubeDl, YouTubeDlMetadata},
 };
 use serenity::all::GuildId;
@@ -14,7 +14,7 @@ pub async fn play_ytdlfile_meta(
     ytdlfile: YouTubeDl,
 ) -> std::io::Result<Pin<Box<dyn Future<Output = std::io::Result<Arc<YouTubeDlMetadata>>> + Send>>>
 {
-    let (meta, input) = ytdlfile.play().await?;
+    let (meta, input) = ytdlfile.play(ctx.ytdlp_config.clone()).await?;
     tokio::spawn(play_ytdlfile_inner(ctx, call, input, ytdlfile));
 
     Ok(meta)
@@ -25,7 +25,7 @@ pub async fn play_ytdlfile(
     call: Arc<Mutex<Call>>,
     ytdlfile: YouTubeDl,
 ) -> std::io::Result<()> {
-    let input = ytdlfile.fetch_file().await?;
+    let input = ytdlfile.fetch_file(ctx.ytdlp_config.clone()).await?;
     tokio::spawn(play_ytdlfile_inner(ctx, call, input, ytdlfile));
 
     Ok(())
@@ -74,6 +74,7 @@ pub struct PlayContext {
     pub guild_id: GuildId,
     pub data: Arc<Guilds>,
     pub playing: Arc<RwLock<HashMap<GuildId, Playing>>>,
+    pub ytdlp_config: Arc<YtdlpConfig>,
 }
 
 impl PlayContext {
@@ -82,6 +83,7 @@ impl PlayContext {
             guild_id: ctx.guild_id()?,
             data: ctx.data().guilds.clone(),
             playing: ctx.data().playing.clone(),
+            ytdlp_config: ctx.data().config.ytdlp.clone(),
         })
     }
 }

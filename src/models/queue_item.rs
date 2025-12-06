@@ -1,15 +1,9 @@
-use std::sync::Arc;
-
-use crate::{
-    models::config::YtdlpConfig,
-    ytdl::{YouTubeDl, playlist::YouTubePlaylist},
-};
+use crate::ytdl::{YouTubeDl, playlist::YouTubePlaylist};
 use anyhow::Result;
 use url::Url;
 
 pub struct QueueItem {
     url: Url,
-    ytdlp_config: Arc<YtdlpConfig>,
 }
 
 pub enum QueueItemKind {
@@ -18,12 +12,12 @@ pub enum QueueItemKind {
 }
 
 impl QueueItem {
-    pub fn new(url: Url, ytdlp_config: Arc<YtdlpConfig>) -> Self {
-        Self { url, ytdlp_config }
+    pub fn new(url: Url) -> Self {
+        Self { url }
     }
 
     pub async fn query(self) -> Result<QueueItemKind> {
-        let ytdl = YouTubeDl::new(self.url.as_str(), self.ytdlp_config);
+        let ytdl = YouTubeDl::new(self.url.as_str());
 
         if ytdl.has_yt_playlist() {
             Ok(ytdl

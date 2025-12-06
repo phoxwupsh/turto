@@ -36,7 +36,10 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
     if let Err(why) = playing.track_handle.pause() {
         error!(error = ?why, ?playing, "Failed to pause track");
     }
-    let meta = playing.ytdlfile.fetch_metadata().await?;
+    let meta = playing
+        .ytdlfile
+        .fetch_metadata(ctx.data().config.ytdlp.clone())
+        .await?;
     let title = meta.title.as_deref().unwrap();
 
     turto_say(ctx, Pause { title }).await?;

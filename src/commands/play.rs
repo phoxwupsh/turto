@@ -56,7 +56,7 @@ pub async fn play(ctx: Context<'_>, #[rename = "url"] query: Option<String>) -> 
         }
 
         ctx.defer().await?;
-        let ytdlfile = YouTubeDl::new(query, ctx.data().config.ytdlp.clone());
+        let ytdlfile = YouTubeDl::new(query);
         let meta_fut =
             play_ytdlfile_meta(PlayContext::from_ctx(ctx).unwrap(), call, ytdlfile).await?;
         let meta = meta_fut.await?;
@@ -75,7 +75,10 @@ pub async fn play(ctx: Context<'_>, #[rename = "url"] query: Option<String>) -> 
             if let Err(why) = playing.track_handle.play() {
                 error!(error = ?why, ?playing, "failed to play track ");
             } else {
-                let meta = playing.ytdlfile.fetch_metadata().await?;
+                let meta = playing
+                    .ytdlfile
+                    .fetch_metadata(ctx.data().config.ytdlp.clone())
+                    .await?;
                 let title = meta.title.as_deref().unwrap_or_default();
                 turto_say(ctx, Play { title }).await?;
             }

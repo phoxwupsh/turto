@@ -1,9 +1,8 @@
 use crate::{
-    models::{config::YtdlpConfig, playlist::Playlist},
+    models::playlist::Playlist,
     ytdl::{YouTubeDl, YouTubeDlMetadata},
 };
 use serde::Deserialize;
-use std::sync::Arc;
 
 #[derive(Debug, Default)]
 pub struct YouTubePlaylist {
@@ -12,7 +11,6 @@ pub struct YouTubePlaylist {
     pub author: Option<String>,
     pub url: Option<String>,
     pub entries: Vec<YouTubeDlMetadata>,
-    pub(super) config: Arc<YtdlpConfig>,
 }
 
 impl YouTubePlaylist {
@@ -26,7 +24,6 @@ impl YouTubePlaylist {
             .map(|metadata| {
                 YouTubeDl::new_with(
                     metadata.webpage_url.clone().unwrap_or_default(),
-                    self.config.clone(),
                     None,
                     metadata,
                 )

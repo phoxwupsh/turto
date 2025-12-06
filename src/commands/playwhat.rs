@@ -21,7 +21,10 @@ pub async fn playwhat(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     };
 
-    let meta = playing.ytdlfile.fetch_metadata().await?;
+    let meta = playing
+        .ytdlfile
+        .fetch_metadata(ctx.data().config.ytdlp.clone())
+        .await?;
     let title = meta.title.as_deref().unwrap_or_default();
     let embed_title = match playing.track_handle.get_info().await {
         Ok(track_state) => match track_state.playing {

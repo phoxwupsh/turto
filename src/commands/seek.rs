@@ -58,7 +58,10 @@ pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), Error> {
                 }
             }
 
-            let meta = playing.ytdlfile.fetch_metadata().await?;
+            let meta = playing
+                .ytdlfile
+                .fetch_metadata(ctx.data().config.ytdlp.clone())
+                .await?;
             let length = meta.duration.map(|t| t as u64).unwrap_or(0);
             let title = meta.title.as_ref().unwrap();
             if length < time {

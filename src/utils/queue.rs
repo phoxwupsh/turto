@@ -22,7 +22,7 @@ pub async fn enqueue(ctx: Context<'_>, query: String, queue_type: QueueType) -> 
     };
     ctx.defer().await?;
 
-    let queue_item = QueueItem::new(parsed, ctx.data().config.ytdlp.clone());
+    let queue_item = QueueItem::new(parsed);
 
     let Ok(queue_item_kind) = queue_item.query().await else {
         turto_say(ctx, InvalidUrl(Some(&query))).await?;
@@ -31,8 +31,9 @@ pub async fn enqueue(ctx: Context<'_>, query: String, queue_type: QueueType) -> 
 
     let title = match queue_item_kind {
         QueueItemKind::Single(playlist_item) => {
+            let ytdlp_config = ctx.data().config.ytdlp.clone();
             let title = playlist_item
-                .fetch_metadata()
+                .fetch_metadata(ytdlp_config.clone())
                 .await?
                 .title
                 .clone()
@@ -51,7 +52,7 @@ pub async fn enqueue(ctx: Context<'_>, query: String, queue_type: QueueType) -> 
             if let Some(next) = next {
                 tokio::spawn(async move {
                     info!(url = next.url(), "start prefetch next track");
-                    if let Err(err) = next.fetch_file().await {
+                    if let Err(err) = next.fetch_file(ytdlp_config).await {
                         warn!(error = ?err, url = next.url(), "prefetch next track failed");
                     } else {
                         info!(url = next.url(), "prefetch next track success");

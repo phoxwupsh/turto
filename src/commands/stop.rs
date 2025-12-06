@@ -38,7 +38,10 @@ pub async fn stop(ctx: Context<'_>) -> Result<(), Error> {
         error!(error = ?why, ?playing, "failed to stop track");
     }
 
-    let meta = playing.ytdlfile.fetch_metadata().await?;
+    let meta = playing
+        .ytdlfile
+        .fetch_metadata(ctx.data().config.ytdlp.clone())
+        .await?;
     let title = meta.title.as_deref().unwrap();
     turto_say(ctx, Stop { title }).await?;
     Ok(())

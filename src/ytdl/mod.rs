@@ -1,5 +1,5 @@
 use crate::{
-    deps::{deno::get_deno_arg, ytdlp::get_ytdlp_path},
+    deps::{bun::get_bun_arg, ytdlp::get_ytdlp_path},
     models::config::YtdlpConfig,
     ytdl::playlist::{YouTubeDlPlaylistOutput, YouTubePlaylist},
 };
@@ -24,7 +24,6 @@ pub mod playlist;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct YouTubeDl {
-    config: Arc<YtdlpConfig>,
     #[serde(flatten)]
     inner: Arc<YoutubeDlFileInner>,
 }
@@ -90,9 +89,8 @@ where
 }
 
 impl YouTubeDl {
-    pub fn new(url: impl Into<String>, config: Arc<YtdlpConfig>) -> Self {
+    pub fn new(url: impl Into<String>) -> Self {
         Self {
-            config,
             inner: Arc::new(YoutubeDlFileInner {
                 url: url.into(),
                 file: tokio::sync::OnceCell::new(),
@@ -103,12 +101,10 @@ impl YouTubeDl {
 
     pub fn new_with(
         url: impl Into<String>,
-        config: Arc<YtdlpConfig>,
         file: Option<std::fs::File>,
         metadata: YouTubeDlMetadata,
     ) -> Self {
         Self {
-            config,
             inner: Arc::new(YoutubeDlFileInner {
                 url: url.into(),
                 file: tokio::sync::OnceCell::new_with(file),
@@ -146,7 +142,6 @@ impl YouTubeDl {
             author: output.channel.or(output.uploader),
             url: output.webpage_url.or(output.original_url),
             entries: output.entries,
-            config: self.config.clone(),
         };
         Ok(yt_playlist)
     }
@@ -159,14 +154,14 @@ impl YouTubeDl {
         self.inner.url.as_str()
     }
 
-    pub async fn fetch_file(&self) -> std::io::Result<Input> {
+    pub async fn fetch_file(&self, config: Arc<YtdlpConfig>) -> std::io::Result<Input> {
         let file = self
             .inner
             .file
             .get_or_try_init(|| async {
                 let mut args = vec![
                     "--js-runtimes",
-                    get_deno_arg(),
+                    get_bun_arg(),
                     "-q",
                     "--no-warnings",
                     self.inner.url.as_str(),
@@ -177,7 +172,7 @@ impl YouTubeDl {
                     "-",
                 ];
 
-                if let Some(cookie_path) = self.config.cookies_path.as_deref() {
+                if let Some(cookie_path) = config.cookies_path.as_deref() {
                     args.extend(["--cookies", cookie_path]);
                 }
 
@@ -212,14 +207,17 @@ impl YouTubeDl {
         Ok(input)
     }
 
-    pub async fn fetch_metadata(&self) -> std::io::Result<Arc<YouTubeDlMetadata>> {
+    pub async fn fetch_metadata(
+        &self,
+        config: Arc<YtdlpConfig>,
+    ) -> std::io::Result<Arc<YouTubeDlMetadata>> {
         let val = self
             .inner
             .metadata
             .get_or_try_init(|| async {
                 let mut args = vec![
                     "--js-runtimes",
-                    get_deno_arg(),
+                    get_bun_arg(),
                     "-q",
                     "--no-warnings",
                     "-j",
@@ -229,7 +227,7 @@ impl YouTubeDl {
                     "--no-playlist",
                 ];
 
-                if let Some(cookie_path) = self.config.cookies_path.as_deref() {
+                if let Some(cookie_path) = config.cookies_path.as_deref() {
                     args.extend(["--cookies", cookie_path]);
                 }
 
@@ -252,6 +250,7 @@ impl YouTubeDl {
 
     pub async fn play(
         &self,
+        config: Arc<YtdlpConfig>,
     ) -> std::io::Result<(
         Pin<Box<dyn Future<Output = std::io::Result<Arc<YouTubeDlMetadata>>> + Send>>,
         Input,
@@ -271,13 +270,13 @@ impl YouTubeDl {
                 None,
             );
             let self_inner = self.clone();
-            let meta_fut = async move { self_inner.fetch_metadata().await };
+            let meta_fut = async move { self_inner.fetch_metadata(config.clone()).await };
             return Ok((Box::pin(meta_fut), input));
         }
 
         let mut args = vec![
             "--js-runtimes",
-            get_deno_arg(),
+            get_bun_arg(),
             "-q",
             "--no-warnings",
             "-j",
@@ -290,7 +289,7 @@ impl YouTubeDl {
             "-",
         ];
 
-        if let Some(cookie_path) = self.config.cookies_path.as_deref() {
+        if let Some(cookie_path) = config.cookies_path.as_deref() {
             args.extend(["--cookies", cookie_path]);
         }
 
