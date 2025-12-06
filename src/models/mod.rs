@@ -6,7 +6,5 @@ pub mod guild;
 pub mod help;
 pub mod playing;
 pub mod playlist;
-pub mod playlist_item;
 pub mod queue_item;
 pub mod toggle;
-pub mod youtube_playlist;

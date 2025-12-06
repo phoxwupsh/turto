@@ -1,51 +1,43 @@
 use crate::{
     commands::create_commands,
-    config::get_config,
-    handlers::{before::before, SerenityEventHandler},
-    models::{data::Data, guild::data::GuildData},
-    utils::json::{read_json, write_json},
+    handlers::{SerenityEventHandler, before::before},
+    models::{data::Data, guild::Guilds},
 };
-use dashmap::DashMap;
 use poise::{Framework, FrameworkOptions};
-use serenity::{all::ClientBuilder, model::prelude::GuildId, prelude::GatewayIntents, Client};
+use serenity::{Client, all::ClientBuilder, prelude::GatewayIntents};
 use songbird::SerenityInit;
 use std::{
     path::{Path, PathBuf},
+    pin::Pin,
     sync::Arc,
-    time::Duration,
 };
-use tokio::sync::oneshot::{self, Receiver, Sender};
-use tracing::{error, info, warn};
+use tokio_cron_scheduler::JobScheduler;
+use tracing::{error, info};
+use uuid::Uuid;
 
 pub struct Turto {
     client: Client,
-    guild_data: Arc<DashMap<GuildId, GuildData>>,
+    guild_data: Arc<Guilds>,
     data_path: PathBuf,
-    auto_save_tx: Option<Sender<()>>,
 }
 
 impl Turto {
     pub async fn new(
         token: impl AsRef<str>,
-        data_path: impl Into<PathBuf>,
+        data: Data,
+        data_path: impl AsRef<Path>,
     ) -> Result<Self, serenity::Error> {
         let options = FrameworkOptions {
-            commands: create_commands(),
+            commands: create_commands(&data.config, &data.help),
             command_check: Some(before),
             ..Default::default()
         };
 
-        let data_path = data_path.into();
-
-        let guild_data = Arc::new(load_data(&data_path));
-        let data = Data {
-            guilds: guild_data.clone(),
-            ..Default::default()
-        };
+        let guild_data = data.guilds.clone();
 
         let serenity_event_handler = SerenityEventHandler {
             playing: data.playing.clone(),
-            guild_data: guild_data.clone(),
+            guild_data: data.guilds.clone(),
             voice_channel_counts: Default::default(),
         };
         let framework = Framework::builder()
@@ -63,79 +55,46 @@ impl Turto {
             .event_handler(serenity_event_handler)
             .register_songbird()
             .await?;
+
+        let data_path = data_path.as_ref().to_path_buf();
         Ok(Self {
             client,
             guild_data,
             data_path,
-            auto_save_tx: None,
         })
     }
 
     pub async fn start(&mut self) -> Result<(), serenity::Error> {
-        if get_config().auto_save {
-            let (tx, rx) = oneshot::channel::<()>();
-            self.auto_save_tx = Some(tx);
-            tokio::spawn(auto_save(
-                self.guild_data.clone(),
-                self.data_path.clone(),
-                rx,
-            ));
-        }
         self.client.start().await
     }
 
     pub async fn shutdown(&mut self) {
-        if let Some(tx) = self.auto_save_tx.take() {
-            let _ = tx.send(());
-        }
         self.client.shard_manager.shutdown_all().await;
-        save_data(self.guild_data.clone(), &self.data_path);
-    }
-}
-
-fn load_data(data_path: impl AsRef<Path>) -> DashMap<GuildId, GuildData> {
-    match read_json(data_path.as_ref()) {
-        Ok(data) => data,
-        Err(err) => {
-            warn!(
-                "Failed to load data from {}: {}, will initialize new guilds data",
-                data_path.as_ref().display(),
-                err
-            );
-            Default::default()
+        match self.guild_data.save(&self.data_path) {
+            Ok(bytes) => info!(bytes, path = %self.data_path.display(), "data saved"),
+            Err(err) => {
+                error!(error = ?err, path = %self.data_path.display(), "failed to save data")
+            }
         }
     }
-}
 
-async fn auto_save(
-    data: Arc<DashMap<GuildId, GuildData>>,
-    data_path: PathBuf,
-    mut rx: Receiver<()>,
-) {
-    let sleep_interval = Duration::from_secs(get_config().auto_save_interval);
-    let sleep = tokio::time::sleep(sleep_interval);
-    tokio::pin!(sleep);
-
-    loop {
-        tokio::select! {
-            _ = &mut sleep => {
-                save_data(data.clone(), &data_path);
-                let next = sleep.deadline() + sleep_interval;
-                sleep.as_mut().reset(next);
-            },
-            _ = &mut rx => break
+    pub fn auto_save_job(
+        &self,
+    ) -> impl FnMut(Uuid, JobScheduler) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync + 'static
+    {
+        let data_path = self.data_path.clone();
+        let guilds = self.guild_data.clone();
+        move |_uuid, _job_scheduler| {
+            let data_path = data_path.clone();
+            let guilds = guilds.clone();
+            Box::pin(async move {
+                match guilds.save(&data_path) {
+                    Ok(bytes) => info!(bytes, path = %data_path.display(), "data auto saved"),
+                    Err(err) => {
+                        error!(error = ?err, path = %data_path.display(), "failed to auto save data")
+                    }
+                }
+            })
         }
-    }
-}
-
-fn save_data(data: Arc<DashMap<GuildId, GuildData>>, data_path: impl AsRef<Path>) {
-    let data_path = data_path.as_ref();
-    match write_json(&*data, data_path) {
-        Ok(bytes) => info!(
-            "Data saved, {} bytes has been written to {}",
-            bytes,
-            data_path.display()
-        ),
-        Err(err) => error!("Failed to write data to {}: {:#}", data_path.display(), err),
     }
 }

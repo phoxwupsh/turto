@@ -1,12 +1,12 @@
 use crate::{
-    messages::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Skip},
+    message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Skip},
     models::{
         alias::{Context, Error},
         autoleave::AutoleaveType,
     },
     utils::{
         guild::{GuildUtil, VoiceChannelState},
-        play::play_next,
+        play::{PlayContext, play_ytdlfile_meta},
         turto_say,
     },
 };
@@ -43,28 +43,37 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         call.stop();
     }
 
-    let data = ctx.data();
     ctx.defer().await?;
-    let meta = play_next(
-        call.clone(),
-        data.guilds.clone(),
-        data.playing.clone(),
-        guild_id,
-    )
-    .await
-    .and_then(Result::ok);
 
-    // Leave when there is no next track and autoleave is on or in silent mode
-    let auto_leave = data.guilds.entry(guild_id).or_default().config.auto_leave;
-    let should_leave =
-        meta.is_none() && (auto_leave == AutoleaveType::On || auto_leave == AutoleaveType::Silent);
+    let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
+    let next = guild_data.playlist.pop_front();
+    drop(guild_data);
 
-    let title = meta.as_ref().and_then(|meta| meta.title.as_deref());
-    turto_say(ctx, Skip { title }).await?;
+    if let Some(next) = next {
+        let meta_fut = play_ytdlfile_meta(PlayContext::from_ctx(ctx).unwrap(), call, next).await?;
+        let metadata = meta_fut.await?;
 
-    if should_leave {
-        let mut call = call.lock().await;
-        call.leave().await?;
+        turto_say(
+            ctx,
+            Skip {
+                title: metadata.title.as_deref(),
+            },
+        )
+        .await?;
+    } else {
+        let auto_leave = ctx
+            .data()
+            .guilds
+            .entry(guild_id)
+            .or_default()
+            .config
+            .auto_leave;
+        let should_leave = auto_leave == AutoleaveType::On || auto_leave == AutoleaveType::Silent;
+        if should_leave {
+            let mut call = call.lock().await;
+            call.leave().await?;
+        }
+        turto_say(ctx, Skip { title: None }).await?;
     }
 
     Ok(())

@@ -1,12 +1,14 @@
 use crate::{
-    messages::TurtoMessageKind::SetAutoleave,
+    message::TurtoMessageKind::SetAutoleave,
     models::{
-        alias::{Context, Error}, autoleave::AutoleaveType
-    }, utils::turto_say,
+        alias::{Context, Error},
+        autoleave::AutoleaveType,
+    },
+    utils::turto_say,
 };
 
 #[poise::command(slash_command, guild_only)]
-pub async fn autoleave(ctx: Context<'_> , toggle: AutoleaveType) -> Result<(), Error> {
+pub async fn autoleave(ctx: Context<'_>, toggle: AutoleaveType) -> Result<(), Error> {
     let mut guild_data = ctx
         .data()
         .guilds

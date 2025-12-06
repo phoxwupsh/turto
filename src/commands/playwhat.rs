@@ -1,5 +1,5 @@
 use crate::{
-    messages::{
+    message::{
         TurtoMessage,
         TurtoMessageKind::{NotPlaying, Pause, Play},
     },
@@ -14,7 +14,6 @@ use tracing::error;
 #[poise::command(slash_command, guild_only)]
 pub async fn playwhat(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap();
-    let locale = ctx.locale();
 
     let playing_map = ctx.data().playing.read().await;
     let Some(playing) = playing_map.get(&guild_id) else {
@@ -22,42 +21,32 @@ pub async fn playwhat(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     };
 
-    let title = playing.metadata.title.as_deref().unwrap_or_default();
+    let meta = playing.ytdlfile.fetch_metadata().await?;
+    let title = meta.title.as_deref().unwrap_or_default();
     let embed_title = match playing.track_handle.get_info().await {
         Ok(track_state) => match track_state.playing {
-            PlayMode::Play => TurtoMessage {
-                locale,
-                kind: Play { title },
-            },
-            PlayMode::Pause => TurtoMessage {
-                locale,
-                kind: Pause { title },
-            },
+            PlayMode::Play => TurtoMessage::new(ctx, Play { title }),
+            PlayMode::Pause => TurtoMessage::new(ctx, Pause { title }),
             _ => {
                 turto_say(ctx, NotPlaying).await?;
                 return Ok(());
             }
         },
         Err(err) => {
-            error!("Error getting track: {err}");
+            error!(error = ?err, "failed to get track");
             turto_say(ctx, NotPlaying).await?;
             return Ok(());
         }
     };
 
     let mut embed = CreateEmbed::new().title(embed_title);
-    if let Some(url) = &playing.metadata.source_url {
+    if let Some(url) = meta.webpage_url.as_deref() {
         embed = embed.url(url);
     }
-    if let Some(channel) = playing
-        .metadata
-        .artist
-        .as_deref()
-        .or(playing.metadata.channel.as_deref())
-    {
+    if let Some(channel) = meta.artist.as_deref().or(meta.channel.as_deref()) {
         embed = embed.description(channel);
     }
-    if let Some(thumbnail) = playing.metadata.thumbnail.as_deref() {
+    if let Some(thumbnail) = meta.thumbnail.as_deref() {
         embed = embed.image(thumbnail);
     }
     drop(playing_map);

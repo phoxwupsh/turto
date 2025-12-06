@@ -1,11 +1,17 @@
-use super::{guild::data::GuildData, playing::Playing};
-use dashmap::DashMap;
+use super::{guild::Guilds, playing::Playing};
+use crate::{
+    message::template::Templates,
+    models::{config::TurtoConfig, help::Help},
+};
 use serenity::all::GuildId;
-use tokio::sync::RwLock;
 use std::{collections::HashMap, sync::Arc};
+use tokio::sync::RwLock;
 
-#[derive(Default)]
+#[derive(Debug)]
 pub struct Data {
-    pub guilds: Arc<DashMap<GuildId, GuildData>>,
+    pub guilds: Arc<Guilds>,
     pub playing: Arc<RwLock<HashMap<GuildId, Playing>>>,
+    pub config: Arc<TurtoConfig>,
+    pub help: Help,
+    pub templates: Templates,
 }

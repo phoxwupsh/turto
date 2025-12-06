@@ -1,5 +1,5 @@
 use crate::{
-    messages::TurtoMessageKind::RemoveAll,
+    message::TurtoMessageKind::RemoveAll,
     models::alias::{Context, Error},
     utils::turto_say,
 };

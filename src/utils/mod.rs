@@ -1,5 +1,5 @@
 use crate::{
-    messages::{
+    message::{
         TurtoMessage,
         TurtoMessageKind::{self, Join},
     },
@@ -20,12 +20,10 @@ pub mod json;
 pub mod misc;
 pub mod play;
 pub mod queue;
-pub mod template;
-pub mod url;
-pub mod ytdl;
+
+static HTTP_CLIENT: OnceLock<Client> = OnceLock::new();
 
 pub fn get_http_client() -> Client {
-    static HTTP_CLIENT: OnceLock<Client> = OnceLock::new();
     HTTP_CLIENT.get_or_init(Client::new).clone()
 }
 
@@ -53,8 +51,5 @@ pub fn turto_say<'a>(
     ctx: Context<'a>,
     msg: TurtoMessageKind<'a>,
 ) -> impl Future<Output = Result<ReplyHandle<'a>, serenity::Error>> {
-    ctx.say(TurtoMessage {
-        locale: ctx.locale(),
-        kind: msg,
-    })
+    ctx.say(TurtoMessage::new(ctx, msg))
 }

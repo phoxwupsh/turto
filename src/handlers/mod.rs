@@ -8,22 +8,23 @@ use serenity::{
 use std::{
     collections::HashMap,
     sync::{
-        atomic::{AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicUsize, Ordering},
     },
 };
 use tokio::sync::RwLock;
 use tracing::{error, info};
 
-use crate::models::{autoleave::AutoleaveType, guild::data::GuildData, playing::Playing};
+use crate::models::{autoleave::AutoleaveType, guild::Guilds, playing::Playing};
 
 pub mod before;
 pub mod track_end;
+pub mod track_error;
 
 #[derive(Default)]
 pub struct SerenityEventHandler {
     pub playing: Arc<RwLock<HashMap<GuildId, Playing>>>,
-    pub guild_data: Arc<DashMap<GuildId, GuildData>>,
+    pub guild_data: Arc<Guilds>,
     pub voice_channel_counts: DashMap<ChannelId, AtomicUsize>,
 }
 
@@ -34,8 +35,10 @@ impl EventHandler for SerenityEventHandler {
         let user_id = &ready.user.id;
         let session = &ready.session_id;
         info!(
-            "{} is connected with user id {}, session id {}",
-            name, user_id, session
+            session_id = %session,
+            %user_id,
+            bot_name = name,
+            "connected"
         );
     }
 

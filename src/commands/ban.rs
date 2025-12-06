@@ -1,6 +1,5 @@
 use crate::{
-    config::get_config,
-    messages::TurtoMessageKind::{AdministratorOnly, Ban},
+    message::TurtoMessageKind::{AdministratorOnly, Ban},
     models::alias::{Context, Error},
     utils::turto_say,
 };
@@ -20,7 +19,7 @@ pub async fn ban(ctx: Context<'_>, user: UserId) -> Result<(), Error> {
         .unwrap()
         .administrator();
 
-    if !(is_admin || get_config().is_owner(&user_id)) {
+    if !(is_admin || ctx.data().config.is_owner(&user_id)) {
         turto_say(ctx, AdministratorOnly).await?;
         return Ok(());
     }

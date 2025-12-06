@@ -1,5 +1,5 @@
 use crate::{
-    messages::TurtoMessageKind::SetRepeat,
+    message::TurtoMessageKind::SetRepeat,
     models::{
         alias::{Context, Error},
         toggle::ToggleOption,

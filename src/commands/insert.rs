@@ -1,6 +1,6 @@
 use crate::{
     models::alias::{Context, Error},
-    utils::queue::{enqueue, QueueType},
+    utils::queue::{QueueType, enqueue},
 };
 
 #[poise::command(slash_command, guild_only)]

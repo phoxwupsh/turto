@@ -1,5 +1,5 @@
 use crate::{
-    messages::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, Leave},
+    message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, Leave},
     models::alias::{Context, Error},
     utils::{
         guild::{GuildUtil, VoiceChannelState},

@@ -1,6 +1,5 @@
 use crate::{
-    config::get_config,
-    messages::TurtoMessageKind::{
+    message::TurtoMessageKind::{
         BotNotInVoiceChannel, DifferentVoiceChannel, InvalidSeek, NotPlaying, SeekNotAllow,
         SeekNotLongEnough, SeekSuccess,
     },
@@ -16,7 +15,7 @@ use tracing::error;
 
 #[poise::command(slash_command, guild_only)]
 pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), Error> {
-    let config = get_config();
+    let config = ctx.data().config.clone();
 
     if !config.allow_seek {
         turto_say(ctx, SeekNotAllow { backward: false }).await?;
@@ -59,8 +58,9 @@ pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), Error> {
                 }
             }
 
-            let length = playing.metadata.duration.unwrap().as_secs();
-            let title = playing.metadata.title.as_ref().unwrap();
+            let meta = playing.ytdlfile.fetch_metadata().await?;
+            let length = meta.duration.map(|t| t as u64).unwrap_or(0);
+            let title = meta.title.as_ref().unwrap();
             if length < time {
                 turto_say(ctx, SeekNotLongEnough { title, length }).await?;
                 return Ok(());
@@ -72,8 +72,8 @@ pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), Error> {
                 .seek_async(Duration::from_secs(time))
                 .await
             {
-                let uuid = playing.track_handle.uuid();
-                error!("Failed to seek track {uuid}: {why}");
+                let handle = &playing.track_handle;
+                error!(error = ?why, ?handle, "failed to seek track");
             } else {
                 turto_say(ctx, SeekSuccess).await?;
             }

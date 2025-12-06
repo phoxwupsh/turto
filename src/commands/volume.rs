@@ -1,5 +1,5 @@
 use crate::{
-    messages::TurtoMessageKind::SetVolume,
+    message::TurtoMessageKind::SetVolume,
     models::{
         alias::{Context, Error},
         guild::volume::GuildVolume,
@@ -21,11 +21,11 @@ pub async fn volume(
         // Update the volume if there is a currently playing TrackHandle
         let new_vol = GuildVolume::try_from(vol).unwrap();
         let playing_map = ctx.data().playing.read().await;
-        if let Some(playing) = playing_map.get(&guild_id) {
-            if let Err(why) = playing.track_handle.set_volume(*new_vol) {
-                let uuid = playing.track_handle.uuid();
-                error!("Failed to set volume for track {uuid}: {why}");
-            }
+        if let Some(playing) = playing_map.get(&guild_id)
+            && let Err(why) = playing.track_handle.set_volume(*new_vol)
+        {
+            let uuid = playing.track_handle.uuid();
+            error!(track_id = %uuid, error = ?why, "Failed to set volume for track");
         }
         drop(playing_map);
 

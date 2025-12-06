@@ -1,9 +1,9 @@
 [package]
 name = "turto"
-version = "1.4.0"
-edition = "2021"
+version = "2.0.0-beta.0"
+edition = "2024"
 authors = ["phoxwupsh"]
-rust-version = "1.80"
+rust-version = "1.88"
 license = "MIT"
 repository = "https://github.com/phoxwupsh/turto"
 description = "turto is a simple, easy-to-use and customizable Discord music bot, especially suitable for self-hosting."
@@ -11,25 +11,32 @@ description = "turto is a simple, easy-to-use and customizable Discord music bot
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dotenv = "0.15.0"
+dotenvy = "0.15.7"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 url = "2.5.4"
-serde = "1.0.210"
+serde = { version = "1.0.210", features = ["rc"] }
 serde_json = "1.0.128"
 regex = "1.11.0"
 toml = "0.8.19"
 rand = "0.8.5"
 sha256 = "1.5.0"
 which = "6.0.3"
-reqwest = "0.11.22"
-poise = "0.6.1"
+reqwest = { version = "0.12.24", features = ["rustls-tls"] }
+poise = { git = "https://github.com/serenity-rs/poise.git" }
 anyhow = "1.0.89"
 tracing-appender = "0.2.3"
 chrono = "0.4.38"
+tempfile = "3.23.0"
+tokio-util = { version = "0.7.17", features = ["io-util"] }
+zip = "5.1.1"
+clap = { version = "4.5.53", features = ["derive"] }
+tokio-cron-scheduler = "0.15.1"
+arc-swap = "1.7.1"
+uuid = "1.18.1"
 
 [dependencies.serenity]
-version = "0.12.3"
+version = "0.12.4"
 features = [
     "client",
     "standard_framework",
@@ -40,19 +47,19 @@ features = [
 ]
 
 [dependencies.tokio]
-version = "1.40.0"
+version = "1.48.0"
 features = ["macros", "rt-multi-thread", "signal"]
 
 [dependencies.songbird]
-version = "0.4.6"
+git = "https://github.com/serenity-rs/songbird.git"
 
 [dependencies.dashmap]
 version = "6.1.0"
 features = ["serde"]
 
 [dependencies.symphonia]
-version = "0.5.4"
-features = ["mp3", "aac", "vorbis", "isomp4"]
+version = "0.5.5"
+features = ["all"]
 
 [profile.release]
 opt-level = 3

@@ -7,37 +7,33 @@ use crate::{
         queue::queue, remove::remove, repeat::repeat, seek::seek, shuffle::shuffle, skip::skip,
         stop::stop, unban::unban, volume::volume,
     },
-    config::{
-        get_config,
-        help::{get_help, locale_list},
-    },
-    models::alias::Command,
+    models::{alias::Command, config::TurtoConfig, help::Help},
 };
 use tracing::warn;
 
-pub mod about;
-pub mod autoleave;
-pub mod ban;
-pub mod clear;
-pub mod help;
-pub mod insert;
-pub mod join;
-pub mod leave;
-pub mod pause;
-pub mod play;
-pub mod playlist;
-pub mod playwhat;
-pub mod queue;
-pub mod remove;
-pub mod repeat;
-pub mod seek;
-pub mod shuffle;
-pub mod skip;
-pub mod stop;
-pub mod unban;
-pub mod volume;
+mod about;
+mod autoleave;
+mod ban;
+mod clear;
+mod help;
+mod insert;
+mod join;
+mod leave;
+mod pause;
+mod play;
+mod playlist;
+mod playwhat;
+mod queue;
+mod remove;
+mod repeat;
+mod seek;
+mod shuffle;
+mod skip;
+mod stop;
+mod unban;
+mod volume;
 
-pub fn create_commands() -> Vec<Command> {
+pub fn create_commands(config: &TurtoConfig, help_config: &Help) -> Vec<Command> {
     let mut commands = vec![
         about(),
         autoleave(),
@@ -63,13 +59,9 @@ pub fn create_commands() -> Vec<Command> {
     ];
 
     for command in commands.iter_mut() {
-        let help = get_help();
         // add default short description
-        if let Some(command_help) = help
-            .get("default")
-            .and_then(|default_help| default_help.get(&command.name))
-        {
-            command.description = Some(command_help.short_description.to_string());
+        if let Some(command_help) = help_config.get_default(&command.name) {
+            command.description = Some(command_help.short_description.clone());
             // add default description for each parameter
             for parameter in command.parameters.iter_mut() {
                 let Some(parameter_description) = command_help
@@ -78,23 +70,23 @@ pub fn create_commands() -> Vec<Command> {
                     .and_then(|parameters| parameters.get(&parameter.name))
                 else {
                     warn!(
-                        "Description of parameter {} of command {} not found",
-                        parameter.name, command.name
+                        parameter = parameter.name,
+                        command = command.name,
+                        "default description of parameter not found",
                     );
                     continue;
                 };
                 parameter.description = Some(parameter_description.to_string());
             }
         } else {
-            warn!("Short description of command {} not found", command.name);
+            warn!(
+                command = command.name,
+                "default short description not found"
+            );
         }
         // add short description for all available locales
-        for locale in locale_list() {
-            if let Some(command_help) = help
-                .get(locale)
-                .and_then(|locale_help| locale_help.get(&command.name))
-            // .map(|command_help| command_help.short_description.as_str())
-            {
+        for locale in help_config.available_locale() {
+            if let Some(command_help) = help_config.get(locale, &command.name) {
                 command.description_localizations.insert(
                     locale.to_string(),
                     command_help.short_description.to_string(),
@@ -106,8 +98,10 @@ pub fn create_commands() -> Vec<Command> {
                         .and_then(|parameters| parameters.get(&parameter.name))
                     else {
                         warn!(
-                            "Description of parameter {} of command {} for locale {} not found",
-                            parameter.name, command.name, locale
+                            parameter = parameter.name,
+                            command = command.name,
+                            locale = locale,
+                            "description of parameter not found",
                         );
                         continue;
                     };
@@ -117,13 +111,13 @@ pub fn create_commands() -> Vec<Command> {
                 }
             } else {
                 warn!(
-                    "Short description of command {} for locale {} not found",
-                    command.name, locale
+                    command = command.name,
+                    locale, "short description not found",
                 )
             }
         }
         // set command cooldown for each command
-        let command_cooldown = Duration::from_secs(get_config().command_delay);
+        let command_cooldown = Duration::from_secs(config.command_delay);
         command.cooldown_config.write().unwrap().guild = Some(command_cooldown);
     }
     commands

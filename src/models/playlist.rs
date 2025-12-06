@@ -1,25 +1,25 @@
-use super::playlist_item::PlaylistItem;
+use crate::ytdl::YouTubeDl;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{vec_deque::IntoIter, VecDeque},
+    collections::{VecDeque, vec_deque::IntoIter},
     ops::{Deref, DerefMut},
 };
 
 const PAGE_SIZE: usize = 10;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Playlist(VecDeque<PlaylistItem>);
+pub struct Playlist(VecDeque<YouTubeDl>);
 
 impl Playlist {
     pub fn new() -> Self {
-        Playlist(VecDeque::<PlaylistItem>::new())
+        Playlist(VecDeque::<YouTubeDl>::new())
     }
 
     pub fn total_pages(&self) -> usize {
         self.0.len().div_ceil(PAGE_SIZE)
     }
 
-    pub fn page_with_indices(&self, index: usize) -> Option<Vec<(usize, &PlaylistItem)>> {
+    pub fn page_with_indices(&self, index: usize) -> Option<Vec<(usize, &YouTubeDl)>> {
         if index > self.total_pages() {
             return None;
         }
@@ -36,7 +36,7 @@ impl Playlist {
 }
 
 impl Deref for Playlist {
-    type Target = VecDeque<PlaylistItem>;
+    type Target = VecDeque<YouTubeDl>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -55,7 +55,7 @@ impl Default for Playlist {
 }
 
 impl IntoIterator for Playlist {
-    type Item = PlaylistItem;
+    type Item = YouTubeDl;
     type IntoIter = IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -63,8 +63,8 @@ impl IntoIterator for Playlist {
     }
 }
 
-impl From<Vec<PlaylistItem>> for Playlist {
-    fn from(value: Vec<PlaylistItem>) -> Self {
+impl From<Vec<YouTubeDl>> for Playlist {
+    fn from(value: Vec<YouTubeDl>) -> Self {
         Self(VecDeque::from(value))
     }
 }

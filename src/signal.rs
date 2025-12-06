@@ -1,6 +1,6 @@
 #[cfg(unix)]
 mod unix {
-    use tokio::signal::unix::{signal, SignalKind};
+    use tokio::signal::unix::{SignalKind, signal};
 
     pub async fn wait_shutdown_signal() {
         let mut sigterm = signal(SignalKind::terminate()).unwrap();

@@ -1,5 +1,4 @@
 use crate::{
-    config::get_config,
     models::alias::{Context, Error},
     utils::misc::sha256_now,
 };
@@ -24,7 +23,7 @@ pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
             "https://opengraph.githubassets.com/{}/phoxwupsh/turto",
             sha256_now()
         ));
-    if let Some(owner) = get_config().owner {
+    if let Some(owner) = ctx.data().config.owner {
         embed = embed.field("Owner of this bot", owner.mention().to_string(), true);
     }
 

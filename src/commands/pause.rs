@@ -1,5 +1,5 @@
 use crate::{
-    messages::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Pause},
+    message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Pause},
     models::alias::{Context, Error},
     utils::{
         guild::{GuildUtil, VoiceChannelState},
@@ -34,10 +34,10 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
     };
 
     if let Err(why) = playing.track_handle.pause() {
-        let uuid = playing.track_handle.uuid();
-        error!("Failed to pause track {uuid}: {why}");
+        error!(error = ?why, ?playing, "Failed to pause track");
     }
-    let title = playing.metadata.title.as_ref().unwrap();
+    let meta = playing.ytdlfile.fetch_metadata().await?;
+    let title = meta.title.as_deref().unwrap();
 
     turto_say(ctx, Pause { title }).await?;
     Ok(())

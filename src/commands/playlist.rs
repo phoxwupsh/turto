@@ -1,5 +1,5 @@
 use crate::{
-    messages::{
+    message::{
         TurtoMessage,
         TurtoMessageKind::{EmptyPlaylist, InvalidPlaylistPage},
     },
@@ -30,16 +30,12 @@ pub async fn playlist(ctx: Context<'_>, #[min = 1] page: Option<usize>) -> Resul
         drop(guild_data);
         turto_say(ctx, EmptyPlaylist).await?;
         return Ok(());
-    } 
+    }
 
     if let Some(page) = page {
         let response = match generate_playlist_str(&guild_data.playlist, page) {
             Some(res) => res,
-            None => TurtoMessage {
-                locale: ctx.locale(),
-                kind: InvalidPlaylistPage { total_pages },
-            }
-            .to_string(),
+            None => TurtoMessage::new(ctx, InvalidPlaylistPage { total_pages }).to_string(),
         };
         drop(guild_data);
         ctx.say(response).await?;
@@ -88,11 +84,7 @@ pub async fn playlist(ctx: Context<'_>, #[min = 1] page: Option<usize>) -> Resul
         let response_content = match generate_playlist_str(&guild_data.playlist, page) {
             Some(res) => res,
             // just in case the playlist in changed during the wait
-            None => TurtoMessage {
-                locale: ctx.locale(),
-                kind: InvalidPlaylistPage { total_pages },
-            }
-            .to_string(),
+            None => TurtoMessage::new(ctx, InvalidPlaylistPage { total_pages }).to_string(),
         };
         drop(guild_data);
 
@@ -117,29 +109,23 @@ pub async fn playlist(ctx: Context<'_>, #[min = 1] page: Option<usize>) -> Resul
 }
 
 fn generate_playlist_str(playlist: &Playlist, page_index: usize) -> Option<String> {
-    let res = playlist
-        .page_with_indices(page_index)?
-        .into_iter()
-        .map(|(index, playlist_item)| {
-            let mut line = (index + 1).to_string() + ". ";
-            line.push(' ');
-            line.push_str(&playlist_item.title);
-            line
-        })
-        .fold(String::new(), |acc, title| acc + &title + "\n")
-        .trim_end()
-        .to_owned();
+    let mut res = String::new();
+    for (index, item) in playlist.page_with_indices(page_index)? {
+        let mut line = (index + 1).to_string() + ". ";
+        line.push(' ');
+        line.push_str(item.title().unwrap_or_default());
+        line.push('\n');
+        res.push_str(&line);
+    }
     Some(res)
 }
 
 fn generate_page_select_menu(playlist: &Playlist, custom_id: impl Into<String>) -> CreateActionRow {
     let options = (1..=playlist.total_pages())
-        .map(|index| {
-            CreateSelectMenuOption::new("📄".to_string() + &index.to_emoji(), index.to_string())
-        })
+        .map(|index| CreateSelectMenuOption::new(index.to_emoji(), index.to_string()).emoji('📄'))
         .collect::<Vec<_>>();
-    CreateActionRow::SelectMenu(
-        CreateSelectMenu::new(custom_id, CreateSelectMenuKind::String { options })
-            .placeholder("📖❓"),
-    )
+    CreateActionRow::SelectMenu(CreateSelectMenu::new(
+        custom_id,
+        CreateSelectMenuKind::String { options },
+    ))
 }

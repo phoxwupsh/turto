@@ -1,5 +1,5 @@
 use crate::{
-    messages::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Stop},
+    message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Stop},
     models::alias::{Context, Error},
     utils::{
         guild::{GuildUtil, VoiceChannelState},
@@ -35,11 +35,11 @@ pub async fn stop(ctx: Context<'_>) -> Result<(), Error> {
     drop(playing_map);
 
     if let Err(why) = playing.track_handle.stop() {
-        let uuid = playing.track_handle.uuid();
-        error!("Failed to stop track {uuid}: {why}");
+        error!(error = ?why, ?playing, "failed to stop track");
     }
 
-    let title = playing.metadata.title.as_deref().unwrap();
+    let meta = playing.ytdlfile.fetch_metadata().await?;
+    let title = meta.title.as_deref().unwrap();
     turto_say(ctx, Stop { title }).await?;
     Ok(())
 }

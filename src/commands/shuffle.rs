@@ -1,5 +1,5 @@
 use crate::{
-    messages::TurtoMessageKind::{EmptyPlaylist, Shuffle},
+    message::TurtoMessageKind::{EmptyPlaylist, Shuffle},
     models::alias::{Context, Error},
     utils::turto_say,
 };

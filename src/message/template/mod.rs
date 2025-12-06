@@ -1,15 +1,60 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{borrow::Cow, collections::HashMap, fmt::Display, path::Path};
+
+pub mod names;
+
+#[derive(Debug)]
+pub struct Templates(HashMap<String, HashMap<String, Template>>);
+
+impl Templates {
+    pub fn load(path: impl AsRef<Path>) -> anyhow::Result<Self> {
+        let templates_str = std::fs::read_to_string(path.as_ref())?;
+        let templates_map =
+            toml::from_str::<HashMap<String, HashMap<String, String>>>(&templates_str)?;
+
+        let templates = templates_map
+            .into_iter()
+            .map(|(locale, map)| {
+                let templates = map
+                    .into_iter()
+                    .map(|(template_name, template_str)| {
+                        let template = Template::parse(&template_str);
+                        (template_name, template)
+                    })
+                    .collect::<HashMap<_, _>>();
+                (locale.to_ascii_lowercase(), templates) // case insensitive for locale ID
+            })
+            .collect::<HashMap<_, _>>();
+
+        let Some(default_templates) = templates.get("default") else {
+            return Err(anyhow::anyhow!("missing default language templates"));
+        };
+
+        for template_name in names::TEMPLATE_NAMES {
+            if default_templates.get(template_name).is_none() {
+                return Err(anyhow::anyhow!(
+                    "missing default language message template: {}",
+                    template_name,
+                ));
+            }
+        }
+
+        Ok(Self(templates))
+    }
+
+    pub fn get(&self, template_name: &str, locale: Option<&str>) -> &Template {
+        self.0
+            .get(&locale.unwrap_or("default").to_ascii_lowercase())
+            .or(self.0.get("default"))
+            .unwrap()
+            .get(template_name)
+            .unwrap()
+    }
+}
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct Template {
-    length: usize,
     tokens: Vec<Token>,
-}
-
-pub struct TemplateRenderer<'a> {
-    template: &'a Template,
-    args: HashMap<&'a str, &'a dyn Display>,
 }
 
 #[derive(Debug)]
@@ -49,45 +94,65 @@ impl Template {
         }
         let remainder = template[start..].to_string();
         tokens.push(Token::Text(remainder));
-        Template {
-            length: template.len(),
-            tokens,
-        }
+        Template { tokens }
     }
 
     pub fn renderer(&'_ self) -> TemplateRenderer<'_> {
         TemplateRenderer {
             template: self,
-            args: HashMap::<_, _>::new(),
+            args: HashMap::new(),
         }
     }
 }
 
+pub struct TemplateRenderer<'a> {
+    template: &'a Template,
+    args: HashMap<&'a str, Cow<'a, str>>,
+}
+
 impl<'a> TemplateRenderer<'a> {
-    pub fn render(&self) -> String {
-        let mut res = String::with_capacity(self.template.length);
-        self.template.tokens.iter().for_each(|token| match token {
-            Token::Text(text) => res.push_str(text),
-            Token::Arg(arg) => {
-                if let Some(s) = self.args.get(arg.as_str()) {
-                    res.push_str(s.to_string().as_str());
-                }
-            }
-        });
-        res
+    pub fn render_iter(&self) -> impl Iterator<Item = &str> {
+        self.template.tokens.iter().filter_map(|token| match token {
+            Token::Text(text) => Some(text.as_str()),
+            Token::Arg(arg) => self.args.get(arg.as_str()).map(AsRef::as_ref),
+        })
     }
 
-    pub fn add_arg(&mut self, key: &'a str, value: &'a dyn Display) -> &mut Self {
-        self.args.insert(key, value);
-        self
+    pub fn render(&self) -> String {
+        self.render_iter().collect()
+    }
+
+    pub fn add_arg(&mut self, key: &'a str, value: impl Into<DisplayRef<'a>>) {
+        self.args.insert(key, value.into().0);
+    }
+}
+
+pub struct DisplayRef<'a>(Cow<'a, str>);
+
+impl<'a> From<&'a str> for DisplayRef<'a> {
+    fn from(value: &'a str) -> Self {
+        Self(Cow::Borrowed(value))
+    }
+}
+
+impl From<String> for DisplayRef<'_> {
+    fn from(value: String) -> Self {
+        Self(Cow::Owned(value))
+    }
+}
+
+impl<T> From<&T> for DisplayRef<'_>
+where
+    T: Display,
+{
+    fn from(value: &T) -> Self {
+        Self(Cow::Owned(value.to_string()))
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::utils::template::Token;
-
-    use super::Template;
+    use super::{Template, Token};
 
     #[test]
     fn test_template_parse() {
@@ -99,14 +164,12 @@ mod test {
         assert_eq!(
             Template::parse(no_arg),
             Template {
-                length: 12,
                 tokens: vec![Token::Text("Hello World!".to_string())]
             }
         );
         assert_eq!(
             Template::parse(single_arg),
             Template {
-                length: 13,
                 tokens: vec![
                     Token::Text("Hello ".to_string()),
                     Token::Arg("name".to_string()),
@@ -117,7 +180,6 @@ mod test {
         assert_eq!(
             Template::parse(multi_arg),
             Template {
-                length: 26,
                 tokens: vec![
                     Token::Text("Hello ".to_string()),
                     Token::Arg("name1".to_string()),
@@ -130,7 +192,6 @@ mod test {
         assert_eq!(
             Template::parse(brackets),
             Template {
-                length: 19,
                 tokens: vec![
                     Token::Text("Hello {{{".to_string()),
                     Token::Arg("name".to_string()),
@@ -141,7 +202,6 @@ mod test {
         assert_eq!(
             Template::parse(unclosed),
             Template {
-                length: 19,
                 tokens: vec![
                     Token::Text("}}{".to_string()),
                     Token::Arg("arg1".to_string()),

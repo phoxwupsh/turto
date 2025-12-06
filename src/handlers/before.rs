@@ -1,5 +1,5 @@
 use crate::{
-    messages::TurtoMessageKind::BannedUserResponse,
+    message::TurtoMessageKind::BannedUserResponse,
     models::alias::{Context, Error},
     utils::turto_say,
 };

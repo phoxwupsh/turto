@@ -1,5 +1,5 @@
 use crate::{
-    messages::{
+    message::{
         TurtoMessage,
         TurtoMessageKind::{InvalidRangeRemove, InvalidRemove, Remove, RemoveMany},
     },
@@ -28,7 +28,6 @@ pub async fn remove(
 
     let guild_id = ctx.guild_id().unwrap();
     let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
-    let locale = ctx.locale();
     let length = guild_data.playlist.len();
 
     match remove_item {
@@ -40,7 +39,7 @@ pub async fn remove(
                 return Ok(());
             }
             let removed = guild_data.playlist.remove(index).unwrap();
-            let title = removed.title.as_str();
+            let title = removed.title().unwrap_or_default();
             drop(guild_data);
             turto_say(ctx, Remove { title }).await?;
         }
@@ -55,24 +54,19 @@ pub async fn remove(
                 .playlist
                 .drain(from..to)
                 .map(|drained_item| {
-                    TurtoMessage {
-                        locale,
-                        kind: Remove {
-                            title: &drained_item.title,
-                        },
-                    }
-                    .to_string()
+                    let title = drained_item.title().unwrap_or_default();
+                    TurtoMessage::new(ctx, Remove { title }).to_string()
                 })
                 .collect::<Vec<_>>();
             drop(guild_data);
 
             let response = if drained.len() > 10 {
-                TurtoMessage {
-                    locale,
-                    kind: RemoveMany {
+                TurtoMessage::new(
+                    ctx,
+                    RemoveMany {
                         removed_number: drained.len(),
                     },
-                }
+                )
                 .to_string()
             } else {
                 drained.join("\n")

@@ -1,34 +1,37 @@
-use super::{playlist_item::PlaylistItem, youtube_playlist::YouTubePlaylist};
-use crate::utils::{get_http_client, url::UrlExt, ytdl::ytdl_playlist};
-use songbird::input::{Compose, YoutubeDl};
+use std::sync::Arc;
+
+use crate::{
+    models::config::YtdlpConfig,
+    ytdl::{YouTubeDl, playlist::YouTubePlaylist},
+};
 use anyhow::Result;
 use url::Url;
 
 pub struct QueueItem {
     url: Url,
+    ytdlp_config: Arc<YtdlpConfig>,
 }
 
 pub enum QueueItemKind {
-    Single(PlaylistItem),
+    Single(YouTubeDl),
     Playlist(YouTubePlaylist),
 }
 
 impl QueueItem {
-    pub fn new(url: Url) -> Self {
-        Self { url }
+    pub fn new(url: Url, ytdlp_config: Arc<YtdlpConfig>) -> Self {
+        Self { url, ytdlp_config }
     }
 
     pub async fn query(self) -> Result<QueueItemKind> {
-        if self.url.is_yt_playlist() {
-            Ok(ytdl_playlist(&self.url)
+        let ytdl = YouTubeDl::new(self.url.as_str(), self.ytdlp_config);
+
+        if ytdl.has_yt_playlist() {
+            Ok(ytdl
+                .fetch_yt_playlist()
                 .await
                 .map(QueueItemKind::Playlist)?)
         } else {
-            Ok(YoutubeDl::new(get_http_client(), self.url.to_string())
-                .aux_metadata()
-                .await
-                .map(PlaylistItem::from)
-                .map(QueueItemKind::Single)?)
+            Ok(QueueItemKind::Single(ytdl))
         }
     }
 }
