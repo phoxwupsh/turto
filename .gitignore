@@ -22,4 +22,5 @@ templates.toml
 guilds.json
 *.log
 /yt-dlp/
-/deno/
+/bun/
+img
