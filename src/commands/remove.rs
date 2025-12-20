@@ -38,7 +38,10 @@ pub async fn remove(
                 turto_say(ctx, InvalidRemove { length }).await?;
                 return Ok(());
             }
-            let removed = guild_data.playlist.remove(index).unwrap();
+            let removed = guild_data
+                .playlist
+                .remove_prefetch(index, ctx.data().config.ytdlp.clone())
+                .unwrap();
             let title = removed.title().unwrap_or_default();
             drop(guild_data);
             turto_say(ctx, Remove { title }).await?;
@@ -52,7 +55,8 @@ pub async fn remove(
             }
             let drained = guild_data
                 .playlist
-                .drain(from..to)
+                .drain_prefetch(from..to, ctx.data().config.ytdlp.clone())
+                .into_iter()
                 .map(|drained_item| {
                     let title = drained_item.title().unwrap_or_default();
                     TurtoMessage::new(ctx, Remove { title }).to_string()

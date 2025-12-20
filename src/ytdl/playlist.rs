@@ -21,14 +21,34 @@ impl YouTubePlaylist {
     pub fn to_vec(self) -> Vec<YouTubeDl> {
         self.entries
             .into_iter()
-            .map(|metadata| {
-                YouTubeDl::new_with(
-                    metadata.webpage_url.clone().unwrap_or_default(),
-                    None,
-                    metadata,
-                )
-            })
+            .map(|metadata| YouTubeDl::new_with(metadata.url.clone(), None, metadata))
             .collect()
+    }
+}
+
+impl IntoIterator for YouTubePlaylist {
+    type Item = YouTubeDl;
+
+    type IntoIter = YouTubePlaylistIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        YouTubePlaylistIter {
+            inner: self.entries.into_iter(),
+        }
+    }
+}
+
+pub struct YouTubePlaylistIter {
+    inner: std::vec::IntoIter<YouTubeDlMetadata>,
+}
+
+impl Iterator for YouTubePlaylistIter {
+    type Item = YouTubeDl;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner
+            .next()
+            .map(|metadata| YouTubeDl::new_with(metadata.url.clone(), None, metadata))
     }
 }
 

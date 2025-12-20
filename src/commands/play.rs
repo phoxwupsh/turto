@@ -89,7 +89,9 @@ pub async fn play(ctx: Context<'_>, #[rename = "url"] query: Option<String>) -> 
         ctx.defer().await?;
 
         let mut guild_data = data.guilds.entry(guild_id).or_default();
-        let next = guild_data.playlist.pop_front();
+        let next = guild_data
+            .playlist
+            .pop_front_prefetch(ctx.data().config.ytdlp.clone());
         drop(guild_data);
 
         if let Some(next) = next {
