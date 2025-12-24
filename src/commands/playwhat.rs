@@ -3,16 +3,15 @@ use crate::{
         TurtoMessage,
         TurtoMessageKind::{NotPlaying, Pause, Play},
     },
-    models::alias::{Context, Error},
+    models::{alias::Context, error::CommandError},
     utils::turto_say,
 };
 use poise::CreateReply;
 use serenity::builder::CreateEmbed;
 use songbird::tracks::PlayMode;
-use tracing::error;
 
 #[poise::command(slash_command, guild_only)]
-pub async fn playwhat(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn playwhat(ctx: Context<'_>) -> Result<(), CommandError> {
     let guild_id = ctx.guild_id().unwrap();
 
     let playing_map = ctx.data().playing.read().await;
@@ -36,9 +35,7 @@ pub async fn playwhat(ctx: Context<'_>) -> Result<(), Error> {
             }
         },
         Err(err) => {
-            error!(error = ?err, "failed to get track");
-            turto_say(ctx, NotPlaying).await?;
-            return Ok(());
+            return Err(err.into())
         }
     };
 

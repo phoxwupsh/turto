@@ -1,6 +1,6 @@
 use crate::{
     message::TurtoMessageKind::{DifferentVoiceChannel, InvalidUrl, Play, UserNotInVoiceChannel},
-    models::alias::{Context, Error},
+    models::{alias::Context, error::CommandError},
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         join_voice_channel,
@@ -12,11 +12,13 @@ use crate::{
 use poise::CreateReply;
 use serenity::all::{CreateEmbed, CreateEmbedAuthor};
 use songbird::tracks::PlayMode;
-use tracing::error;
 use url::Url;
 
 #[poise::command(slash_command, guild_only)]
-pub async fn play(ctx: Context<'_>, #[rename = "url"] query: Option<String>) -> Result<(), Error> {
+pub async fn play(
+    ctx: Context<'_>,
+    #[rename = "url"] query: Option<String>,
+) -> Result<(), CommandError> {
     let guild_id = ctx.guild_id().unwrap();
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
@@ -32,13 +34,7 @@ pub async fn play(ctx: Context<'_>, #[rename = "url"] query: Option<String>) -> 
             return Ok(());
         }
         VoiceChannelState::OnlySecond(user_vc) => {
-            match join_voice_channel(ctx, guild_id, user_vc).await {
-                Ok(call) => call,
-                Err(err) => {
-                    error!(error = ?err, channel = ?user_vc, "failed to join voice channel");
-                    return Ok(());
-                }
-            }
+            join_voice_channel(ctx, guild_id, user_vc).await?
         }
         VoiceChannelState::Same(_) => songbird::get(ctx.serenity_context())
             .await
@@ -72,16 +68,15 @@ pub async fn play(ctx: Context<'_>, #[rename = "url"] query: Option<String>) -> 
             && current_track_state.playing == PlayMode::Pause
         {
             // If there is a paused song then play it
-            if let Err(why) = playing.track_handle.play() {
-                error!(error = ?why, ?playing, "failed to play track ");
-            } else {
-                let meta = playing
-                    .ytdlfile
-                    .fetch_metadata(ctx.data().config.ytdlp.clone())
-                    .await?;
-                let title = meta.title.as_deref().unwrap_or_default();
-                turto_say(ctx, Play { title }).await?;
-            }
+            playing.track_handle.play()?;
+
+            let meta = playing
+                .ytdlfile
+                .fetch_metadata(ctx.data().config.ytdlp.clone())
+                .await?;
+            let title = meta.title.as_deref().unwrap_or_default();
+            turto_say(ctx, Play { title }).await?;
+
             return Ok(());
         }
         drop(playing_map);

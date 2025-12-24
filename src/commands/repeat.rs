@@ -1,14 +1,11 @@
 use crate::{
     message::TurtoMessageKind::SetRepeat,
-    models::{
-        alias::{Context, Error},
-        toggle::ToggleOption,
-    },
+    models::{alias::Context, error::CommandError, toggle::ToggleOption},
     utils::turto_say,
 };
 
 #[poise::command(slash_command, guild_only)]
-pub async fn repeat(ctx: Context<'_>, toggle: ToggleOption) -> Result<(), Error> {
+pub async fn repeat(ctx: Context<'_>, toggle: ToggleOption) -> Result<(), CommandError> {
     let toggle = match toggle {
         ToggleOption::On => true,
         ToggleOption::Off => false,

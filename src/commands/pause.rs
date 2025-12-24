@@ -1,15 +1,14 @@
 use crate::{
     message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Pause},
-    models::alias::{Context, Error},
+    models::{alias::Context, error::CommandError},
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         turto_say,
     },
 };
-use tracing::error;
 
 #[poise::command(slash_command, guild_only)]
-pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn pause(ctx: Context<'_>) -> Result<(), CommandError> {
     let guild_id = ctx.guild_id().unwrap();
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
@@ -33,9 +32,8 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     };
 
-    if let Err(why) = playing.track_handle.pause() {
-        error!(error = ?why, ?playing, "Failed to pause track");
-    }
+    playing.track_handle.pause()?;
+
     let meta = playing
         .ytdlfile
         .fetch_metadata(ctx.data().config.ytdlp.clone())

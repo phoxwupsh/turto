@@ -1,6 +1,6 @@
 use crate::{
     message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, Leave},
-    models::alias::{Context, Error},
+    models::{alias::Context, error::CommandError},
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         turto_say,
@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[poise::command(slash_command, guild_only)]
-pub async fn leave(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn leave(ctx: Context<'_>) -> Result<(), CommandError> {
     let guild_id = ctx.guild_id().unwrap();
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;

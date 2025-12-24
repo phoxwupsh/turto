@@ -4073,6 +4073,7 @@ dependencies = [
  "songbird",
  "symphonia",
  "tempfile",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-cron-scheduler",
  "tokio-util",

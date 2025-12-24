@@ -1,12 +1,8 @@
 use crate::{
     message::TurtoMessageKind::SetVolume,
-    models::{
-        alias::{Context, Error},
-        guild::volume::GuildVolume,
-    },
+    models::{alias::Context, error::CommandError, guild::volume::GuildVolume},
     utils::turto_say,
 };
-use tracing::error;
 
 #[poise::command(slash_command, guild_only)]
 pub async fn volume(
@@ -14,7 +10,7 @@ pub async fn volume(
     #[min = 0]
     #[max = 100]
     value: Option<usize>,
-) -> Result<(), Error> {
+) -> Result<(), CommandError> {
     let guild_id = ctx.guild_id().unwrap();
 
     if let Some(vol) = value {
@@ -22,10 +18,8 @@ pub async fn volume(
         let new_vol = GuildVolume::try_from(vol).unwrap();
         let playing_map = ctx.data().playing.read().await;
         if let Some(playing) = playing_map.get(&guild_id)
-            && let Err(why) = playing.track_handle.set_volume(*new_vol)
         {
-            let uuid = playing.track_handle.uuid();
-            error!(track_id = %uuid, error = ?why, "Failed to set volume for track");
+            playing.track_handle.set_volume(*new_vol)?;
         }
         drop(playing_map);
 

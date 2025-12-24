@@ -1,3 +1,4 @@
+use crate::models::{autoleave::AutoleaveType, guild::Guilds, playing::Playing};
 use dashmap::DashMap;
 use serenity::{
     all::{ChannelId, GuildId},
@@ -15,9 +16,8 @@ use std::{
 use tokio::sync::RwLock;
 use tracing::{error, info};
 
-use crate::models::{autoleave::AutoleaveType, guild::Guilds, playing::Playing};
-
 pub mod before;
+pub mod error;
 pub mod track_end;
 pub mod track_error;
 

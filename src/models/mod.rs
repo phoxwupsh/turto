@@ -2,6 +2,7 @@ pub mod alias;
 pub mod autoleave;
 pub mod config;
 pub mod data;
+pub mod error;
 pub mod guild;
 pub mod help;
 pub mod playing;

@@ -4,8 +4,7 @@ use crate::{
         TurtoMessageKind::{EmptyPlaylist, InvalidPlaylistPage},
     },
     models::{
-        alias::{Context, Error},
-        playlist::Playlist,
+        alias::Context, error::CommandError, playlist::Playlist
     },
     utils::{misc::ToEmoji, turto_say},
 };
@@ -21,7 +20,7 @@ use serenity::{
 use std::time::Duration;
 
 #[poise::command(slash_command, guild_only)]
-pub async fn playlist(ctx: Context<'_>, #[min = 1] page: Option<usize>) -> Result<(), Error> {
+pub async fn playlist(ctx: Context<'_>, #[min = 1] page: Option<usize>) -> Result<(), CommandError> {
     let guild_id = ctx.guild_id().unwrap();
     let guild_data = ctx.data().guilds.entry(guild_id).or_default();
     let total_pages = guild_data.playlist.total_pages();

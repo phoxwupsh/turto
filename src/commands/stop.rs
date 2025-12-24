@@ -1,15 +1,14 @@
 use crate::{
     message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Stop},
-    models::alias::{Context, Error},
+    models::{alias::Context, error::CommandError},
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         turto_say,
     },
 };
-use tracing::error;
 
 #[poise::command(slash_command, guild_only)]
-pub async fn stop(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn stop(ctx: Context<'_>) -> Result<(), CommandError> {
     let guild_id = ctx.guild_id().unwrap();
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
@@ -34,9 +33,7 @@ pub async fn stop(ctx: Context<'_>) -> Result<(), Error> {
     };
     drop(playing_map);
 
-    if let Err(why) = playing.track_handle.stop() {
-        error!(error = ?why, ?playing, "failed to stop track");
-    }
+    playing.track_handle.stop()?;
 
     let meta = playing
         .ytdlfile

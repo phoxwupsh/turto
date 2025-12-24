@@ -1,12 +1,12 @@
 use crate::{
     message::TurtoMessageKind::{EmptyPlaylist, Shuffle},
-    models::alias::{Context, Error},
+    models::{alias::Context, error::CommandError},
     utils::turto_say,
 };
 use rand::{seq::SliceRandom, thread_rng};
 
 #[poise::command(slash_command, guild_only)]
-pub async fn shuffle(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn shuffle(ctx: Context<'_>) -> Result<(), CommandError> {
     let guild = ctx.guild_id().unwrap();
     let mut guild_data = ctx.data().guilds.entry(guild).or_default();
     if guild_data.playlist.is_empty() {

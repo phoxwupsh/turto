@@ -1,11 +1,13 @@
 use crate::{
     message::TurtoMessageKind::BannedUserResponse,
-    models::alias::{Context, Error},
+    models::{alias::Context, error::CommandError},
     utils::turto_say,
 };
 use std::{future::Future, pin::Pin};
 
-pub fn before(ctx: Context<'_>) -> Pin<Box<dyn Future<Output = Result<bool, Error>> + Send + '_>> {
+pub fn before(
+    ctx: Context<'_>,
+) -> Pin<Box<dyn Future<Output = Result<bool, CommandError>> + Send + '_>> {
     Box::pin(async move {
         if let Some(guild_id) = ctx.guild_id() {
             let user_id = ctx.author().id;

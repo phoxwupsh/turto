@@ -3,7 +3,7 @@ use crate::{
         BotNotInVoiceChannel, DifferentVoiceChannel, InvalidSeek, NotPlaying, SeekNotAllow,
         SeekNotLongEnough, SeekSuccess,
     },
-    models::alias::{Context, Error},
+    models::{alias::Context, error::CommandError},
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         turto_say,
@@ -11,10 +11,9 @@ use crate::{
 };
 use songbird::tracks::PlayMode;
 use std::time::Duration;
-use tracing::error;
 
 #[poise::command(slash_command, guild_only)]
-pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), Error> {
+pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), CommandError> {
     let config = ctx.data().config.clone();
 
     if !config.allow_seek {
@@ -70,16 +69,12 @@ pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), Error> {
             }
 
             ctx.defer().await?;
-            if let Err(why) = playing
+            playing
                 .track_handle
                 .seek_async(Duration::from_secs(time))
-                .await
-            {
-                let handle = &playing.track_handle;
-                error!(error = ?why, ?handle, "failed to seek track");
-            } else {
-                turto_say(ctx, SeekSuccess).await?;
-            }
+                .await?;
+
+            turto_say(ctx, SeekSuccess).await?;
         }
     }
 

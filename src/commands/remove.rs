@@ -3,7 +3,7 @@ use crate::{
         TurtoMessage,
         TurtoMessageKind::{InvalidRangeRemove, InvalidRemove, Remove, RemoveMany},
     },
-    models::alias::{Context, Error},
+    models::{alias::Context, error::CommandError},
     utils::turto_say,
 };
 
@@ -17,7 +17,7 @@ pub async fn remove(
     ctx: Context<'_>,
     #[min = 1] which: usize,
     #[min = 1] to_which: Option<usize>,
-) -> Result<(), Error> {
+) -> Result<(), CommandError> {
     let remove_item = match to_which {
         Some(to_which) => RemoveType::Range {
             from: which - 1, // the playlist index start from 1 so -1
@@ -35,24 +35,29 @@ pub async fn remove(
             // Check if the index is out of bounds
             if index >= length {
                 drop(guild_data);
+
                 turto_say(ctx, InvalidRemove { length }).await?;
                 return Ok(());
             }
+
             let removed = guild_data
                 .playlist
                 .remove_prefetch(index, ctx.data().config.ytdlp.clone())
                 .unwrap();
             let title = removed.title().unwrap_or_default();
             drop(guild_data);
+
             turto_say(ctx, Remove { title }).await?;
         }
         RemoveType::Range { from, to } => {
             // Check if the range is invalid
             if from > to || length <= from || length <= to {
                 drop(guild_data);
+
                 turto_say(ctx, InvalidRangeRemove { from, to, length }).await?;
                 return Ok(());
             }
+
             let drained = guild_data
                 .playlist
                 .drain_prefetch(from..to, ctx.data().config.ytdlp.clone())
@@ -75,6 +80,7 @@ pub async fn remove(
             } else {
                 drained.join("\n")
             };
+
             ctx.say(response).await?;
         }
     }

@@ -1,9 +1,6 @@
 use crate::{
     message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Skip},
-    models::{
-        alias::{Context, Error},
-        autoleave::AutoleaveType,
-    },
+    models::{alias::Context, autoleave::AutoleaveType, error::CommandError},
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         play::{PlayContext, play_ytdlfile_meta},
@@ -12,7 +9,7 @@ use crate::{
 };
 
 #[poise::command(slash_command, guild_only)]
-pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn skip(ctx: Context<'_>) -> Result<(), CommandError> {
     let guild_id = ctx.guild_id().unwrap();
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;

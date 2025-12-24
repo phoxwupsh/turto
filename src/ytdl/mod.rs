@@ -126,7 +126,7 @@ impl YouTubeDl {
         }
     }
 
-    pub async fn fetch_yt_playlist(&self) -> std::io::Result<YouTubePlaylist> {
+    pub async fn fetch_yt_playlist(&self) -> Result<YouTubePlaylist, YouTubeDlError> {
         let args = vec![self.inner.url.as_str(), "--flat-playlist", "-J"];
 
         let output = Command::new(get_ytdlp_path().as_path())
@@ -154,7 +154,7 @@ impl YouTubeDl {
         self.inner.url.as_str()
     }
 
-    pub async fn fetch_file(&self, config: Arc<YtdlpConfig>) -> std::io::Result<Input> {
+    pub async fn fetch_file(&self, config: Arc<YtdlpConfig>) -> Result<Input, YouTubeDlError> {
         let file = self
             .inner
             .file
@@ -210,7 +210,7 @@ impl YouTubeDl {
     pub async fn fetch_metadata(
         &self,
         config: Arc<YtdlpConfig>,
-    ) -> std::io::Result<Arc<YouTubeDlMetadata>> {
+    ) -> Result<Arc<YouTubeDlMetadata>, YouTubeDlError> {
         let val = self
             .inner
             .metadata
@@ -251,10 +251,13 @@ impl YouTubeDl {
     pub async fn play(
         &self,
         config: Arc<YtdlpConfig>,
-    ) -> std::io::Result<(
-        Pin<Box<dyn Future<Output = std::io::Result<Arc<YouTubeDlMetadata>>> + Send>>,
-        Input,
-    )> {
+    ) -> Result<
+        (
+            Pin<Box<dyn Future<Output = Result<Arc<YouTubeDlMetadata>, YouTubeDlError>> + Send>>,
+            Input,
+        ),
+        YouTubeDlError,
+    > {
         if let Some(file) = self.inner.file.get() {
             let mut file = file.try_clone()?;
             file.seek(SeekFrom::Start(0))?;
@@ -310,7 +313,7 @@ impl YouTubeDl {
             let output = serde_json::from_str::<YouTubeDlMetadata>(&line)?;
             let meta = Arc::new(output);
             let _ = self_inner.metadata.set(meta.clone());
-            std::io::Result::Ok(meta)
+            Result::Ok(meta)
         };
 
         let self_inner = self.inner.clone();
@@ -362,4 +365,12 @@ impl YouTubeDl {
         );
         Ok((Box::pin(meta_fut), input))
     }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum YouTubeDlError {
+    #[error("io error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("json error: {0}")]
+    Json(#[from] serde_json::Error),
 }

@@ -1,7 +1,7 @@
 use crate::{
     handlers::{track_end::TrackEndHandler, track_error::TrackErrorHandler},
     models::{alias::Context, config::YtdlpConfig, guild::Guilds, playing::Playing},
-    ytdl::{YouTubeDl, YouTubeDlMetadata},
+    ytdl::{YouTubeDl, YouTubeDlError, YouTubeDlMetadata},
 };
 use serenity::all::GuildId;
 use songbird::{Call, Event, TrackEvent, input::Input, tracks::Track};
@@ -12,7 +12,7 @@ pub async fn play_ytdlfile_meta(
     ctx: PlayContext,
     call: Arc<Mutex<Call>>,
     ytdlfile: YouTubeDl,
-) -> std::io::Result<Pin<Box<dyn Future<Output = std::io::Result<Arc<YouTubeDlMetadata>>> + Send>>>
+) -> Result<Pin<Box<dyn Future<Output = Result<Arc<YouTubeDlMetadata>, YouTubeDlError>> + Send>>, YouTubeDlError>
 {
     let (meta, input) = ytdlfile.play(ctx.ytdlp_config.clone()).await?;
     tokio::spawn(play_ytdlfile_inner(ctx, call, input, ytdlfile));
@@ -24,7 +24,7 @@ pub async fn play_ytdlfile(
     ctx: PlayContext,
     call: Arc<Mutex<Call>>,
     ytdlfile: YouTubeDl,
-) -> std::io::Result<()> {
+) -> Result<(), YouTubeDlError> {
     let input = ytdlfile.fetch_file(ctx.ytdlp_config.clone()).await?;
     tokio::spawn(play_ytdlfile_inner(ctx, call, input, ytdlfile));
 

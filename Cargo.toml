@@ -34,6 +34,7 @@ clap = { version = "4.5.53", features = ["derive"] }
 tokio-cron-scheduler = "0.15.1"
 arc-swap = "1.7.1"
 uuid = "1.18.1"
+thiserror = "2.0.17"
 
 [dependencies.serenity]
 version = "0.12.4"

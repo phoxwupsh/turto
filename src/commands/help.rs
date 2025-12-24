@@ -1,4 +1,4 @@
-use crate::models::alias::{Context, Error};
+use crate::models::{alias::Context, error::CommandError};
 use poise::{ChoiceParameter, CreateReply};
 use serenity::builder::CreateEmbed;
 
@@ -43,7 +43,7 @@ enum HelpOption {
 }
 
 #[poise::command(slash_command, guild_only)]
-pub async fn help(ctx: Context<'_>, command: HelpOption) -> Result<(), Error> {
+pub async fn help(ctx: Context<'_>, command: HelpOption) -> Result<(), CommandError> {
     let helps = &ctx.data().help;
     let command_help = if let Some(locale) = ctx.locale() {
         helps

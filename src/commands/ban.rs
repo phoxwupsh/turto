@@ -1,12 +1,12 @@
 use crate::{
     message::TurtoMessageKind::{AdministratorOnly, Ban},
-    models::alias::{Context, Error},
+    models::{alias::Context, error::CommandError},
     utils::turto_say,
 };
 use serenity::all::UserId;
 
 #[poise::command(slash_command, guild_only)]
-pub async fn ban(ctx: Context<'_>, user: UserId) -> Result<(), Error> {
+pub async fn ban(ctx: Context<'_>, user: UserId) -> Result<(), CommandError> {
     let guild_id = ctx.guild_id().unwrap();
     let user_id = ctx.author().id;
 

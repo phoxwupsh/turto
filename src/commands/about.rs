@@ -1,5 +1,5 @@
 use crate::{
-    models::alias::{Context, Error},
+    models::{alias::Context, error::CommandError},
     utils::misc::sha256_now,
 };
 use serenity::{
@@ -8,7 +8,7 @@ use serenity::{
 };
 
 #[poise::command(slash_command, guild_only)]
-pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn about(ctx: Context<'_>) -> Result<(), CommandError> {
     let mut embed = CreateEmbed::new()
         .author(
             CreateEmbedAuthor::new("phoxwupsh")

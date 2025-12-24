@@ -3,7 +3,7 @@ use crate::{
         TurtoMessage,
         TurtoMessageKind::{self, Join},
     },
-    models::alias::{Context, Error},
+    models::{alias::Context, error::CommandError},
 };
 use poise::ReplyHandle;
 use reqwest::Client;
@@ -31,7 +31,7 @@ pub async fn join_voice_channel(
     ctx: Context<'_>,
     guild_id: GuildId,
     channel_id: ChannelId,
-) -> Result<Arc<Mutex<Call>>, Error> {
+) -> Result<Arc<Mutex<Call>>, CommandError> {
     // there is some time limit of a command to be response,
     // joining a voice can take time and cause timeout
     // so use defer to prevent timeout
