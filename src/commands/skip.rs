@@ -7,9 +7,17 @@ use crate::{
         turto_say,
     },
 };
+use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
+#[instrument(
+    name = "skip",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+)]
 pub async fn skip(ctx: Context<'_>) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let guild_id = ctx.guild_id().unwrap();
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
@@ -40,6 +48,8 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), CommandError> {
         call.stop();
     }
 
+    tracing::info!("skip success");
+
     ctx.defer().await?;
 
     let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
@@ -49,6 +59,8 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), CommandError> {
     drop(guild_data);
 
     if let Some(next) = next {
+        tracing::info!(next = next.url(), "play next");
+
         let meta_fut = play_ytdlfile_meta(PlayContext::from_ctx(ctx).unwrap(), call, next).await?;
         let metadata = meta_fut.await?;
 

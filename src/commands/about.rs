@@ -6,9 +6,17 @@ use serenity::{
     builder::{CreateEmbed, CreateEmbedAuthor},
     prelude::Mentionable,
 };
+use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
+#[instrument(
+    name = "about",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+)]
 pub async fn about(ctx: Context<'_>) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let mut embed = CreateEmbed::new()
         .author(
             CreateEmbedAuthor::new("phoxwupsh")

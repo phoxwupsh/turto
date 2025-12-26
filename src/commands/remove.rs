@@ -1,3 +1,5 @@
+use tracing::{Span, instrument};
+
 use crate::{
     message::{
         TurtoMessage,
@@ -13,11 +15,22 @@ enum RemoveType {
 }
 
 #[poise::command(slash_command, guild_only)]
+#[instrument(
+    name = "remove",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+    fields(
+        which,
+        to_which
+    )
+)]
 pub async fn remove(
     ctx: Context<'_>,
     #[min = 1] which: usize,
     #[min = 1] to_which: Option<usize>,
 ) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let remove_item = match to_which {
         Some(to_which) => RemoveType::Range {
             from: which - 1, // the playlist index start from 1 so -1
@@ -45,6 +58,9 @@ pub async fn remove(
                 .remove_prefetch(index, ctx.data().config.ytdlp.clone())
                 .unwrap();
             let title = removed.title().unwrap_or_default();
+
+            tracing::info!(removed = removed.url(), "remove single success");
+
             drop(guild_data);
 
             turto_say(ctx, Remove { title }).await?;
@@ -68,6 +84,8 @@ pub async fn remove(
                 })
                 .collect::<Vec<_>>();
             drop(guild_data);
+
+            tracing::info!(items = drained.len(), "remove multiple success");
 
             let response = if drained.len() > 10 {
                 TurtoMessage::new(

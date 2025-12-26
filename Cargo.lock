@@ -4071,6 +4071,7 @@ dependencies = [
  "serenity",
  "sha256",
  "songbird",
+ "strum 0.27.2",
  "symphonia",
  "tempfile",
  "thiserror 2.0.17",

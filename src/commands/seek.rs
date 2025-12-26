@@ -11,9 +11,18 @@ use crate::{
 };
 use songbird::tracks::PlayMode;
 use std::time::Duration;
+use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
+#[instrument(
+    name = "seek",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+    fields(time)
+)]
 pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let config = ctx.data().config.clone();
 
     if !config.allow_seek {
@@ -73,6 +82,8 @@ pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), CommandE
                 .track_handle
                 .seek_async(Duration::from_secs(time))
                 .await?;
+
+            tracing::info!("seek success");
 
             turto_say(ctx, SeekSuccess).await?;
         }

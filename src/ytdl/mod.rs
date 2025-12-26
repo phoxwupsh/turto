@@ -4,6 +4,7 @@ use crate::{
     ytdl::playlist::{YouTubeDlPlaylistOutput, YouTubePlaylist},
 };
 use songbird::input::{AudioStream, Input, LiveInput};
+use tracing::instrument;
 use std::{
     collections::HashMap,
     future::Future,
@@ -248,6 +249,7 @@ impl YouTubeDl {
         Ok(val.clone())
     }
 
+    #[instrument(skip_all, fields(url = self.inner.url))]
     pub async fn play(
         &self,
         config: Arc<YtdlpConfig>,
@@ -344,9 +346,9 @@ impl YouTubeDl {
                 let mut file = writer.into_inner();
                 file.seek(SeekFrom::Start(0)).await?;
                 let _ = self_inner.file.set(file.into_std().await);
-                tracing::warn!("write file complete");
+                tracing::info!("write file complete");
             } else {
-                tracing::warn!("write file not complete");
+                tracing::warn!("write file incomplete");
             }
 
             Ok(())

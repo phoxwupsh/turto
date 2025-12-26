@@ -1,6 +1,10 @@
 use crate::{
     commands::create_commands,
-    handlers::{SerenityEventHandler, before::before, error::on_error},
+    handlers::{
+        SerenityEventHandler,
+        before::{command_check, pre_command},
+        error::on_error,
+    },
     models::{data::Data, guild::Guilds},
 };
 use poise::{Framework, FrameworkOptions};
@@ -29,8 +33,9 @@ impl Turto {
     ) -> Result<Self, serenity::Error> {
         let options = FrameworkOptions {
             commands: create_commands(&data.config, &data.help),
-            command_check: Some(before),
+            command_check: Some(command_check),
             on_error: on_error,
+            pre_command: pre_command,
             ..Default::default()
         };
 

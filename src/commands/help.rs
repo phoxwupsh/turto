@@ -1,8 +1,10 @@
 use crate::models::{alias::Context, error::CommandError};
 use poise::{ChoiceParameter, CreateReply};
 use serenity::builder::CreateEmbed;
+use tracing::{Span, instrument};
 
-#[derive(ChoiceParameter)]
+#[derive(ChoiceParameter, strum::Display)]
+#[strum(serialize_all = "snake_case")]
 enum HelpOption {
     #[name = "about"]
     About,
@@ -43,7 +45,15 @@ enum HelpOption {
 }
 
 #[poise::command(slash_command, guild_only)]
+#[instrument(
+    name = "help",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+    fields(%command)
+)]
 pub async fn help(ctx: Context<'_>, command: HelpOption) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let helps = &ctx.data().help;
     let command_help = if let Some(locale) = ctx.locale() {
         helps

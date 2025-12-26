@@ -1,3 +1,4 @@
+use tracing::{Span, instrument};
 use crate::{
     message::TurtoMessageKind::SetVolume,
     models::{alias::Context, error::CommandError, guild::volume::GuildVolume},
@@ -5,12 +6,20 @@ use crate::{
 };
 
 #[poise::command(slash_command, guild_only)]
+#[instrument(
+    name = "volume",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+    fields(value)
+)]
 pub async fn volume(
     ctx: Context<'_>,
     #[min = 0]
     #[max = 100]
     value: Option<usize>,
 ) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let guild_id = ctx.guild_id().unwrap();
 
     if let Some(vol) = value {
@@ -27,6 +36,8 @@ pub async fn volume(
         let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
         guild_data.config.volume = new_vol;
         drop(guild_data);
+
+        tracing::info!("set volume success");
 
         turto_say(ctx, SetVolume(new_vol)).await?;
         Ok(())

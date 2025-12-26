@@ -1,3 +1,4 @@
+use tracing::{Span, instrument};
 use crate::{
     message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Pause},
     models::{alias::Context, error::CommandError},
@@ -8,7 +9,14 @@ use crate::{
 };
 
 #[poise::command(slash_command, guild_only)]
+#[instrument(
+    name = "pause",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+)]
 pub async fn pause(ctx: Context<'_>) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let guild_id = ctx.guild_id().unwrap();
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
@@ -33,6 +41,7 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), CommandError> {
     };
 
     playing.track_handle.pause()?;
+    tracing::info!(paused = playing.ytdlfile.url(), "pause success");
 
     let meta = playing
         .ytdlfile

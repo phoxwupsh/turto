@@ -9,9 +9,17 @@ use crate::{
 use poise::CreateReply;
 use serenity::builder::CreateEmbed;
 use songbird::tracks::PlayMode;
+use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
+#[instrument(
+    name = "playwhat",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+)]
 pub async fn playwhat(ctx: Context<'_>) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let guild_id = ctx.guild_id().unwrap();
 
     let playing_map = ctx.data().playing.read().await;

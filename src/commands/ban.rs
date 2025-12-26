@@ -4,9 +4,18 @@ use crate::{
     utils::turto_say,
 };
 use serenity::all::UserId;
+use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
+#[instrument(
+    name = "ban",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+    fields(target = %user)
+)]
 pub async fn ban(ctx: Context<'_>, user: UserId) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let guild_id = ctx.guild_id().unwrap();
     let user_id = ctx.author().id;
 
@@ -27,6 +36,8 @@ pub async fn ban(ctx: Context<'_>, user: UserId) -> Result<(), CommandError> {
     let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
     let success = guild_data.config.banned.insert(user);
     drop(guild_data);
+
+    tracing::info!("ban success");
 
     turto_say(ctx, Ban { success, user }).await?;
     Ok(())

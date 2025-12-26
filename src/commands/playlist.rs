@@ -17,10 +17,19 @@ use serenity::{
     },
     collector::ComponentInteractionCollector,
 };
+use tracing::{Span, instrument};
 use std::time::Duration;
 
 #[poise::command(slash_command, guild_only)]
+#[instrument(
+    name = "playlist",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+    fields(page)
+)]
 pub async fn playlist(ctx: Context<'_>, #[min = 1] page: Option<usize>) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let guild_id = ctx.guild_id().unwrap();
     let guild_data = ctx.data().guilds.entry(guild_id).or_default();
     let total_pages = guild_data.playlist.total_pages();
@@ -32,16 +41,21 @@ pub async fn playlist(ctx: Context<'_>, #[min = 1] page: Option<usize>) -> Resul
     }
 
     if let Some(page) = page {
+        tracing::info!("show playlist page");
+
         let response = match generate_playlist_str(&guild_data.playlist, page) {
             Some(res) => res,
             None => TurtoMessage::new(ctx, InvalidPlaylistPage { total_pages }).to_string(),
         };
         drop(guild_data);
+
         ctx.say(response).await?;
         return Ok(());
     }
 
     if guild_data.playlist.len() <= 10 {
+        tracing::info!(item = guild_data.playlist.len(), "show playlist");
+
         // directly display if the playlist has less than 10 items
         let response = generate_playlist_str(&guild_data.playlist, 1);
         drop(guild_data);
@@ -52,6 +66,8 @@ pub async fn playlist(ctx: Context<'_>, #[min = 1] page: Option<usize>) -> Resul
         // show the select menu if the playlist has more than 10 and less than 250 items
         // since discord text message has a length limitation of 2000 unicode chars
         // and select menu has a limitation of 25 options
+
+        tracing::info!("show select menu");
 
         let custom_id = ctx.id().to_string();
         let select_menu = generate_page_select_menu(&guild_data.playlist, &custom_id);
@@ -68,6 +84,8 @@ pub async fn playlist(ctx: Context<'_>, #[min = 1] page: Option<usize>) -> Resul
             .await
         else {
             // delete the select menu if not selected after timeout
+            tracing::info!("select menu timeout");
+
             select_msg.delete(ctx).await?;
             return Ok(());
         };
@@ -78,6 +96,8 @@ pub async fn playlist(ctx: Context<'_>, #[min = 1] page: Option<usize>) -> Resul
             }
             _ => unreachable!(),
         };
+
+        tracing::info!(selected = page ,"page selected");
 
         let guild_data = ctx.data().guilds.entry(guild_id).or_default();
         let response_content = match generate_playlist_str(&guild_data.playlist, page) {

@@ -12,13 +12,22 @@ use crate::{
 use poise::CreateReply;
 use serenity::all::{CreateEmbed, CreateEmbedAuthor};
 use songbird::tracks::PlayMode;
+use tracing::{Span, instrument};
 use url::Url;
 
 #[poise::command(slash_command, guild_only)]
+#[instrument(
+    name = "play",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+    fields(query)
+)]
 pub async fn play(
     ctx: Context<'_>,
     #[rename = "url"] query: Option<String>,
 ) -> Result<(), CommandError> {
+    tracing::info!("invoke");
+
     let guild_id = ctx.guild_id().unwrap();
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
@@ -56,6 +65,9 @@ pub async fn play(
         let meta_fut =
             play_ytdlfile_meta(PlayContext::from_ctx(ctx).unwrap(), call, ytdlfile).await?;
         let meta = meta_fut.await?;
+
+        tracing::info!("play success");
+
         let embed = create_resp(&meta);
         ctx.send(CreateReply::default().embed(embed)).await?;
         return Ok(());
@@ -74,6 +86,9 @@ pub async fn play(
                 .ytdlfile
                 .fetch_metadata(ctx.data().config.ytdlp.clone())
                 .await?;
+
+            tracing::info!(url = playing.ytdlfile.url(), "resume");
+
             let title = meta.title.as_deref().unwrap_or_default();
             turto_say(ctx, Play { title }).await?;
 
@@ -90,6 +105,8 @@ pub async fn play(
         drop(guild_data);
 
         if let Some(next) = next {
+            tracing::info!(url = next.url(), "play first item in playlist");
+
             let meta_fut =
                 play_ytdlfile_meta(PlayContext::from_ctx(ctx).unwrap(), call, next).await?;
             let metadata = meta_fut.await?;

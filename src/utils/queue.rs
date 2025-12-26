@@ -50,6 +50,8 @@ pub async fn enqueue(ctx: Context<'_>, query: String, queue_type: QueueType) -> 
             }
             drop(guild_data);
 
+            tracing::info!("enqueue single success");
+
             title
         }
         QueueItemKind::Playlist(mut yt_playlist) => {
@@ -70,6 +72,9 @@ pub async fn enqueue(ctx: Context<'_>, query: String, queue_type: QueueType) -> 
                     .extend_prefetch(yt_playlist, ytdlp_config),
             }
             drop(guild_data);
+
+            tracing::info!("enqueue playlist success");
+
             title
         }
     };

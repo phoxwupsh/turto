@@ -42,6 +42,8 @@ pub async fn join_voice_channel(
         .join(guild_id, channel_id)
         .await?;
 
+    tracing::info!(channel = %channel_id, "join voice channel success");
+
     turto_say(ctx, Join(channel_id)).await?;
     Ok(call)
 }
