@@ -1,12 +1,11 @@
 use crate::{
     message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Skip},
-    models::{alias::Context, autoleave::AutoleaveType, error::CommandError},
+    models::{alias::Context, autoleave::AutoleaveType, error::CommandError, playing::PlayState},
     utils::{
-        guild::{GuildUtil, VoiceChannelState},
-        play::{PlayContext, play_ytdlfile_meta},
-        turto_say,
+        create_playing_embed, guild::{GuildUtil, VoiceChannelState}, play::{PlayContext, play_ytdlfile_meta}, turto_say
     },
 };
+use poise::CreateReply;
 use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
@@ -64,13 +63,8 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), CommandError> {
         let meta_fut = play_ytdlfile_meta(PlayContext::from_ctx(ctx).unwrap(), call, next).await?;
         let metadata = meta_fut.await?;
 
-        turto_say(
-            ctx,
-            Skip {
-                title: metadata.title.as_deref(),
-            },
-        )
-        .await?;
+        let resp = create_playing_embed(ctx, Some(PlayState::Skip), &metadata);
+        ctx.send(CreateReply::default().embed(resp)).await?;
     } else {
         let auto_leave = ctx
             .data()

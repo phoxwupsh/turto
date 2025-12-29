@@ -1,13 +1,9 @@
 use crate::{
-    message::{
-        TurtoMessage,
-        TurtoMessageKind::{NotPlaying, Pause, Play},
-    },
-    models::{alias::Context, error::CommandError},
-    utils::turto_say,
+    message::TurtoMessageKind::NotPlaying,
+    models::{alias::Context, error::CommandError, playing::PlayState},
+    utils::{create_playing_embed, turto_say},
 };
 use poise::CreateReply;
-use serenity::builder::CreateEmbed;
 use songbird::tracks::PlayMode;
 use tracing::{Span, instrument};
 
@@ -32,35 +28,19 @@ pub async fn playwhat(ctx: Context<'_>) -> Result<(), CommandError> {
         .ytdlfile
         .fetch_metadata(ctx.data().config.ytdlp.clone())
         .await?;
-    let title = meta.title.as_deref().unwrap_or_default();
-    let embed_title = match playing.track_handle.get_info().await {
-        Ok(track_state) => match track_state.playing {
-            PlayMode::Play => TurtoMessage::new(ctx, Play { title }),
-            PlayMode::Pause => TurtoMessage::new(ctx, Pause { title }),
-            _ => {
-                turto_say(ctx, NotPlaying).await?;
-                return Ok(());
-            }
-        },
-        Err(err) => {
-            return Err(err.into())
+    let play_state = match playing.track_handle.get_info().await?.playing {
+        PlayMode::Stop | PlayMode::End | PlayMode::Errored(_) => {
+            turto_say(ctx, NotPlaying).await?;
+            return Ok(());
         }
+        PlayMode::Play => PlayState::Play,
+        PlayMode::Pause => PlayState::Pause,
+        _ => unreachable!()
     };
-
-    let mut embed = CreateEmbed::new().title(embed_title);
-    if let Some(url) = meta.webpage_url.as_deref() {
-        embed = embed.url(url);
-    }
-    if let Some(channel) = meta.artist.as_deref().or(meta.channel.as_deref()) {
-        embed = embed.description(channel);
-    }
-    if let Some(thumbnail) = meta.thumbnail.as_deref() {
-        embed = embed.image(thumbnail);
-    }
     drop(playing_map);
 
-    let response = CreateReply::default().embed(embed);
-    ctx.send(response).await?;
+    let response = create_playing_embed(ctx, Some(play_state), &meta);
+    ctx.send(CreateReply::default().embed(response)).await?;
 
     Ok(())
 }

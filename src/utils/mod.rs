@@ -3,11 +3,12 @@ use crate::{
         TurtoMessage,
         TurtoMessageKind::{self, Join},
     },
-    models::{alias::Context, error::CommandError},
+    models::{alias::Context, error::CommandError, playing::PlayState},
+    ytdl::YouTubeDlMetadata,
 };
 use poise::ReplyHandle;
 use reqwest::Client;
-use serenity::all::{ChannelId, GuildId};
+use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor, GuildId};
 use songbird::Call;
 use std::{
     future::Future,
@@ -54,4 +55,53 @@ pub fn turto_say<'a>(
     msg: TurtoMessageKind<'a>,
 ) -> impl Future<Output = Result<ReplyHandle<'a>, serenity::Error>> {
     ctx.say(TurtoMessage::new(ctx, msg))
+}
+
+pub fn create_playing_embed(
+    ctx: Context<'_>,
+    play_mode: Option<PlayState>,
+    ytdl_data: &YouTubeDlMetadata,
+) -> CreateEmbed {
+    let mut embed = CreateEmbed::new();
+    if let Some(thumbnail) = ytdl_data.thumbnail.as_deref() {
+        embed = embed.image(thumbnail);
+    }
+    if let Some(webpage_url) = ytdl_data.webpage_url.as_deref() {
+        embed = embed.url(webpage_url);
+    }
+    if let Some(title) = ytdl_data.title.as_deref() {
+        match play_mode {
+            Some(play_mode) => {
+                let kind = match play_mode {
+                    PlayState::Play => TurtoMessageKind::Play { title },
+                    PlayState::Pause => TurtoMessageKind::Pause { title },
+                    PlayState::Stop => TurtoMessageKind::Stop { title },
+                    PlayState::Skip => TurtoMessageKind::Skip { title: Some(title) },
+                };
+                embed = embed.title(TurtoMessage::new(ctx, kind).to_string());
+            }
+            None => embed = embed.title(title),
+        }
+    }
+    if let Some(timestamp) = ytdl_data.timestamp {
+        embed = embed.timestamp(
+            serenity::model::Timestamp::from_unix_timestamp(timestamp).unwrap_or_default(),
+        );
+    }
+    if let Some(author_name) = ytdl_data
+        .channel
+        .as_deref()
+        .or(ytdl_data.uploader.as_deref())
+    {
+        let mut author = CreateEmbedAuthor::new(author_name);
+        if let Some(author_url) = ytdl_data
+            .channel_url
+            .as_deref()
+            .or(ytdl_data.uploader_url.as_deref())
+        {
+            author = author.url(author_url);
+        }
+        embed = embed.author(author);
+    }
+    embed
 }

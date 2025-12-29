@@ -1,16 +1,16 @@
 use crate::{
-    message::TurtoMessageKind::{DifferentVoiceChannel, InvalidUrl, Play, UserNotInVoiceChannel},
-    models::{alias::Context, error::CommandError},
+    message::TurtoMessageKind::{DifferentVoiceChannel, InvalidUrl, UserNotInVoiceChannel},
+    models::{alias::Context, error::CommandError, playing::PlayState},
     utils::{
+        create_playing_embed,
         guild::{GuildUtil, VoiceChannelState},
         join_voice_channel,
         play::{PlayContext, play_ytdlfile_meta},
         turto_say,
     },
-    ytdl::{YouTubeDl, YouTubeDlMetadata},
+    ytdl::YouTubeDl,
 };
 use poise::CreateReply;
-use serenity::all::{CreateEmbed, CreateEmbedAuthor};
 use songbird::tracks::PlayMode;
 use tracing::{Span, instrument};
 use url::Url;
@@ -68,7 +68,7 @@ pub async fn play(
 
         tracing::info!("play success");
 
-        let embed = create_resp(&meta);
+        let embed = create_playing_embed(ctx, Some(PlayState::Play), &meta);
         ctx.send(CreateReply::default().embed(embed)).await?;
         return Ok(());
     } else {
@@ -82,15 +82,15 @@ pub async fn play(
             // If there is a paused song then play it
             playing.track_handle.play()?;
 
-            let meta = playing
+            let metadata = playing
                 .ytdlfile
                 .fetch_metadata(ctx.data().config.ytdlp.clone())
                 .await?;
 
             tracing::info!(url = playing.ytdlfile.url(), "resume");
 
-            let title = meta.title.as_deref().unwrap_or_default();
-            turto_say(ctx, Play { title }).await?;
+            let resp = create_playing_embed(ctx, Some(PlayState::Play), &metadata);
+            ctx.send(CreateReply::default().embed(resp)).await?;
 
             return Ok(());
         }
@@ -111,13 +111,8 @@ pub async fn play(
                 play_ytdlfile_meta(PlayContext::from_ctx(ctx).unwrap(), call, next).await?;
             let metadata = meta_fut.await?;
 
-            turto_say(
-                ctx,
-                Play {
-                    title: metadata.title.as_deref().unwrap_or_default(),
-                },
-            )
-            .await?;
+            let resp = create_playing_embed(ctx, Some(PlayState::Play), &metadata);
+            ctx.send(CreateReply::default().embed(resp)).await?;
         } else {
             // if the playlist is empty
             turto_say(ctx, InvalidUrl(None)).await?;
@@ -125,38 +120,4 @@ pub async fn play(
     }
 
     Ok(())
-}
-
-fn create_resp(ytdl_data: &YouTubeDlMetadata) -> CreateEmbed {
-    let mut embed = CreateEmbed::new();
-    if let Some(thumbnail) = ytdl_data.thumbnail.as_deref() {
-        embed = embed.image(thumbnail);
-    }
-    if let Some(webpage_url) = ytdl_data.webpage_url.as_deref() {
-        embed = embed.url(webpage_url);
-    }
-    if let Some(title) = ytdl_data.title.as_deref() {
-        embed = embed.title(title);
-    }
-    if let Some(timestamp) = ytdl_data.timestamp {
-        embed = embed.timestamp(
-            serenity::model::Timestamp::from_unix_timestamp(timestamp).unwrap_or_default(),
-        );
-    }
-    if let Some(author_name) = ytdl_data
-        .channel
-        .as_deref()
-        .or(ytdl_data.uploader.as_deref())
-    {
-        let mut author = CreateEmbedAuthor::new(author_name);
-        if let Some(author_url) = ytdl_data
-            .channel_url
-            .as_deref()
-            .or(ytdl_data.uploader_url.as_deref())
-        {
-            author = author.url(author_url);
-        }
-        embed = embed.author(author);
-    }
-    embed
 }

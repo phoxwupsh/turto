@@ -1,12 +1,14 @@
-use tracing::{Span, instrument};
 use crate::{
-    message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Pause},
-    models::{alias::Context, error::CommandError},
+    message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying},
+    models::{alias::Context, error::CommandError, playing::PlayState},
     utils::{
+        create_playing_embed,
         guild::{GuildUtil, VoiceChannelState},
         turto_say,
     },
 };
+use poise::CreateReply;
+use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
 #[instrument(
@@ -47,8 +49,9 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), CommandError> {
         .ytdlfile
         .fetch_metadata(ctx.data().config.ytdlp.clone())
         .await?;
-    let title = meta.title.as_deref().unwrap();
 
-    turto_say(ctx, Pause { title }).await?;
+    let resp = create_playing_embed(ctx, Some(PlayState::Pause), &meta);
+    ctx.send(CreateReply::default().embed(resp)).await?;
+
     Ok(())
 }
