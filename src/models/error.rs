@@ -4,12 +4,18 @@ use crate::ytdl::YouTubeDlError;
 pub enum CommandError {
     #[error("serenity error: {0}")]
     Serenity(#[from] serenity::Error),
+
     #[error("songbird error: {0}")]
     Songbird(#[from] songbird::error::ControlError),
+
     #[error("join error: {0}")]
     Join(#[from] songbird::error::JoinError),
+
     #[error("ytdl error: {0}")]
-    YouTubeDl(#[from] YouTubeDlError)
+    YouTubeDl(#[from] YouTubeDlError),
+
+    #[error("invalid operation")]
+    InvalidOperation { cause: &'static str },
 }
 
 impl CommandError {
@@ -20,8 +26,9 @@ impl CommandError {
             Self::Join(_) => "voice channel",
             Self::YouTubeDl(ytdl_err) => match ytdl_err {
                 YouTubeDlError::Io(_) => "ytdl",
-                YouTubeDlError::Json(_) => "ytdl json"
-            }
+                YouTubeDlError::Json(_) => "ytdl json",
+            },
+            Self::InvalidOperation { cause } => cause,
         }
     }
 }

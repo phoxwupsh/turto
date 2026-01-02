@@ -6,33 +6,12 @@ use std::{
     sync::Arc,
 };
 
-const PAGE_SIZE: usize = 10;
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Playlist(VecDeque<YouTubeDl>);
 
 impl Playlist {
     pub fn new() -> Self {
         Playlist(VecDeque::<YouTubeDl>::new())
-    }
-
-    pub fn total_pages(&self) -> usize {
-        self.0.len().div_ceil(PAGE_SIZE)
-    }
-
-    pub fn page_with_indices(&self, index: usize) -> Option<Vec<(usize, &YouTubeDl)>> {
-        if index > self.total_pages() {
-            return None;
-        }
-        let start = (index - 1) * PAGE_SIZE;
-        let res = self
-            .0
-            .iter()
-            .enumerate()
-            .skip(start)
-            .take(PAGE_SIZE)
-            .collect();
-        Some(res)
     }
 
     fn prefetch_first(&self, ytdlp_config: Arc<YtdlpConfig>) {
@@ -114,11 +93,6 @@ async fn prefetch(next: YouTubeDl, ytdlp_config: Arc<YtdlpConfig>) {
         tracing::info!(url = next.url(), "prefetch next track success");
     }
 }
-// impl DerefMut for Playlist {
-//     fn deref_mut(&mut self) -> &mut Self::Target {
-//         &mut self.0
-//     }
-// }
 
 impl Default for Playlist {
     fn default() -> Self {
