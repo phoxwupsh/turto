@@ -6,11 +6,32 @@ use reqwest::header::USER_AGENT;
 use std::path::{Path, PathBuf};
 use tokio::io::AsyncWriteExt;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum YtdlpVersion {
     Stable(chrono::NaiveDate),
     Nightly(chrono::NaiveDateTime),
 }
+
+impl Ord for YtdlpVersion {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let self_datetime = match self {
+            YtdlpVersion::Nightly(datetime) => *datetime,
+            YtdlpVersion::Stable(date) => date.and_hms_opt(0, 0, 0).unwrap(),
+        };
+        let other_datetime = match other {
+            YtdlpVersion::Nightly(datetime) => *datetime,
+            YtdlpVersion::Stable(date) => date.and_hms_opt(0, 0, 0).unwrap(),
+        };
+        self_datetime.cmp(&other_datetime)
+    }
+}
+
+impl PartialOrd for YtdlpVersion {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 
 impl YtdlpVersion {
     const STABLE_TAG_FORMAT: &str = "%Y.%m.%d";
