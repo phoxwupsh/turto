@@ -6,7 +6,7 @@ use crate::{
     bot::Turto,
     deps::setup_ext_deps,
     message::template::Templates,
-    models::{config::TurtoConfig, data::Data, guild::Guilds, help::Help},
+    models::{config::TurtoConfig, data::Data, guild::Guilds, help::HelpConfig},
     sched::auto_update_ytdlp,
     signal::wait_shutdown_signal,
 };
@@ -49,21 +49,13 @@ impl Cli {
             }
         };
 
-        let help = match Help::load(&self.help) {
+        let help = match HelpConfig::load(&self.help) {
             Ok(help) => help,
             Err(err) => {
                 error!(error = ?err, path = %self.help.display(), "failed to load help");
                 return;
             }
         };
-
-        let missing_default = help.check_default();
-        if !missing_default.is_empty() {
-            for missing in missing_default {
-                error!(command = missing, "missing default help message");
-            }
-            return;
-        }
 
         let guild_data = match Guilds::load(&self.guilds) {
             Ok(data) => data,

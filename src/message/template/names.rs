@@ -1,75 +1,97 @@
-pub const NOT_PLAYING: &str = "not_playing";
-pub const USER_NO_VC: &str = "user_not_in_voice_channel";
-pub const BOT_NO_VC: &str = "bot_not_in_voice_channel";
-pub const DIFF_VC: &str = "different_voice_channel";
-pub const PLAY: &str = "play";
-pub const PAUSE: &str = "pause";
-pub const SKIP: &str = "skip";
-pub const STOP: &str = "stop";
-pub const JOIN: &str = "join";
-pub const LEAVE: &str = "leave";
-pub const QUEUE: &str = "queue";
-pub const REMOVE: &str = "remove";
-pub const REMOVE_ALL: &str = "remove_all";
-pub const INVALID_RM_IDX: &str = "invalid_remove_index";
-pub const URL_NOT_FOUND: &str = "url_not_found";
-pub const INVALID_URL: &str = "invalid_url";
-pub const VOLUME: &str = "volume";
-pub const TOGGLE_AUTOLEAVE: &str = "toggle_autoleave";
-pub const SEEK_SUCC: &str = "seek_success";
-pub const INVALID_SEEK: &str = "invalid_seek";
-pub const SEEK_NOT_ALLOW: &str = "seek_not_allow";
-pub const BACK_SEEK_NOT_ALLOW: &str = "backward_seek_not_allow";
-pub const SEEK_TOO_SHORT: &str = "seek_not_long_enough";
-pub const ADMIN_ONLY: &str = "administrator_only";
-pub const BAN_USER: &str = "user_got_banned";
-pub const BANNED_USER: &str = "user_already_banned";
-pub const UNBAN_USER: &str = "user_got_unbanned";
-pub const USER_NOT_BANNED: &str = "user_not_banned";
-pub const BANNED: &str = "banned_user_repsonse";
-pub const EMPTY_PL: &str = "empty_playlist";
-pub const SHUFFLE: &str = "shuffle";
-pub const TOGGLE_REPEAT: &str = "toggle_repeat";
-pub const INVALID_PL_PAGE: &str = "invalid_playlist_page";
-pub const REMOVE_MANY: &str = "remove_many";
-pub const INVALID_RM_RANGE: &str = "invalid_remove_range";
-pub const SKIP_SUCC: &str = "skip_success";
+use super::Template;
+use strum::{AsRefStr, EnumCount, EnumIter, EnumString};
 
-pub const TEMPLATE_NAMES: [&str; 36] = [
-    NOT_PLAYING,
-    USER_NO_VC,
-    BOT_NO_VC,
-    DIFF_VC,
-    PLAY,
-    PAUSE,
-    SKIP,
-    STOP,
-    JOIN,
-    LEAVE,
-    QUEUE,
-    REMOVE,
-    REMOVE_ALL,
-    INVALID_RM_IDX,
-    URL_NOT_FOUND,
-    INVALID_URL,
-    VOLUME,
-    TOGGLE_AUTOLEAVE,
-    SEEK_SUCC,
-    INVALID_SEEK,
-    SEEK_NOT_ALLOW,
-    BACK_SEEK_NOT_ALLOW,
-    SEEK_TOO_SHORT,
-    ADMIN_ONLY,
-    BAN_USER,
-    BANNED_USER,
-    UNBAN_USER,
-    USER_NOT_BANNED,
-    BANNED,
-    EMPTY_PL,
-    SHUFFLE,
-    TOGGLE_REPEAT,
-    INVALID_PL_PAGE,
-    REMOVE_MANY,
-    INVALID_RM_RANGE,
-    SKIP_SUCC,
-];
+#[derive(Debug, Clone, Copy, AsRefStr, EnumString, EnumCount, EnumIter, Hash, PartialEq, Eq)]
+#[strum(serialize_all = "snake_case")]
+pub enum TemplateName {
+    NotPlaying,
+    UserNotInVoiceChannel,
+    BotNotInVoiceChannel,
+    DifferentVoiceChannel,
+    Play,
+    Pause,
+    Skip,
+    SkipSuccess,
+    Stop,
+    Join,
+    Leave,
+    Queue,
+    Remove,
+    RemoveAll,
+    InvalidRemoveIndex,
+    UrlNotFound,
+    InvalidUrl,
+    Volume,
+    ToggleAutoleave,
+    SeekSuccess,
+    InvalidSeek,
+    SeekNotAllow,
+    BackwardSeekNotAllow,
+    SeekNotLongEnough,
+    AdministratorOnly,
+    UserGotBanned,
+    UserAlreadyBanned,
+    UserGotUnbanned,
+    UserNotBanned,
+    BannedUserRepsonse,
+    EmptyPlaylist,
+    Shuffle,
+    ToggleRepeat,
+    InvalidPlaylistPage,
+    RemoveMany,
+    InvalidRemoveRange,
+}
+
+impl TemplateName {
+    pub fn default_template(&self) -> Template {
+        use TemplateName::*;
+        match self {
+            NotPlaying => Template::parse("Not playing now."),
+            UserNotInVoiceChannel => Template::parse("You are not in a voice channel."),
+            BotNotInVoiceChannel => Template::parse("turto is not in a voice channel."),
+            DifferentVoiceChannel => Template::parse("You are not in {bot_voice_channel}"),
+            Play => Template::parse("▶️ {title}"),
+            Pause => Template::parse("⏸️ {title}"),
+            Skip => Template::parse("⏭️ {title}"),
+            SkipSuccess => Template::parse("⏭️✅"),
+            Stop => Template::parse("⏹️ {title}"),
+            Join => Template::parse("{voice_channel}⬅️🐢"),
+            Leave => Template::parse("⬅️🐢{voice_channel}"),
+            Queue => Template::parse("✅ {title}"),
+            Remove => Template::parse("❎ {title}"),
+            RemoveAll => Template::parse("The playlist has been cleared."),
+            InvalidRemoveIndex => {
+                Template::parse("Please enter a number or range between 1 and {playlist_length}.")
+            }
+            UrlNotFound => Template::parse("Can't find `{url}`"),
+            InvalidUrl => Template::parse("Please provide a valid url."),
+            Volume => Template::parse("🔊{volume}"),
+            ToggleAutoleave => Template::parse("Autoleave: `{autoleave_status}`"),
+            SeekSuccess => Template::parse("⏩✅"),
+            InvalidSeek => Template::parse(
+                "Please enter a number between 0 and the seek limitation {seek_limit}.",
+            ),
+            SeekNotAllow => Template::parse("Seeking is not allow."),
+            BackwardSeekNotAllow => Template::parse("Backward seeking is not allowed."),
+            SeekNotLongEnough => Template::parse("`{title}` is only {length} seconds long."),
+            AdministratorOnly => {
+                Template::parse("This command can only be invoked by an adminstrator.")
+            }
+            UserGotBanned => Template::parse("{user} has been banned."),
+            UserAlreadyBanned => Template::parse("{user} had already been banned."),
+            UserGotUnbanned => Template::parse("{user} has been unbanned."),
+            UserNotBanned => Template::parse("{user} hasn't been banned yet."),
+            BannedUserRepsonse => {
+                Template::parse("You are not allow to invoke any command because you are banned.")
+            }
+            EmptyPlaylist => Template::parse("The playlist is empty."),
+            Shuffle => Template::parse("🔀✅"),
+            ToggleRepeat => Template::parse("🔂{repeat_status}"),
+            InvalidPlaylistPage => Template::parse("There's only {total_pages} in the playlist."),
+            RemoveMany => Template::parse("🗑️{removed_number}"),
+            InvalidRemoveRange => {
+                Template::parse("Unable to remove from {from} to {to} in playlist")
+            }
+        }
+    }
+}

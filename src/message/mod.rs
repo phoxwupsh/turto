@@ -9,7 +9,7 @@ use serenity::{
 use std::fmt::Display;
 
 pub mod template;
-use template::names::*;
+use template::names::TemplateName;
 
 pub struct TurtoMessage<'a> {
     pub ctx: Context<'a>,
@@ -101,8 +101,8 @@ impl Display for TurtoMessage<'_> {
         let templates = &self.ctx.data().templates;
 
         macro_rules! render {
-            ($template:expr $(, $arg:tt)* $(,)?) => {{
-                let mut renderer = templates.get($template, locale).renderer();
+            ($template:ident $(, $arg:tt)* $(,)?) => {{
+                let mut renderer = templates.get_with_fallback(TemplateName::$template, locale).renderer();
                 $(render!(@arg renderer $arg);)*
                 for s in renderer.render_iter() {
                     f.write_str(s)?
@@ -120,73 +120,75 @@ impl Display for TurtoMessage<'_> {
         }
 
         match self.kind {
-            NotPlaying => render!(NOT_PLAYING),
-            UserNotInVoiceChannel => render!(USER_NO_VC),
-            BotNotInVoiceChannel => render!(BOT_NO_VC),
-            DifferentVoiceChannel { bot } => render!(DIFF_VC, ("bot_voice_channel", bot.mention())),
-            Play { title } => render!(PLAY, title),
-            Pause { title } => render!(PAUSE, title),
-            Stop { title } => render!(STOP, title),
+            NotPlaying => render!(NotPlaying),
+            UserNotInVoiceChannel => render!(UserNotInVoiceChannel),
+            BotNotInVoiceChannel => render!(BotNotInVoiceChannel),
+            DifferentVoiceChannel { bot } => {
+                render!(DifferentVoiceChannel, ("bot_voice_channel", bot.mention()))
+            }
+            Play { title } => render!(Play, title),
+            Pause { title } => render!(Pause, title),
+            Stop { title } => render!(Stop, title),
             Skip { title } => match title {
-                Some(title) => render!(SKIP, title),
-                None => render!(SKIP_SUCC),
+                Some(title) => render!(Skip, title),
+                None => render!(SkipSuccess),
             },
-            Join(channel) => render!(JOIN, ("voice_channel", channel.mention())),
-            Leave(channel) => render!(LEAVE, ("voice_channel", channel.mention())),
-            Queue { title } => render!(QUEUE, title),
-            Remove { title } => render!(REMOVE, ("title", title)),
-            RemoveAll => render!(REMOVE_ALL),
+            Join(channel) => render!(Join, ("voice_channel", channel.mention())),
+            Leave(channel) => render!(Leave, ("voice_channel", channel.mention())),
+            Queue { title } => render!(Queue, title),
+            Remove { title } => render!(Remove, ("title", title)),
+            RemoveAll => render!(RemoveAll),
             InvalidRemove { length } => {
-                render!(INVALID_RM_IDX, ("playlist_length", length))
+                render!(InvalidRemoveIndex, ("playlist_length", length))
             }
             InvalidRangeRemove { from, to, length } => {
-                render!(INVALID_RM_RANGE, from, to, ("playlist_length", length))
+                render!(InvalidRemoveRange, from, to, ("playlist_length", length))
             }
             InvalidUrl(url) => match url {
-                Some(url) => render!(URL_NOT_FOUND, url),
-                None => render!(INVALID_URL),
+                Some(url) => render!(UrlNotFound, url),
+                None => render!(InvalidUrl),
             },
-            SetVolume(val) => render!(VOLUME, ("volume", val.to_emoji())),
+            SetVolume(val) => render!(Volume, ("volume", val.to_emoji())),
             SetAutoleave(res) => match res {
-                AutoleaveType::On => render!(TOGGLE_AUTOLEAVE, ("autoleave_status", "on")),
-                AutoleaveType::Empty => render!(TOGGLE_AUTOLEAVE, ("autoleave_status", "empty")),
+                AutoleaveType::On => render!(ToggleAutoleave, ("autoleave_status", "on")),
+                AutoleaveType::Empty => render!(ToggleAutoleave, ("autoleave_status", "empty")),
                 AutoleaveType::Silent => {
-                    render!(TOGGLE_AUTOLEAVE, ("autoleave_status", "slient"))
+                    render!(ToggleAutoleave, ("autoleave_status", "slient"))
                 }
                 AutoleaveType::Off => {
-                    render!(TOGGLE_AUTOLEAVE, ("autoleave_status", "off"))
+                    render!(ToggleAutoleave, ("autoleave_status", "off"))
                 }
             },
-            SeekSuccess => render!(SEEK_SUCC),
-            InvalidSeek { seek_limit } => render!(INVALID_SEEK, seek_limit),
+            SeekSuccess => render!(SeekSuccess),
+            InvalidSeek { seek_limit } => render!(InvalidSeek, seek_limit),
             SeekNotAllow { backward } => match backward {
-                true => render!(BACK_SEEK_NOT_ALLOW),
-                false => render!(SEEK_NOT_ALLOW),
+                true => render!(BackwardSeekNotAllow),
+                false => render!(SeekNotAllow),
             },
             SeekNotLongEnough { title, length } => {
-                render!(SEEK_TOO_SHORT, title, length)
+                render!(SeekNotLongEnough, title, length)
             }
-            AdministratorOnly => render!(ADMIN_ONLY),
+            AdministratorOnly => render!(AdministratorOnly),
             Ban { success, user } => match success {
-                true => render!(BAN_USER, ("user", user.mention())),
-                false => render!(BANNED_USER, ("user", user.mention())),
+                true => render!(UserGotBanned, ("user", user.mention())),
+                false => render!(UserAlreadyBanned, ("user", user.mention())),
             },
             Unban { success, user } => match success {
-                true => render!(UNBAN_USER, ("user", user.mention())),
-                false => render!(USER_NOT_BANNED, ("user", user.mention())),
+                true => render!(UserGotUnbanned, ("user", user.mention())),
+                false => render!(UserNotBanned, ("user", user.mention())),
             },
-            BannedUserResponse => render!(BANNED),
-            Shuffle => render!(SHUFFLE),
+            BannedUserResponse => render!(BannedUserRepsonse),
+            Shuffle => render!(Shuffle),
             SetRepeat(repeat) => match repeat {
-                true => render!(TOGGLE_REPEAT, ("repeat_status", "✅")),
-                false => render!(TOGGLE_REPEAT, ("repeat_status", "❎")),
+                true => render!(ToggleRepeat, ("repeat_status", "✅")),
+                false => render!(ToggleRepeat, ("repeat_status", "❎")),
             },
-            EmptyPlaylist => render!(EMPTY_PL),
+            EmptyPlaylist => render!(EmptyPlaylist),
             InvalidPlaylistPage { total_pages } => {
-                render!(INVALID_PL_PAGE, ("total_pages", total_pages.to_emoji()),)
+                render!(InvalidPlaylistPage, ("total_pages", total_pages.to_emoji()),)
             }
             RemoveMany { removed_number } => {
-                render!(REMOVE_MANY, ("removed_number", removed_number.to_emoji()))
+                render!(RemoveMany, ("removed_number", removed_number.to_emoji()))
             }
         }
     }

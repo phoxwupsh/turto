@@ -1,53 +1,79 @@
-use std::{borrow::Cow, collections::HashMap, fmt::Display, path::Path};
+use std::{borrow::Cow, collections::HashMap, fmt::Display, path::Path, str::FromStr};
+use strum::IntoEnumIterator;
+
+use crate::message::template::names::TemplateName;
 
 pub mod names;
 
 #[derive(Debug)]
-pub struct Templates(HashMap<String, HashMap<String, Template>>);
+pub struct Templates {
+    default: HashMap<TemplateName, Template>,
+    locales: HashMap<String, HashMap<TemplateName, Template>>,
+}
 
 impl Templates {
-    pub fn load(path: impl AsRef<Path>) -> anyhow::Result<Self> {
-        let templates_str = std::fs::read_to_string(path.as_ref())?;
+    pub fn load(path: impl AsRef<Path>) -> Result<Self, toml::de::Error> {
+        let path = path.as_ref();
+        let templates_str = match std::fs::read_to_string(path) {
+            Ok(s) => s,
+            Err(error) => {
+                tracing::warn!(%error, path = %path.display(), "failed to read tempaltes, will use default templates");
+                return Ok(Templates::default());
+            }
+        };
         let templates_map =
             toml::from_str::<HashMap<String, HashMap<String, String>>>(&templates_str)?;
 
-        let templates = templates_map
-            .into_iter()
-            .map(|(locale, map)| {
-                let templates = map
-                    .into_iter()
-                    .map(|(template_name, template_str)| {
-                        let template = Template::parse(&template_str);
-                        (template_name, template)
-                    })
-                    .collect::<HashMap<_, _>>();
-                (locale.to_ascii_lowercase(), templates) // case insensitive for locale ID
-            })
-            .collect::<HashMap<_, _>>();
-
-        let Some(default_templates) = templates.get("default") else {
-            return Err(anyhow::anyhow!("missing default language templates"));
-        };
-
-        for template_name in names::TEMPLATE_NAMES {
-            if default_templates.get(template_name).is_none() {
-                return Err(anyhow::anyhow!(
-                    "missing default language message template: {}",
-                    template_name,
-                ));
+        // transform raw data
+        let mut locales = HashMap::new();
+        for (locale, map) in templates_map {
+            let mut locale_map = HashMap::new();
+            for (name, template_str) in map {
+                let Ok(template_name) = TemplateName::from_str(&name) else {
+                    tracing::warn!(locale ,%name, "unknown template name ignored");
+                    continue;
+                };
+                let template = Template::parse(&template_str);
+                locale_map.insert(template_name, template);
             }
+            // case insensitive for locale ID
+            locales.insert(locale.to_ascii_lowercase(), locale_map);
         }
 
-        Ok(Self(templates))
+        Ok(Self {
+            default: Self::build_default(),
+            locales,
+        })
     }
 
-    pub fn get(&self, template_name: &str, locale: Option<&str>) -> &Template {
-        self.0
-            .get(&locale.unwrap_or("default").to_ascii_lowercase())
-            .or(self.0.get("default"))
-            .unwrap()
-            .get(template_name)
-            .unwrap()
+    pub fn get_with_fallback<'a>(
+        &'a self,
+        template_name: TemplateName,
+        locale: Option<&str>,
+    ) -> &'a Template {
+        if let Some(locale) = locale
+            && let Some(template_locale) = self.locales.get(locale)
+            && let Some(template) = template_locale.get(&template_name)
+        {
+            template
+        } else {
+            self.default.get(&template_name).unwrap()
+        }
+    }
+
+    fn build_default() -> HashMap<TemplateName, Template> {
+        TemplateName::iter()
+            .map(|template_name| (template_name, template_name.default_template()))
+            .collect()
+    }
+}
+
+impl Default for Templates {
+    fn default() -> Self {
+        Self {
+            default: Self::build_default(),
+            locales: HashMap::new(),
+        }
     }
 }
 

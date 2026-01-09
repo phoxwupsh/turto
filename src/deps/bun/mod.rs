@@ -18,7 +18,7 @@ pub fn get_bun_arg() -> &'static str {
 }
 
 pub async fn setup_bun(config: &YtdlpConfig, bun_dir: impl AsRef<Path>) -> anyhow::Result<()> {
-    if config.use_system_deno {
+    if config.use_system_bun {
         let path = which::which("bun").context("expected bun in PATH")?;
         tracing::info!(path = %path.display(), "system bun found");
         BUN.set("bun".to_string()).unwrap();
