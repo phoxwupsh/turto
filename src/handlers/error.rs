@@ -62,9 +62,7 @@ async fn handle_error(
             ctx.send(CreateReply::default().content(response).ephemeral(true))
                 .await?;
         }
-        FrameworkError::CommandPanic {
-            ctx, payload, ..
-        } => {
+        FrameworkError::CommandPanic { ctx, payload, .. } => {
             tracing::error!(payload, "command panic");
             // Not showing the payload to the user because it may contain sensitive info
             let embed = CreateEmbed::default()

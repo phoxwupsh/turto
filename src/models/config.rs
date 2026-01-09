@@ -5,7 +5,7 @@ use std::{path::Path, sync::Arc};
 use tracing::warn;
 
 /// Define config structs
-/// 
+///
 /// # What does this do?
 /// - Define config struct
 /// - Define function returning default value for each field

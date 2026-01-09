@@ -4,7 +4,6 @@ use crate::{
     ytdl::playlist::{YouTubeDlPlaylistOutput, YouTubePlaylist},
 };
 use songbird::input::{AudioStream, Input, LiveInput};
-use tracing::instrument;
 use std::{
     collections::HashMap,
     future::Future,
@@ -19,6 +18,7 @@ use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
     process::Command,
 };
+use tracing::instrument;
 use url::Url;
 
 pub mod playlist;

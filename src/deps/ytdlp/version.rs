@@ -32,7 +32,6 @@ impl PartialOrd for YtdlpVersion {
     }
 }
 
-
 impl YtdlpVersion {
     const STABLE_TAG_FORMAT: &str = "%Y.%m.%d";
     const NIGHTLY_TAG_FORMAT: &str = "%Y.%m.%d.%H%M%S";

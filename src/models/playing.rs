@@ -12,5 +12,5 @@ pub enum PlayState {
     Play,
     Pause,
     Skip,
-    Stop
+    Stop,
 }

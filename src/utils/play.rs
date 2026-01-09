@@ -12,8 +12,10 @@ pub async fn play_ytdlfile_meta(
     ctx: PlayContext,
     call: Arc<Mutex<Call>>,
     ytdlfile: YouTubeDl,
-) -> Result<Pin<Box<dyn Future<Output = Result<Arc<YouTubeDlMetadata>, YouTubeDlError>> + Send>>, YouTubeDlError>
-{
+) -> Result<
+    Pin<Box<dyn Future<Output = Result<Arc<YouTubeDlMetadata>, YouTubeDlError>> + Send>>,
+    YouTubeDlError,
+> {
     let (meta, input) = ytdlfile.play(ctx.ytdlp_config.clone()).await?;
     tokio::spawn(play_ytdlfile_inner(ctx, call, input, ytdlfile));
 

@@ -591,7 +591,6 @@ impl HelpConfig {
         locale: Option<&str>,
         command: CommandKind,
     ) -> CommandHelpView<'a> {
-
         let Some(locale) = locale else {
             return self.view_default_locale_command(command);
         };

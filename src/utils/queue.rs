@@ -2,7 +2,9 @@ use super::turto_say;
 use crate::{
     message::TurtoMessageKind::{InvalidUrl, Queue},
     models::{
-        alias::Context, error::CommandError, queue_item::{QueueItem, QueueItemKind}
+        alias::Context,
+        error::CommandError,
+        queue_item::{QueueItem, QueueItemKind},
     },
 };
 use std::mem::replace;
@@ -13,7 +15,11 @@ pub enum QueueType {
     Back,
 }
 
-pub async fn enqueue(ctx: Context<'_>, query: String, queue_type: QueueType) -> Result<(), CommandError> {
+pub async fn enqueue(
+    ctx: Context<'_>,
+    query: String,
+    queue_type: QueueType,
+) -> Result<(), CommandError> {
     let Ok(parsed) = Url::parse(&query) else {
         turto_say(ctx, InvalidUrl(None)).await?;
         return Ok(());

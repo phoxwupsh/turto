@@ -3,25 +3,25 @@ use std::{str::FromStr, time::Duration};
 use strum::{AsRefStr, Display, EnumIter, EnumString};
 
 /// THe macro for anything that requires all of the command names
-/// 
+///
 /// # Why
-/// 
+///
 /// Use this method because maintaining several lists of command names
 /// scatter everywhere and depending on them without any alignment or check
 /// is kinda error prone.
-/// 
+///
 /// # Usage
 /// Define a macro that accepts comma separated tokens and put the macro in this
-/// 
+///
 /// # Example
-/// 
+///
 /// ```rust
 /// macro_rules! create_cmd {
 ///     ($($cmd:ident),* $(,)?) => {
 ///         $(println!(stringify!($cmd));)*
 ///     };
 /// }
-/// 
+///
 /// for_each_cmd!(create_cmd);
 /// ```
 #[macro_export]
@@ -54,7 +54,7 @@ macro_rules! for_each_cmd {
 }
 
 /// Define mod for all commands
-/// 
+///
 /// Generates code like below
 /// ```rust
 /// mod about;
@@ -68,7 +68,7 @@ macro_rules! define_cmd_mod {
 for_each_cmd!(define_cmd_mod);
 
 /// Define enum for all commands
-/// 
+///
 /// Generates code like below
 /// ```rust
 /// #[allow(non_camel_case_types)]
@@ -103,7 +103,6 @@ pub fn create_commands(config: &TurtoConfig, help_config: &HelpConfig) -> Vec<Co
     }
 
     let mut commands = for_each_cmd!(create_cmd);
-
 
     for command in commands.iter_mut() {
         let kind = CommandKind::from_str(&command.name).unwrap();
