@@ -71,7 +71,7 @@ pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), CommandE
                 .fetch_metadata(ctx.data().config.ytdlp.clone())
                 .await?;
             let length = meta.duration.map(|t| t as u64).unwrap_or(0);
-            let title = meta.title.as_ref().unwrap();
+            let title = meta.title.as_deref().unwrap_or_default();
             if length < time {
                 turto_say(ctx, SeekNotLongEnough { title, length }).await?;
                 return Ok(());
