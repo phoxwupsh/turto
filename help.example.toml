@@ -79,7 +79,7 @@ value = "The value of volume, range from 0 to 100"
 short_description = "Ban a user"
 description = "Ban a user, then the banned user won't be able to use any command."
 [default.ban.parameters]
-user = "The user to be unbanned"
+user = "The user to be banned"
 
 [default.unban]
 short_description = "Unban a user"
