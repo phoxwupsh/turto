@@ -35,10 +35,6 @@ pub async fn about(ctx: Context<'_>) -> Result<(), CommandError> {
         embed = embed.field("Owner of this bot", owner.mention().to_string(), true);
     }
 
-    if let Some(locale) = ctx.locale() {
-        println!("locale: {}", locale);
-    }
-
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
 }
