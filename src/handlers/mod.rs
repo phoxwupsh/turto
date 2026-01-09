@@ -99,13 +99,12 @@ impl EventHandler for SerenityEventHandler {
                     .or_default()
                     .load(Ordering::Acquire)
                     == 0
+                    && let Err(err) = call.leave().await
                 {
-                    if let Err(err) = call.leave().await {
-                        error!(
-                            "Error occured while leaving voice channel {}: {}",
-                            bot_channel_id, err
-                        );
-                    }
+                    error!(
+                        "Error occured while leaving voice channel {}: {}",
+                        bot_channel_id, err
+                    );
                 }
             }
         }

@@ -34,8 +34,8 @@ impl Turto {
         let options = FrameworkOptions {
             commands: create_commands(&data.config, &data.help),
             command_check: Some(command_check),
-            on_error: on_error,
-            pre_command: pre_command,
+            on_error,
+            pre_command,
             ..Default::default()
         };
 
