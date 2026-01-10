@@ -1,4 +1,5 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
+use clap::ArgAction;
 use tokio_cron_scheduler::{Job, JobScheduler, JobSchedulerError};
 use tracing::{error, warn};
 
@@ -14,6 +15,9 @@ use crate::{
 #[derive(Debug, clap::Parser)]
 #[command(disable_help_flag = true)]
 pub struct Cli {
+    #[arg(short = '?', long = "usage", action = ArgAction::Help, help = "show the usage")]
+    usage: bool,
+
     #[arg(long, value_name = "FILE", value_hint = clap::ValueHint::FilePath, default_value = "config.toml", help = "path to config file")]
     config: PathBuf,
 
