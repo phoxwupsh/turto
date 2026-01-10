@@ -2,45 +2,51 @@
 
 [English](https://github.com/phoxwupsh/turto/blob/main/README.md) | [繁體中文](https://github.com/phoxwupsh/turto/blob/main/README.zh-Hant.md)
 
-turto是一個簡單易用而且支援許多自定義選項的Discord音樂機器人，很適合想要自己架設Discord音樂機器人的你。只要跟著下面的指示，不用幾分鐘你就能擁有自己的turto。
+turto 是一個簡單易用、可高度自訂的 Discord 音樂機器人，特別適合自架。跟著下面步驟，幾分鐘內就能擁有自己的 turto。
 
 ## 特點
 
-- 完全可以自定義的多國語言支援
-- 5分鐘內可以完成架設
-- 支援市面上幾乎所有影音平台(透過yt-dlp來實現這件事)
-- 使用斜線指令
+- 無需設定，開箱即用
+- 完全可自訂的多國語言支援
+- 5 分鐘內完成部署
+- 支援市面上幾乎所有串流平台（由 yt-dlp 驅動）
+  - 自動管理 yt-dlp 版本
+- 斜線指令
 
-## ⚠️更新注意事項
+## ⚠️從舊版本升級
 
-如果你是從舊版的0.x.x的舊版本更新上來的，那你可能需要將原本的機器人踢出你的伺服器，再依照下面的步驟重新邀請一次。
+如果你是從 0.x.x 版本升級，你可能需要先把機器人從伺服器踢掉，並依照下方步驟重新邀請一次。
 
 ## 部署
 
-turto需要yt-dlp才能運作，如果你還沒有安裝它的話，你可以照著下面的指示來安裝。turto也支援Docker，如果你要用Docker來執行turto的話，可以直接跳過以下這些步驟看[這裡](https://github.com/phoxwupsh/turto/blob/main/README.zh-Hant.md#%E7%94%A8Docker%E5%AE%B9%E5%99%A8%E4%BE%86%E5%9F%B7%E8%A1%8Cturto)。
-
-### yt-dlp
-
-在yt-dlp他們Github上的[這個Wiki頁面](https://github.com/yt-dlp/yt-dlp/wiki/Installation)有詳盡的指示教你如何在各種平台上安裝yt-dlp。
+> [!TIP]
+> turto 也支援 Docker，如果你想用 Docker 執行 turto，請看[這裡](https://github.com/phoxwupsh/turto#use-turto-with-docker)。
 
 ### 下載執行檔
 
-在你確定yt-dlp安裝好之後，你可以從[這裡](https://github.com/phoxwupsh/turto/releases)按照你所使用的平台下載我已經預先編譯好的turto版本。如果我沒有幫你正在使用的平台編譯的話，你也可以自己編譯。
+你可以從 [release 頁面](https://github.com/phoxwupsh/turto/releases)下載我已編譯好的 turto 執行檔。如果你使用的平台沒有提供，也可以自行編譯。
 
 #### .env
 
-先將你下載到的壓縮檔解壓縮，你會在資料夾中看到`.env`這個檔案，用記事本之類的文字編輯器開啟這個檔案你會看到像這樣
+下載執行檔後，你需要在同一個資料夾旁建立 `.env` 檔案，並用文字編輯器寫入以下內容：
 
 ```
-DISCORD_TOKEN=
+DISCORD_TOKEN=<你的 Discord token>
 ```
-你需要把你的**Token**貼在`DISCORD_TOKEN=`後面然後存檔。如果你還沒有Token的話，可以直接[Google搜尋「discord 機器人 token」](https://www.google.com/search?q=discord+%E6%A9%9F%E5%99%A8%E4%BA%BA+token)然後你就會看到一堆教學。並且，你也需要把**MESSAGE CONTENT INTENT**選項打開，這個選項在你取得Token的那個地方的下面。
 
-### 啟動
+你需要把你的 **token** 貼在 `DISCORD_TOKEN=` 後面並存檔。如果你不知道什麼是 Token，可以直接 [搜尋「discord bot token」](https://www.google.com/search?q=discord+bot+token)，會有很多教學。你也需要在取得 Token 的同一頁面把 **MESSAGE CONTENT INTENT** 打開。
+
+> [!NOTE]
+> 實際上我們需要的是把環境變數 `DISCORD_TOKEN` 設為你的 token，你可以用任何方式達成。
+
+### 啟動機器人
+
+turto 除了 token 以外不需要任何設定就能運作，但你仍然可以調整許多設定。
+若要用全預設值直接執行，只要不帶任何參數啟動即可。
 
 #### Windows
 
-在Windows中你只要點兩下`turto.exe`它就會啟動了，或是你也可以用命令提示字元或Powershell來啟動它。
+在 Windows 你可以直接點兩下 `turto.exe` 啟動，或使用命令提示字元 / PowerShell：
 
 ```shell
 .\turto
@@ -48,47 +54,82 @@ DISCORD_TOKEN=
 
 #### Linux/macOS
 
-記得要先幫執行檔設定執行權限
+確認執行檔有執行權限（若沒有可用以下指令設定）：
 
 ```shell
 chmod +x turto
 ```
-然後再啟動
+
+然後啟動：
 
 ```shell
 ./turto
 ```
 
+### 啟動參數
+
+你可以用 `-?` 或 `--usage` 查看參數，完整用法如下：
+
+```
+Usage: turto [OPTIONS]
+
+Options:
+  -?, --usage             show the usage
+      --config <FILE>     path to config file [default: config.toml]
+      --guilds <FILE>     path to guilds data file [default: guilds.json]
+      --help <FILE>       path to help messages file [default: help.toml]
+      --tempaltes <FILE>  path to message templates file [default: templates.toml]
+```
+
+你可以用像 `--config path/to/your/config.toml` 或 `--guilds path/to/your/guilds.json` 這種方式指定要使用的設定/資料檔。
+
+> [!NOTE]
+> 若沒有指定設定檔，turto 會嘗試使用同目錄下的設定檔預設名稱檔案。
+
 ## 設定
 
-turto執行檔所在的資料夾下有`config.toml`、`help.toml`跟`template.toml`等檔案，可以用記事本打開它們來修改turto的各項設定，由於是用TOML格式紀錄，編輯時記得要按照[TOML的格式](https://toml.io/en/v1.0.0)。
+turto 可以在沒有設定檔的情況下運作，但你仍可以透過一些 TOML 檔進行調整。
+我們提供包含 `zh-TW` 語言支援的範例檔，你可以直接複製後再依需求修改。
+
+- [`config.toml`](https://github.com/phoxwupsh/turto/blob/main/config.example.toml)
+- [`help.toml`](https://github.com/phoxwupsh/turto/blob/main/help.example.toml)
+- [`template.toml`](https://github.com/phoxwupsh/turto/blob/main/template.example.toml)
+
+> [!TIP]
+> 編輯時請確保符合 [TOML 格式](https://toml.io/en/v1.0.0)。
 
 ### 基礎設定
 
-`config.toml`用於turto的設定，每個參數的用途已經寫在檔案的註解中。`owner`則不一定要設定，如果有設定的話，owner能無視管理員權限使用`/ban`、`/unban`指令，並且在`/about`指令中會顯示這個turto屬於誰。
+你可以參考 [`config.toml`](https://github.com/phoxwupsh/turto/blob/main/config.example.toml) 的範例檔，用來調整 turto 的常見行為。
+每個參數的用途都寫在檔案內的註解中。
 
 > [!TIP]
-> 你可以用 [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) 之類的工具來取得 Netscape 格式的 cookies 文字檔，即可應用於 `cookies_path` 設定。
+> - `cookies_path` 可以使用像 [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) 之類的擴充功能取得 cookies（需為 Netscape 格式的文字檔）。
+> - 若設定了 `owner`，owner 可以在不需要管理員權限的情況下使用 `/ban` 與 `/unban` 指令，且 `/about` 會顯示 turto 屬於誰。
 
-### 多國語言設定
+### 多國語言支援
 
-turto支援多國語言，會依照使用者的地區設定來顯示對應語言的回應，預設支援英文與繁體中文。需要新增語言支援或是修改回應的話可以編輯`help.toml`跟`template.toml`這兩個檔案，在這兩個檔案中你會看到有`default`的區塊以及`zh-TW`的區塊，turto會優先使用有支援的語言，如果沒有支援該語言則會使用`default`的內容來回應。你也可以以編輯`default`區塊的內容讓turto預設使用其他種語言(或是任何你想讓它說的話)，詳細的設定說明都寫在`help.toml`跟`template.toml`的註解中。
+turto 支援多國語言，會依照使用者的 locale 設定顯示對應語言回應，預設語言為英文。
+若要新增語言或修改回應內容，可參考 [`help.toml`](https://github.com/phoxwupsh/turto/blob/main/help.example.toml) 與 [`template.toml`](https://github.com/phoxwupsh/turto/blob/main/template.example.toml)。
+你可以編輯 `default` 區塊，讓 turto 使用不同的預設語言（或任何你想讓它說的內容），也可以新增像 `zh-TW` 這樣的區塊來支援其他語言。
+turto 會優先使用有支援的語言；若使用者語言未被支援，則會使用 `default` 區塊的內容回應。
+更詳細的設定方式都寫在 `help.toml` 與 `template.toml` 的註解中。
 
-### 邀請turto到你的伺服器
+### 邀請 turto 到你的伺服器
 
-你可以去Discord的[Developer Portal](https://discord.com/developers/applications) &rarr; Applications &rarr; *你的機器人的應用程式* &rarr; General Information找到你的應用程式ID，然後將下面這個網址中的`your_application_id`換成你的應用程式ID
+你可以在 [Discord Developer Portal](https://discord.com/developers/applications) → Applications → *你的 bot 應用程式* → General Information 找到 application ID，並把下方網址中的 `your_application_id` 替換成你的 application ID：
 
 ```
-https://discord.com/api/oauth2/authorize?client_id=your_application_id&permissions=36718592&scope=bot+applications.commands
+https://discord.com/api/oauth2/authorize?client_id=<your_application_id>&permissions=36718592&scope=bot+applications.commands
 ```
 
-然後你就可以用這個網址邀請turto到你的伺服器了。或是你也可以自己去Discord的Developer Portal &rarr; Applications &rarr; *你的機器人的應用程式* &rarr; OAuth2 &rarr; URL Generator來生成網址，記得要勾選以下的選項
+或是在 Discord Developer Portal → Applications → *你的 bot 應用程式* → OAuth2 → URL Generator 自行產生網址。請勾選以下選項：
 
-**Scopes**
+#### Scopes
 - bot
 - applications.commands
 
-**Bot permissions**
+#### Bot permissions
 - Send Messages
 - Embed Links
 - Connect
@@ -97,48 +138,52 @@ https://discord.com/api/oauth2/authorize?client_id=your_application_id&permissio
 
 ## 使用方法
 
-你只需要打一個`/`就能看到turto所有指令的列表，斜線指令本身有針對指令及參數的說明，如果需要更詳細的資訊可以使用`/help`指令來查詢每個指令的詳細用法。
+你只要輸入 `/` 就能看到 turto 的所有指令列表。斜線指令本身會說明指令與參數；若要更詳細資訊，可使用 `/help` 查詢每個指令的用法。
 
 ## 關閉
 
-當你要讓turto停止運作的時候，你要在終端機視窗中按下`Ctrl`和`C`，這樣turto才會把資料(例如播放清單和各伺服器設定)儲存起來，反之如果你直接把視窗關掉那資料就不會儲存。
+如果你想停止 bot，請按 `Ctrl` + `C`，turto 會先儲存各伺服器資料（例如播放清單與設定）再關閉。若你直接關閉終端機視窗，資料可能不會被儲存。
 
 ## 除錯模式
 
-除錯模式會顯示更多程式運作的資訊，建議在回報bug前先啟用除錯模式，並提供log記錄檔。
+除錯模式會顯示更多程式資訊，方便除錯；若你準備回報 bug，建議先啟用除錯模式並提供 log。
 
 ### Windows
 
-**PowerShell**
+#### PowerShell
+
 ```powershell
 $env:TURTO_LOG="debug"
 .\turto
 ```
-**Command Prompt**
+
+#### Command Prompt
+
 ```batch
 set TURTO_LOG=debug
 .\turto
 ```
 
 ### Linux/macOS
+
 ```shell
 export TURTO_LOG=debug
 ./turto
 ```
 
-## 用Docker容器來執行turto
+## 用 Docker 執行 turto
 
-你只需要執行
+要以最簡單的方式啟動 turto，你可以直接執行：
 
 ```shell
 docker run -e DISCORD_TOKEN=your_bot_token ghcr.io/phoxwupsh/turto:latest
 ```
 
-記得用你自己的Token取代`your_bot_token`，就這麼簡單。
+把 `your_bot_token` 替換成你的 Discord bot token 即可。
 
-### 設定Docker中的turto
+### 在 Docker 中設定 turto
 
-我們可以用Docker volume來設定Docker中的turto，我們先把設定檔放在宿主的任意一處，然後就可以像這樣掛載它們
+要在 Docker 中設定 turto，需要使用 Docker volume：先把設定檔放在宿主機任意位置並修改，再像這樣掛載：
 
 ```shell
 docker run \
@@ -149,9 +194,10 @@ docker run \
   ghcr.io/phoxwupsh/turto:latest
 ```
 
-其中`/path/to/your/config.toml`就是宿主上的`config.toml`設定檔，`help.toml`和`templates.toml`同理，接著你就可以直接在編輯本機檔案，啟動容器後就會生效。
+其中 `/path/to/your/config.toml` 是宿主機上的 `config.toml`，`help.toml` 與 `tempaltes.toml` 同理；
+你只要在宿主機編輯它們，Docker 容器啟動後就會套用。
 
-你也可以讓資料`guilds.json`儲存在宿主上，只需要這樣掛載你的`guilds.json`。
+你也可以把資料存放在宿主機上，只要掛載 `guilds.json`：
 
 ```shell
 docker run \
@@ -162,13 +208,13 @@ docker run \
 
 ## 編譯
 
-要自己編譯turto你會需要Rust工具鏈和CMake。
+要編譯 turto，你需要 Rust toolchain 與 CMake。
 
-### Rust開發工具
+### Rust toolchain
 
-你可以直接去[Rust的官網](https://www.rust-lang.org/tools/install)按照裡面的指示安裝。
+要安裝 Rust toolchain，請參考[這裡](https://www.rust-lang.org/tools/install)並依指示安裝。
 
-安裝好之後你可以用下面這個指令確定你的Rust版本至少有`1.80.0`。
+安裝完成後，請確認 Rust 版本高於 `1.88.0`，你可以用以下指令查看版本：
 
 ```shell
 rustc -V
@@ -176,11 +222,11 @@ rustc -V
 
 ### CMake
 
-你可以到[CMake的官網](https://cmake.org/download/)下載對應平台的CMake。
+你可以從 [CMake 官網](https://cmake.org/download/) 下載對應平台的 CMake。
 
-#### turto原始碼
+#### 原始碼
 
-安裝好Rust開發工具和CMake之後，你需要下載turto的原始碼，你可以fork一份自己的(尤其如果你有打算要貢獻)原始碼，或是直接
+確保已安裝 Rust toolchain 與 CMake 後，接著需要下載原始碼。你可能會想 fork 一份（尤其如果你打算貢獻），或直接用 Git 下載：
 
 ```shell
 git clone https://github.com/phoxwupsh/turto.git
@@ -188,16 +234,16 @@ git clone https://github.com/phoxwupsh/turto.git
 
 ### 開始編譯
 
-先進到`Cargo.toml`所在的資料夾
+進到 `Cargo.toml` 所在資料夾：
 
 ```shell
 cd turto
 ```
 
-然後就可以開始編譯了
+開始編譯：
 
 ```shell
 cargo build --release
 ```
 
-編譯完成後，在`target` &rarr; `release`資料夾中你就可以找到turto的執行檔。如果你是自己編譯的話，你還是會需要將`.env`、`config.toml`、`help.toml`和`templates.toml`等檔案放入執行檔所所在的資料夾。你可以找到以`.template`結尾的對應檔案，只要將它們重新命名即可。
+編譯成功後，你可以在 `target` → `release` 資料夾找到 turto 執行檔。
