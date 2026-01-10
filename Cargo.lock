@@ -3859,7 +3859,7 @@ dependencies = [
 
 [[package]]
 name = "turto"
-version = "2.0.0-beta.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",
