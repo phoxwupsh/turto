@@ -1,68 +1,23 @@
 use crate::{
-    config::help::get_locale_help,
-    models::alias::{Context, Error},
+    commands::CommandKind,
+    models::{alias::Context, error::CommandError},
 };
-use poise::{ChoiceParameter, CreateReply};
-use serenity::builder::CreateEmbed;
-
-#[derive(ChoiceParameter)]
-enum HelpOption {
-    #[name = "about"]
-    About,
-    #[name = "autoleave"]
-    Autoleave,
-    #[name = "ban"]
-    Ban,
-    #[name = "join"]
-    Join,
-    #[name = "leave"]
-    Leave,
-    #[name = "pause"]
-    Pause,
-    #[name = "play"]
-    Play,
-    #[name = "playlist"]
-    Playlist,
-    #[name = "playwhat"]
-    Playwhat,
-    #[name = "queue"]
-    Queue,
-    #[name = "remove"]
-    Remove,
-    #[name = "repeat"]
-    Repeat,
-    #[name = "seek"]
-    Seek,
-    #[name = "shuffle"]
-    Shuffle,
-    #[name = "skip"]
-    Skip,
-    #[name = "stop"]
-    Stop,
-    #[name = "unban"]
-    Unban,
-    #[name = "volume"]
-    Volume,
-}
+use poise::CreateReply;
+use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
-pub async fn help(ctx: Context<'_>, command: HelpOption) -> Result<(), Error> {
-    let helps = get_locale_help(ctx.locale());
-    let command_name = command.name();
+#[instrument(
+    name = "help",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+    fields(%command)
+)]
+pub async fn help(ctx: Context<'_>, command: CommandKind) -> Result<(), CommandError> {
+    tracing::info!("invoked");
 
-    let target_help = helps
-        .get(command_name)
-        .unwrap_or(get_locale_help(None).get(command_name).unwrap()); // fallback to default language
-
-    let mut embed = CreateEmbed::new()
-        .title(command_name)
-        .description(&target_help.description);
-
-    if let Some(parameters) = &target_help.parameters {
-        for (name, description) in parameters.iter() {
-            embed = embed.field(name, description, false);
-        }
-    }
+    let helps = &ctx.data().help;
+    let command_help = helps.view_locale_command_with_fallback(ctx.locale(), command);
+    let embed = command_help.create_embed();
 
     let response = CreateReply::default().embed(embed);
 

@@ -1,15 +1,24 @@
 use crate::{
-    messages::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Stop},
-    models::alias::{Context, Error},
+    message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying},
+    models::{alias::Context, error::CommandError, playing::PlayState},
     utils::{
+        create_playing_embed,
         guild::{GuildUtil, VoiceChannelState},
         turto_say,
     },
 };
-use tracing::error;
+use poise::CreateReply;
+use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
-pub async fn stop(ctx: Context<'_>) -> Result<(), Error> {
+#[instrument(
+    name = "stop",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+)]
+pub async fn stop(ctx: Context<'_>) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let guild_id = ctx.guild_id().unwrap();
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
@@ -34,12 +43,17 @@ pub async fn stop(ctx: Context<'_>) -> Result<(), Error> {
     };
     drop(playing_map);
 
-    if let Err(why) = playing.track_handle.stop() {
-        let uuid = playing.track_handle.uuid();
-        error!("Failed to stop track {uuid}: {why}");
-    }
+    playing.track_handle.stop()?;
 
-    let title = playing.metadata.title.as_deref().unwrap();
-    turto_say(ctx, Stop { title }).await?;
+    tracing::info!(stopped = playing.ytdlfile.url(), "stop success");
+
+    let meta = playing
+        .ytdlfile
+        .fetch_metadata(ctx.data().config.ytdlp.clone())
+        .await?;
+
+    let resp = create_playing_embed(ctx, Some(PlayState::Stop), &meta);
+    ctx.send(CreateReply::default().embed(resp)).await?;
+
     Ok(())
 }

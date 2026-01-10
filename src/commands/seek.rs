@@ -1,10 +1,9 @@
 use crate::{
-    config::get_config,
-    messages::TurtoMessageKind::{
+    message::TurtoMessageKind::{
         BotNotInVoiceChannel, DifferentVoiceChannel, InvalidSeek, NotPlaying, SeekNotAllow,
         SeekNotLongEnough, SeekSuccess,
     },
-    models::alias::{Context, Error},
+    models::{alias::Context, error::CommandError},
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         turto_say,
@@ -12,11 +11,19 @@ use crate::{
 };
 use songbird::tracks::PlayMode;
 use std::time::Duration;
-use tracing::error;
+use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
-pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), Error> {
-    let config = get_config();
+#[instrument(
+    name = "seek",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+    fields(time)
+)]
+pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
+    let config = ctx.data().config.clone();
 
     if !config.allow_seek {
         turto_say(ctx, SeekNotAllow { backward: false }).await?;
@@ -59,24 +66,26 @@ pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), Error> {
                 }
             }
 
-            let length = playing.metadata.duration.unwrap().as_secs();
-            let title = playing.metadata.title.as_ref().unwrap();
+            let meta = playing
+                .ytdlfile
+                .fetch_metadata(ctx.data().config.ytdlp.clone())
+                .await?;
+            let length = meta.duration.map(|t| t as u64).unwrap_or(0);
+            let title = meta.title.as_deref().unwrap_or_default();
             if length < time {
                 turto_say(ctx, SeekNotLongEnough { title, length }).await?;
                 return Ok(());
             }
 
             ctx.defer().await?;
-            if let Err(why) = playing
+            playing
                 .track_handle
                 .seek_async(Duration::from_secs(time))
-                .await
-            {
-                let uuid = playing.track_handle.uuid();
-                error!("Failed to seek track {uuid}: {why}");
-            } else {
-                turto_say(ctx, SeekSuccess).await?;
-            }
+                .await?;
+
+            tracing::info!("seek success");
+
+            turto_say(ctx, SeekSuccess).await?;
         }
     }
 

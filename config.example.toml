@@ -19,5 +19,16 @@ auto_save = true
 # The data will be automatically saved at a intervals specified by this value, denoted by seconds
 auto_save_interval = 3600
 
+
+[ytdlp]
+# Use the yt-dlp that already in your environment
+use_system = false
+
+# Use nightly builds of yt-dlp
+use_nightly = false
+
+# Use bun that already in your environment for yt-dlp JS runtime
+use_system_bun = false
+
 # The path to your YouTube cookies in Netscape format, you can use extension like "Get cookies.txt LOCALLY" to get it
 #cookies_path = ""

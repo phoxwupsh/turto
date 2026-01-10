@@ -1,11 +1,12 @@
 pub mod bot;
+pub mod cli;
 pub mod commands;
-pub mod config;
+pub mod deps;
 pub mod handlers;
-pub mod messages;
+pub mod log;
+pub mod message;
 pub mod models;
+pub mod sched;
 pub mod signal;
 pub mod utils;
-
-#[cfg(test)]
-pub mod test;
+pub mod ytdl;

@@ -6,9 +6,11 @@ turto is a simple, easy-to-use and customizable Discord music bot, especially su
 
 ## Features
 
+- Zero configuration, out of box
 - Fully customizable multilingual support
 - Deploy within only 5 minutes
-- Support almost all platform (powered by yt-dlp)
+- Support almost all streaming platform (powered by yt-dlp)
+  - Automatic yt-dlp version management
 - Slash commands
 
 ## ⚠️Upgrade from older version
@@ -17,26 +19,30 @@ If you are upgrading from version 0.x.x, you might need to kick the bot from you
 
 ## Deployment
 
-turto depends on yt-dlp, make sure you have it installed, if you haven't done so, you can follow these steps to install it. turto also supports Docker, see [here](https://github.com/phoxwupsh/turto#use-turto-with-docker) if you want to use turto with Docker.
-
-### yt-dlp
-
-For installing yt-dlp, you can refer to [this page on their github repository](https://github.com/yt-dlp/yt-dlp/wiki/Installation), they have made instructions for various platforms.
+> [!TIP]
+> turto also supports Docker, see [here](https://github.com/phoxwupsh/turto#use-turto-with-docker) if you want to use turto with Docker.
 
 ### Download the executable
 
-Since you ensure that yt-dlp is installed, you can download pre-compiled turto binaries from the [release page](https://github.com/phoxwupsh/turto/releases). If the platform that you're using isn't provided, you can also compile it yourself.
+You can download pre-compiled turto executables from the [release page](https://github.com/phoxwupsh/turto/releases). If the platform that you're using isn't provided, you can also compile it yourself.
 
 #### .env
 
-After you extract the zip file downloaded from the release page, you will see `.env` file, open it with text editor then you will see the content is like below.
+After you downloaded the executables, you will need to create a `.env` file alongside with, write the below content in it with text editor.
 
 ```
-DISCORD_TOKEN=
+DISCORD_TOKEN=<your Discord token>
 ```
-You need to paste you **Token** right after `DISCORD_TOKEN=`, and save the file. If you don't know what is Token, you can just [seach "discord bot token"](https://www.google.com/search?q=discord+bot+token) and there are a lot of tutorials telling how to do. You also need to turn the **MESSAGE CONTENT INTENT** on, in the same page as you get Token.
+
+You need to paste you **token** right after `DISCORD_TOKEN=`, and save the file. If you don't know what is Token, you can just [seach "discord bot token"](https://www.google.com/search?q=discord+bot+token) and there are a lot of tutorials telling how to do. You also need to turn the **MESSAGE CONTENT INTENT** on, in the same page as you get token.
+
+> [!NOTE]
+> Actually what we need is the environment variable `DISCORD_TOKEN` to be set to your token, you can achieve this is by any kind of method.
 
 ### Launch the bot
+
+turto can run without any configuration or settings (except token), but there are still many configuration you can tweak.
+To simply run the turto without any configuration (will use all default) you can simply run with no option.
 
 #### Windows
 
@@ -53,41 +59,76 @@ Make sure the exetuable have execute permission, if not, it can be done by
 ```shell
 chmod +x turto
 ```
+
 And you can start the bot by
 
 ```shell
 ./turto
 ```
 
+### Launch options
+
+You can run with `-?` or `--usage` to see the options, below is the full usage
+
+```
+Usage: turto [OPTIONS]
+
+Options:
+  -?, --usage             show the usage
+      --config <FILE>     path to config file [default: config.toml]
+      --guilds <FILE>     path to guilds data file [default: guilds.json]
+      --help <FILE>       path to help messages file [default: help.toml]
+      --tempaltes <FILE>  path to message templates file [default: templates.toml]
+```
+
+> [!NOTE]
+> If configuration files are not specified, turto will try to use the files with default names in the same directory.
+
+You can specify the configuration or data files you want to use with options like `--config path/to/your/config.toml` or `--guilds path/to/your/guilds.json`.
+
 ## Configuration
 
-In the same folder as the turto executable, you'll find files like `config.toml`, `help.toml`, and `template.toml`. You can open these files in text editors to tweak turto's settings. Since they use the TOML format, make sure you edit them according to the [TOML formats](https://toml.io/en/v1.0.0).
+turto can work without configuration, but you can still tweak turto with some TOML files. 
+We provide some example for the configuration files, which include `zh-TW` language support, you can simply copy them and modify for your needs.
+
+- [`config.toml`](https://github.com/phoxwupsh/turto/blob/main/config.example.toml)
+- [`help.toml`](https://github.com/phoxwupsh/turto/blob/main/help.example.toml)
+- [`template.toml`](https://github.com/phoxwupsh/turto/blob/main/template.example.toml)
+
+> [!TIP]
+> Make sure you edit them according to the [TOML formats](https://toml.io/en/v1.0.0).
 
 ### Basic configuration
 
-`config.toml` is used for configuring turto, the purpose of each parameter is described in the comments within the file. The `owner` parameter does not necessarily need to be set, but if it is, the owner has the ability to bypass admin permissions to use the `/ban` and `/unban` commands, and the `/about` command will display who turto belongs to.
+You can reference to example file of [`config.toml`](https://github.com/phoxwupsh/turto/blob/main/config.example.toml), which is used for tweaking common turto behaviors. 
+The purpose of each attribute is described in the comments within the file.
 
 > [!TIP]
-> For `cookies_path`, you can get cookies by using extension like [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc), which should be a Netscape format text file.
+> - For `cookies_path`, you can get cookies by using extension like [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc), which should be a Netscape format text file.
+> - If `owner` is set, the owner has the ability to bypass admin permissions to use the `/ban` and `/unban` commands, and the `/about` command will display who turto belongs to.
 
 ### Multilingual Support
-turto supports multiple languages and will display responses in the language corresponding to the user's regional settings, with English and Traditional Chinese being the default supported languages. To add support for new languages or to modify responses, you can edit `help.toml` and `template.toml`. In these files, you will see sections like `default` and `zh-TW`. turto will prioritize using a supported language, but if there’s no support for the user's language, it will respond with the content from the default section. You can also edit the content of the default section to have turto use a different default language (or whatever you want it to say). Detailed configuration instructions are written in the comments of both `help.toml` and `template.toml`.
+turto supports multiple languages and will display responses in the language corresponding to the user's locale settings, with English being the default supported languages.
+To add support for new languages or to modify responses, you can reference to [`help.toml`](https://github.com/phoxwupsh/turto/blob/main/help.example.toml) and [`template.toml`](https://github.com/phoxwupsh/turto/blob/main/template.example.toml).
+You can add and edit the `default` section  to have turto use a different default language (or whatever you want it to say), you can add other section like `zh-TW` for other languages.
+turto will prioritize using a supported language, and respond with the content from the default section if there’s no support for the user's language. 
+Detailed configuration instructions are written in the comments of both `help.toml` and `template.toml`.
 
 ### Invite the bot to your guild
 
 You can get your application ID in [Discord Developer Portal](https://discord.com/developers/applications) &rarr; Applications &rarr; *Your bot's application* &rarr; General Information, and replace `your_application_id` in the URL below.
 
 ```
-https://discord.com/api/oauth2/authorize?client_id=your_application_id&permissions=36718592&scope=bot+applications.commands
+https://discord.com/api/oauth2/authorize?client_id=<your_application_id>&permissions=36718592&scope=bot+applications.commands
 ```
 
 Or, you can generate the URL in Discord Developer Portal &rarr; Applications &rarr; *Your bot's application* &rarr; OAuth2 &rarr; URL Generator. Make sure to select these following options.
 
-**Scopes**
+#### Scopes
 - bot
 - applications.commands
 
-**Bot permissions**
+#### Bot permissions
 - Send Messages
 - Embed Links
 - Connect
@@ -108,18 +149,22 @@ Debug mode shows more information of the program, which is useful for debugging,
 
 ### Windows
 
-**PowerShell**
+#### PowerShell
+
 ```powershell
 $env:TURTO_LOG="debug"
 .\turto
 ```
-**Command Prompt**
+
+#### Command Prompt
+
 ```batch
 set TURTO_LOG=debug
 .\turto
 ```
 
 ### Linux/macOS
+
 ```shell
 export TURTO_LOG=debug
 ./turto
@@ -127,7 +172,7 @@ export TURTO_LOG=debug
 
 ## Use turto with Docker
 
-Run this command
+To startup turto with minimal setup, you can simply run this command
 
 ```shell
 docker run -e DISCORD_TOKEN=your_bot_token ghcr.io/phoxwupsh/turto:latest
@@ -168,7 +213,7 @@ To compile turto, you will need Rust toolchain and CMake.
 
 To install Rust toolchain, you can visit [here](https://www.rust-lang.org/tools/install), and follow the instruction.
 
-After you finish the installation, make sure your Rust version is higher than `1.80.0`, you can check your Rust version by
+After you finish the installation, make sure your Rust version is higher than `1.88.0`, you can check your Rust version by
 
 ```shell
 rustc -V
@@ -200,4 +245,4 @@ And start compiling
 cargo build --release
 ```
 
-After it compile successfully, you can see turto executable in directory `target` &rarr; `release`. If you compile turto yourself, you will need `.env`, `config.toml`, `help.toml` and `templates.toml` in the same directory with the executable, you can find presets in this repository, with file name end with `.template`, you can simply rename them and start using.
+After it compile successfully, you can see turto executable in directory `target` &rarr; `release`.

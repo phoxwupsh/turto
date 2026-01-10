@@ -1,15 +1,22 @@
+use tracing::{Span, instrument};
 use crate::{
-    messages::TurtoMessageKind::{DifferentVoiceChannel, UserNotInVoiceChannel},
-    models::alias::{Context, Error},
+    message::TurtoMessageKind::{DifferentVoiceChannel, UserNotInVoiceChannel},
+    models::{alias::Context, error::CommandError},
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         join_voice_channel, turto_say,
     },
 };
-use tracing::error;
 
 #[poise::command(slash_command, guild_only)]
-pub async fn join(ctx: Context<'_>) -> Result<(), Error> {
+#[instrument(
+    name = "join",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+)]
+pub async fn join(ctx: Context<'_>) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let guild_id = ctx.guild_id().unwrap();
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
@@ -25,9 +32,7 @@ pub async fn join(ctx: Context<'_>) -> Result<(), Error> {
             return Ok(());
         }
         VoiceChannelState::OnlySecond(user_vc) => {
-            if let Err(err) = join_voice_channel(ctx, guild_id, user_vc).await {
-                error!("Failed to join voice channel {user_vc}: {err}");
-            }
+            join_voice_channel(ctx, guild_id, user_vc).await?;
         }
         VoiceChannelState::Same(_) => (),
     }

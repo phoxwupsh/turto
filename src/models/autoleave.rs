@@ -1,8 +1,11 @@
 use poise::ChoiceParameter;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, ChoiceParameter, Serialize, Deserialize, PartialEq, Clone, Copy)]
-pub enum AutoleaveType{
+#[derive(
+    Debug, ChoiceParameter, Serialize, Deserialize, PartialEq, Clone, Copy, strum::Display,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum AutoleaveType {
     #[name = "on"]
     On,
     #[name = "empty"]
@@ -10,6 +13,5 @@ pub enum AutoleaveType{
     #[name = "silent"]
     Silent,
     #[name = "off"]
-    Off
+    Off,
 }
-

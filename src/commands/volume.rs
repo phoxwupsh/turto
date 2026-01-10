@@ -1,31 +1,34 @@
+use tracing::{Span, instrument};
 use crate::{
-    messages::TurtoMessageKind::SetVolume,
-    models::{
-        alias::{Context, Error},
-        guild::volume::GuildVolume,
-    },
+    message::TurtoMessageKind::SetVolume,
+    models::{alias::Context, error::CommandError, guild::volume::GuildVolume},
     utils::turto_say,
 };
-use tracing::error;
 
 #[poise::command(slash_command, guild_only)]
+#[instrument(
+    name = "volume",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+    fields(value)
+)]
 pub async fn volume(
     ctx: Context<'_>,
     #[min = 0]
     #[max = 100]
     value: Option<usize>,
-) -> Result<(), Error> {
+) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let guild_id = ctx.guild_id().unwrap();
 
     if let Some(vol) = value {
         // Update the volume if there is a currently playing TrackHandle
         let new_vol = GuildVolume::try_from(vol).unwrap();
         let playing_map = ctx.data().playing.read().await;
-        if let Some(playing) = playing_map.get(&guild_id) {
-            if let Err(why) = playing.track_handle.set_volume(*new_vol) {
-                let uuid = playing.track_handle.uuid();
-                error!("Failed to set volume for track {uuid}: {why}");
-            }
+        if let Some(playing) = playing_map.get(&guild_id)
+        {
+            playing.track_handle.set_volume(*new_vol)?;
         }
         drop(playing_map);
 
@@ -33,6 +36,8 @@ pub async fn volume(
         let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
         guild_data.config.volume = new_vol;
         drop(guild_data);
+
+        tracing::info!("set volume success");
 
         turto_say(ctx, SetVolume(new_vol)).await?;
         Ok(())

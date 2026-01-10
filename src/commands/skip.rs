@@ -1,18 +1,22 @@
 use crate::{
-    messages::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Skip},
-    models::{
-        alias::{Context, Error},
-        autoleave::AutoleaveType,
-    },
+    message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Skip},
+    models::{alias::Context, autoleave::AutoleaveType, error::CommandError, playing::PlayState},
     utils::{
-        guild::{GuildUtil, VoiceChannelState},
-        play::play_next,
-        turto_say,
+        create_playing_embed, guild::{GuildUtil, VoiceChannelState}, play::{PlayContext, play_ytdlfile_meta}, turto_say
     },
 };
+use poise::CreateReply;
+use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
-pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
+#[instrument(
+    name = "skip",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+)]
+pub async fn skip(ctx: Context<'_>) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let guild_id = ctx.guild_id().unwrap();
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
@@ -43,28 +47,38 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         call.stop();
     }
 
-    let data = ctx.data();
+    tracing::info!("skip success");
+
     ctx.defer().await?;
-    let meta = play_next(
-        call.clone(),
-        data.guilds.clone(),
-        data.playing.clone(),
-        guild_id,
-    )
-    .await
-    .and_then(Result::ok);
 
-    // Leave when there is no next track and autoleave is on or in silent mode
-    let auto_leave = data.guilds.entry(guild_id).or_default().config.auto_leave;
-    let should_leave =
-        meta.is_none() && (auto_leave == AutoleaveType::On || auto_leave == AutoleaveType::Silent);
+    let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
+    let next = guild_data
+        .playlist
+        .pop_front_prefetch(ctx.data().config.ytdlp.clone());
+    drop(guild_data);
 
-    let title = meta.as_ref().and_then(|meta| meta.title.as_deref());
-    turto_say(ctx, Skip { title }).await?;
+    if let Some(next) = next {
+        tracing::info!(next = next.url(), "play next");
 
-    if should_leave {
-        let mut call = call.lock().await;
-        call.leave().await?;
+        let meta_fut = play_ytdlfile_meta(PlayContext::from_ctx(ctx).unwrap(), call, next).await?;
+        let metadata = meta_fut.await?;
+
+        let resp = create_playing_embed(ctx, Some(PlayState::Skip), &metadata);
+        ctx.send(CreateReply::default().embed(resp)).await?;
+    } else {
+        let auto_leave = ctx
+            .data()
+            .guilds
+            .entry(guild_id)
+            .or_default()
+            .config
+            .auto_leave;
+        let should_leave = auto_leave == AutoleaveType::On || auto_leave == AutoleaveType::Silent;
+        if should_leave {
+            let mut call = call.lock().await;
+            call.leave().await?;
+        }
+        turto_say(ctx, Skip { title: None }).await?;
     }
 
     Ok(())

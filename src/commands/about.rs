@@ -1,15 +1,22 @@
 use crate::{
-    config::get_config,
-    models::alias::{Context, Error},
+    models::{alias::Context, error::CommandError},
     utils::misc::sha256_now,
 };
 use serenity::{
     builder::{CreateEmbed, CreateEmbedAuthor},
     prelude::Mentionable,
 };
+use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
-pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
+#[instrument(
+    name = "about",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+)]
+pub async fn about(ctx: Context<'_>) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let mut embed = CreateEmbed::new()
         .author(
             CreateEmbedAuthor::new("phoxwupsh")
@@ -24,12 +31,8 @@ pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
             "https://opengraph.githubassets.com/{}/phoxwupsh/turto",
             sha256_now()
         ));
-    if let Some(owner) = get_config().owner {
+    if let Some(owner) = ctx.data().config.owner {
         embed = embed.field("Owner of this bot", owner.mention().to_string(), true);
-    }
-
-    if let Some(locale) = ctx.locale() {
-        println!("locale: {}", locale);
     }
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;

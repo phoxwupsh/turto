@@ -1,54 +1,46 @@
-use super::get_http_client;
 use crate::{
-    config::get_config,
-    handlers::track_end::TrackEndHandler,
-    models::{guild::data::GuildData, playing::Playing},
+    handlers::{track_end::TrackEndHandler, track_error::TrackErrorHandler},
+    models::{alias::Context, config::YtdlpConfig, guild::Guilds, playing::Playing},
+    ytdl::{YouTubeDl, YouTubeDlError, YouTubeDlMetadata},
 };
-use dashmap::DashMap;
-use serenity::model::prelude::GuildId;
-use songbird::{
-    input::{AudioStreamError, AuxMetadata, Compose, Input, LiveInput, YoutubeDl},
-    tracks::Track,
-    Call, Event, TrackEvent,
-};
-use std::{collections::HashMap, sync::Arc};
+use serenity::all::GuildId;
+use songbird::{Call, Event, TrackEvent, input::Input, tracks::Track};
+use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 use tokio::sync::{Mutex, RwLock};
 
-pub async fn play_url(
+pub async fn play_ytdlfile_meta(
+    ctx: PlayContext,
     call: Arc<Mutex<Call>>,
-    guild_data: Arc<DashMap<GuildId, GuildData>>,
-    guild_playing: Arc<RwLock<HashMap<GuildId, Playing>>>,
-    guild_id: GuildId,
-    url: impl AsRef<str>,
-) -> Result<Arc<AuxMetadata>, AudioStreamError> {
-    let mut source = {
-        let source = YoutubeDl::new(get_http_client(), url.as_ref().to_string());
-        if let Some(arg) = get_config().cookies_path.clone() {
-            let args = vec!["--cookies".to_owned(), arg];
-            source.user_args(args)
-        } else {
-            source
-        }
-    };
+    ytdlfile: YouTubeDl,
+) -> Result<
+    Pin<Box<dyn Future<Output = Result<Arc<YouTubeDlMetadata>, YouTubeDlError>> + Send>>,
+    YouTubeDlError,
+> {
+    let (meta, input) = ytdlfile.play(ctx.ytdlp_config.clone()).await?;
+    tokio::spawn(play_ytdlfile_inner(ctx, call, input, ytdlfile));
 
-    // If doing this here it will call `YoutubeDl::query` which invoke yt-dlp
-    // https://github.com/serenity-rs/songbird/blob/current/src/input/sources/ytdl.rs#L222
-    // And since YoutubeDl is lazily instantiated which will become `Input::Lazy`
-    // When we try to play `Input::Lazy` it calls `Compose::create_async` which also calls `YoutubeDl::query`
-    // https://github.com/serenity-rs/songbird/blob/current/src/driver/tasks/mixer/track.rs#L199
-    // https://github.com/serenity-rs/songbird/blob/current/src/driver/tasks/mixer/pool.rs#L31
-    // This will cause yt-dlp to be invoke twice
-    // let meta = Arc::new(source.aux_metadata().await?);
+    Ok(meta)
+}
 
-    // So we do it manually
-    // This will make sure the metadata available
-    let audio = source.create_async().await?;
-    let meta = Arc::new(source.aux_metadata().await.unwrap());
-    let input = Input::Live(LiveInput::Raw(audio), Some(Box::new(source)));
+pub async fn play_ytdlfile(
+    ctx: PlayContext,
+    call: Arc<Mutex<Call>>,
+    ytdlfile: YouTubeDl,
+) -> Result<(), YouTubeDlError> {
+    let input = ytdlfile.fetch_file(ctx.ytdlp_config.clone()).await?;
+    tokio::spawn(play_ytdlfile_inner(ctx, call, input, ytdlfile));
 
-    let volume = guild_data.entry(guild_id).or_default().config.volume;
+    Ok(())
+}
+
+async fn play_ytdlfile_inner(
+    ctx: PlayContext,
+    call: Arc<Mutex<Call>>,
+    input: Input,
+    ytdlfile: YouTubeDl,
+) {
+    let volume = ctx.data.entry(ctx.guild_id).or_default().config.volume;
     let track = Track::from(input).volume(*volume);
-
     let track_handle = {
         let mut call = call.lock().await;
         call.stop();
@@ -56,38 +48,44 @@ pub async fn play_url(
     };
 
     let track_end_handler = TrackEndHandler {
-        guild_data: guild_data.clone(),
-        guild_playing: guild_playing.clone(),
-        call: call.clone(),
-        url: url.as_ref().into(),
-        guild_id,
+        ctx: ctx.clone(),
+        call,
+        ytdl_file: ytdlfile.clone(),
     };
-
-    // This is infallible
     track_handle
         .add_event(Event::Track(TrackEvent::End), track_end_handler)
         .unwrap();
-    let playing = Playing {
-        track_handle,
-        metadata: meta.clone(),
-    };
+    track_handle
+        .add_event(Event::Track(TrackEvent::Error), TrackErrorHandler)
+        .unwrap();
 
-    // Update the current track
-    let _playing = guild_playing.write().await.insert(guild_id, playing);
-
-    Ok(meta)
+    {
+        let mut guilds_playing = ctx.playing.write().await;
+        guilds_playing.insert(
+            ctx.guild_id,
+            Playing {
+                track_handle,
+                ytdlfile,
+            },
+        );
+    }
 }
 
-pub async fn play_next(
-    call: Arc<Mutex<Call>>,
-    guild_data: Arc<DashMap<GuildId, GuildData>>,
-    guild_playing: Arc<RwLock<HashMap<GuildId, Playing>>>,
-    guild_id: GuildId,
-) -> Option<Result<Arc<AuxMetadata>, AudioStreamError>> {
-    let next = guild_data.entry(guild_id).or_default().playlist.pop_front();
+#[derive(Clone)]
+pub struct PlayContext {
+    pub guild_id: GuildId,
+    pub data: Arc<Guilds>,
+    pub playing: Arc<RwLock<HashMap<GuildId, Playing>>>,
+    pub ytdlp_config: Arc<YtdlpConfig>,
+}
 
-    match next {
-        Some(next) => Some(play_url(call, guild_data, guild_playing, guild_id, next.url).await),
-        None => None,
+impl PlayContext {
+    pub fn from_ctx(ctx: Context<'_>) -> Option<Self> {
+        Some(Self {
+            guild_id: ctx.guild_id()?,
+            data: ctx.data().guilds.clone(),
+            playing: ctx.data().playing.clone(),
+            ytdlp_config: ctx.data().config.ytdlp.clone(),
+        })
     }
 }

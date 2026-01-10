@@ -1,9 +1,11 @@
+use tracing::{Span, instrument};
+
 use crate::{
-    messages::{
+    message::{
         TurtoMessage,
         TurtoMessageKind::{InvalidRangeRemove, InvalidRemove, Remove, RemoveMany},
     },
-    models::alias::{Context, Error},
+    models::{alias::Context, error::CommandError},
     utils::turto_say,
 };
 
@@ -13,11 +15,22 @@ enum RemoveType {
 }
 
 #[poise::command(slash_command, guild_only)]
+#[instrument(
+    name = "remove",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+    fields(
+        which,
+        to_which
+    )
+)]
 pub async fn remove(
     ctx: Context<'_>,
     #[min = 1] which: usize,
     #[min = 1] to_which: Option<usize>,
-) -> Result<(), Error> {
+) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let remove_item = match to_which {
         Some(to_which) => RemoveType::Range {
             from: which - 1, // the playlist index start from 1 so -1
@@ -28,7 +41,6 @@ pub async fn remove(
 
     let guild_id = ctx.guild_id().unwrap();
     let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
-    let locale = ctx.locale();
     let length = guild_data.playlist.len();
 
     match remove_item {
@@ -36,47 +48,57 @@ pub async fn remove(
             // Check if the index is out of bounds
             if index >= length {
                 drop(guild_data);
+
                 turto_say(ctx, InvalidRemove { length }).await?;
                 return Ok(());
             }
-            let removed = guild_data.playlist.remove(index).unwrap();
-            let title = removed.title.as_str();
+
+            let removed = guild_data
+                .playlist
+                .remove_prefetch(index, ctx.data().config.ytdlp.clone())
+                .unwrap();
+            let title = removed.title().unwrap_or_default();
+
+            tracing::info!(removed = removed.url(), "remove single success");
+
             drop(guild_data);
+
             turto_say(ctx, Remove { title }).await?;
         }
         RemoveType::Range { from, to } => {
             // Check if the range is invalid
             if from > to || length <= from || length <= to {
                 drop(guild_data);
+
                 turto_say(ctx, InvalidRangeRemove { from, to, length }).await?;
                 return Ok(());
             }
+
             let drained = guild_data
                 .playlist
-                .drain(from..to)
+                .drain_prefetch(from..to, ctx.data().config.ytdlp.clone())
+                .into_iter()
                 .map(|drained_item| {
-                    TurtoMessage {
-                        locale,
-                        kind: Remove {
-                            title: &drained_item.title,
-                        },
-                    }
-                    .to_string()
+                    let title = drained_item.title().unwrap_or_default();
+                    TurtoMessage::new(ctx, Remove { title }).to_string()
                 })
                 .collect::<Vec<_>>();
             drop(guild_data);
 
+            tracing::info!(items = drained.len(), "remove multiple success");
+
             let response = if drained.len() > 10 {
-                TurtoMessage {
-                    locale,
-                    kind: RemoveMany {
+                TurtoMessage::new(
+                    ctx,
+                    RemoveMany {
                         removed_number: drained.len(),
                     },
-                }
+                )
                 .to_string()
             } else {
                 drained.join("\n")
             };
+
             ctx.say(response).await?;
         }
     }

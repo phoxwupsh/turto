@@ -1,14 +1,22 @@
 use crate::{
-    messages::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, Leave},
-    models::alias::{Context, Error},
+    message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, Leave},
+    models::{alias::Context, error::CommandError},
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         turto_say,
     },
 };
+use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
-pub async fn leave(ctx: Context<'_>) -> Result<(), Error> {
+#[instrument(
+    name = "leave",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+)]
+pub async fn leave(ctx: Context<'_>) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let guild_id = ctx.guild_id().unwrap();
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
@@ -29,6 +37,8 @@ pub async fn leave(ctx: Context<'_>) -> Result<(), Error> {
     let manager = songbird::get(ctx.serenity_context()).await.unwrap();
     manager.remove(guild_id).await?;
     ctx.data().playing.write().await.remove(&guild_id);
+
+    tracing::info!(%channel, "leave success");
 
     turto_say(ctx, Leave(channel)).await?;
     Ok(())

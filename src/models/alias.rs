@@ -1,5 +1,4 @@
-use super::data::Data;
+use super::{data::Data, error::CommandError};
 
-pub type Error = Box<dyn std::error::Error + Send + Sync>;
-pub type Context<'a> = poise::Context<'a, Data, Error>;
-pub type Command = poise::Command<Data, Error>;
+pub type Context<'a> = poise::Context<'a, Data, CommandError>;
+pub type Command = poise::Command<Data, CommandError>;

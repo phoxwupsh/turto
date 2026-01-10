@@ -1,15 +1,24 @@
 use crate::{
-    messages::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Pause},
-    models::alias::{Context, Error},
+    message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying},
+    models::{alias::Context, error::CommandError, playing::PlayState},
     utils::{
+        create_playing_embed,
         guild::{GuildUtil, VoiceChannelState},
         turto_say,
     },
 };
-use tracing::error;
+use poise::CreateReply;
+use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
-pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
+#[instrument(
+    name = "pause",
+    skip_all,
+    parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
+)]
+pub async fn pause(ctx: Context<'_>) -> Result<(), CommandError> {
+    tracing::info!("invoked");
+
     let guild_id = ctx.guild_id().unwrap();
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
@@ -33,12 +42,16 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     };
 
-    if let Err(why) = playing.track_handle.pause() {
-        let uuid = playing.track_handle.uuid();
-        error!("Failed to pause track {uuid}: {why}");
-    }
-    let title = playing.metadata.title.as_ref().unwrap();
+    playing.track_handle.pause()?;
+    tracing::info!(paused = playing.ytdlfile.url(), "pause success");
 
-    turto_say(ctx, Pause { title }).await?;
+    let meta = playing
+        .ytdlfile
+        .fetch_metadata(ctx.data().config.ytdlp.clone())
+        .await?;
+
+    let resp = create_playing_embed(ctx, Some(PlayState::Pause), &meta);
+    ctx.send(CreateReply::default().embed(resp)).await?;
+
     Ok(())
 }
