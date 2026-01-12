@@ -16,7 +16,7 @@ use crate::{
 #[command(disable_help_flag = true)]
 pub struct Cli {
     #[arg(short = '?', long = "usage", action = ArgAction::Help, help = "show the usage")]
-    usage: bool,
+    usage: Option<bool>,
 
     #[arg(long, value_name = "FILE", value_hint = clap::ValueHint::FilePath, default_value = "config.toml", help = "path to config file")]
     config: PathBuf,
