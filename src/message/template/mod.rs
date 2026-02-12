@@ -21,10 +21,23 @@ impl Templates {
                 return Ok(Templates::default());
             }
         };
-        let templates_map =
+        let mut templates_map =
             toml::from_str::<HashMap<String, HashMap<String, String>>>(&templates_str)?;
 
-        // transform raw data
+        // override default locale
+        let mut default = Self::build_default();
+        if let Some(default_override) = templates_map.remove("default") {
+            for (name, template_str) in default_override {
+                let Ok(template_name) = TemplateName::from_str(&name) else {
+                    tracing::warn!(%name, "unknown template name for default locale ignored");
+                    continue;
+                };
+                let template = Template::parse(&template_str);
+                default.insert(template_name, template);
+            }
+        }
+
+        // build other locales
         let mut locales = HashMap::new();
         for (locale, map) in templates_map {
             let mut locale_map = HashMap::new();
@@ -36,14 +49,10 @@ impl Templates {
                 let template = Template::parse(&template_str);
                 locale_map.insert(template_name, template);
             }
-            // case insensitive for locale ID
-            locales.insert(locale.to_ascii_lowercase(), locale_map);
+            locales.insert(locale, locale_map);
         }
 
-        Ok(Self {
-            default: Self::build_default(),
-            locales,
-        })
+        Ok(Self { default, locales })
     }
 
     pub fn get_with_fallback<'a>(
