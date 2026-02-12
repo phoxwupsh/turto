@@ -1,6 +1,6 @@
 [package]
 name = "turto"
-version = "2.0.1"
+version = "2.0.2"
 edition = "2024"
 authors = ["phoxwupsh"]
 rust-version = "1.88"
