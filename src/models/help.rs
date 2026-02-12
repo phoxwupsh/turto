@@ -208,9 +208,9 @@ define_cmd! {
     Autoleave : AutoleaveParams {
         short_description: "Toggle automatic leaving.",
         description: "Enable (`on`, `empty`, `silent`) or disable (`off`) automatic leaving. When automatic leaving is enabled, turto will leave the voice channel automatically when the playlist is empty after playback ends or is stopped.\n\
-                    - `on`: turto will leave when nothing is playing or no one is in the voice channel
-                    - `empty`: turto will leave when no one is in the voice channel
-                    - `silent`: turto will leave when no nothing is playing
+                    - `on`: turto will leave when nothing is playing or no one is in the voice channel\n\
+                    - `empty`: turto will leave when no one is in the voice channel\n\
+                    - `silent`: turto will leave when no nothing is playing\n\
                     - `off`: turto won't leave automatically",
         parameters: {
             toggle: "Toggle autoleave, refer to help command for usage",
@@ -245,11 +245,10 @@ define_cmd! {
 define_cmd! {
     Play : PlayParams {
         short_description: "Start playback.",
-        description: "Enable (`on`, `empty`, `silent`) or disable (`off`) automatic leaving. When automatic leaving is enabled, turto will leave the voice channel automatically when the playlist is empty after playback ends or is stopped.\n\
-                    - `on`: turto will leave when nothing is playing or no one is in the voice channel
-                    - `empty`: turto will leave when no one is in the voice channel
-                    - `silent`: turto will leave when no nothing is playing
-                    - `off`: turto won't leave automatically",
+        description: "Start playback. If turto is not in another voice channel, it will join your current one. Depending on the situation, there are several possibilities:\n\
+                    1. If `url` is provided, it will interrupt the currently playing item, and start playing it. Supported sources include YouTube, Bilibili videos and Soundcloud music (you can try other platform, as long as it's supported by yt-dlp).\n\
+                    2. If no `url` is provided and there is a paused item, it will resume playing that item.\n\
+                    3. If no `url` is provided and there is no paused item, it will start playing the playlist from the beginning.",
         parameters: {
             url: "Optional, the link to what you want to play"
         }
@@ -369,8 +368,8 @@ define_cmd! {
 define_cmd! {
     Remove : RemoveParams {
         short_description: "Delete items from the playlist.",
-        description: "Delete certain items from the playlist, there are two ways to use it:
-                    1. You can delete the item at position `which` in the playlist, by specifying the `which` parameter.
+        description: "Delete certain items from the playlist, there are two ways to use it:\n\
+                    1. You can delete the item at position `which` in the playlist, by specifying the `which` parameter.\n\
                     2. You can delete all items between positions `which` and `to_which` in the playlist, by specifying both `which` and `to_which` parameters.",
         parameters: {
             which: "Which item to remove",
