@@ -37,19 +37,17 @@ pub async fn get_local_ytdlp(
     let output = cmd.wait_with_output().await?;
     let exe_ver_str = String::from_utf8_lossy(&output.stdout);
 
-    let curr_ver = YtDlpVersion::from_str(&curr_ver_str.trim())?;
-    let exe_ver = YtDlpVersion::from_str(&exe_ver_str.trim())?;
+    let curr_ver = YtdlpVersion::from_str(&curr_ver_str.trim())?;
+    let exe_ver = YtdlpVersion::from_str(&exe_ver_str.trim())?;
 
-    if expect != exec_ver {
+    if curr_ver != exe_ver {
         return Err(crate::deps::DepsError::YtdlpVersionMismatch {
             expect: curr_ver,
             actual: exe_ver,
         });
     }
 
-    return Ok(Some((curr_ver, curr_exec)));
-
-    Ok(None)
+    Ok(Some((curr_ver, curr_exec)))
 }
 
 #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
