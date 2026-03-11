@@ -14,12 +14,18 @@ pub enum CommandError {
     #[error("ytdl error: {0}")]
     YouTubeDl(#[from] YouTubeDlError),
 
-    #[error("invalid operation")]
+    /// basically this won't happen, but just in case
+    /// someone can somehow bypass the guild only restriction
+    /// and invoke the command outside of a guild
+    #[error("command can only be invoked in a guild")]
+    GuildOnly,
+
+    #[error("{cause}")]
     InvalidOperation { cause: &'static str },
 }
 
 impl CommandError {
-    pub fn cause(&self) -> &'static str {
+    pub fn reason(&self) -> &'static str {
         match self {
             Self::Serenity(_) => "serenity",
             Self::Songbird(_) => "playing track",
@@ -28,7 +34,8 @@ impl CommandError {
                 YouTubeDlError::Io(_) => "ytdl",
                 YouTubeDlError::Json(_) => "ytdl json",
             },
-            Self::InvalidOperation { cause } => cause,
+            Self::GuildOnly => "guild only",
+            Self::InvalidOperation { cause: _ } => "invalid operation",
         }
     }
 }

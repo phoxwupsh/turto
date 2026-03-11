@@ -1,5 +1,4 @@
 use sha256::digest;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 pub trait ToEmoji {
     fn to_emoji(&self) -> String;
@@ -29,11 +28,7 @@ impl ToEmoji for usize {
 }
 
 pub fn sha256_now() -> String {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-        .to_be_bytes();
+    let now = time::UtcDateTime::now().unix_timestamp().to_le_bytes();
     digest(&now)
 }
 

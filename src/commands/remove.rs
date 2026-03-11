@@ -39,31 +39,29 @@ pub async fn remove(
         None => RemoveType::Index(which - 1),
     };
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;
     let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
     let length = guild_data.playlist.len();
 
     match remove_item {
         RemoveType::Index(index) => {
-            // Check if the index is out of bounds
-            if index >= length {
-                drop(guild_data);
-
-                turto_say(ctx, InvalidRemove { length }).await?;
-                return Ok(());
-            }
-
-            let removed = guild_data
+            match guild_data
                 .playlist
                 .remove_prefetch(index, ctx.data().config.ytdlp.clone())
-                .unwrap();
-            let title = removed.title().unwrap_or_default();
+            {
+                Some(removed) => {
+                    drop(guild_data);
 
-            tracing::info!(removed = removed.url(), "remove single success");
+                    let title = removed.title().unwrap_or_default();
+                    tracing::info!(removed = removed.url(), "remove single success");
+                    turto_say(ctx, Remove { title }).await?;
+                }
+                None => {
+                    drop(guild_data);
 
-            drop(guild_data);
-
-            turto_say(ctx, Remove { title }).await?;
+                    turto_say(ctx, InvalidRemove { length }).await?;
+                }
+            }
         }
         RemoveType::Range { from, to } => {
             // Check if the range is invalid

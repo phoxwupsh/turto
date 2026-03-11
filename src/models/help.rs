@@ -1,8 +1,7 @@
 use crate::{commands::CommandKind, for_each_cmd};
 use paste::paste;
-use regex::Regex;
 use serenity::all::CreateEmbed;
-use std::{borrow::Cow, collections::HashMap, path::Path, sync::LazyLock};
+use std::{borrow::Cow, collections::HashMap, path::Path};
 
 #[derive(Debug, serde::Deserialize)]
 pub struct CommandHelp<C>
@@ -91,8 +90,8 @@ pub trait Params {
 /// - Implement [`Default`] for them
 ///
 /// # Example
-/// ```rust
-/// defind_cmd! {
+/// ```ignore
+/// define_cmd! {
 ///     Cmd : CmdParams {
 ///         short_description: "some short description",
 ///         description: "some description",
@@ -433,7 +432,7 @@ impl HelpLocale {
         /// Will generate code like below for each command,
         /// should be used with [`for_each_cmd`] macro
         ///
-        /// ```
+        /// ```ignore
         /// if let Some(ref about) = self.about {
         ///     let cmd_view = cmd.view_locale();
         ///     map.insert(cmd.command_name(), cmd_view);
@@ -494,49 +493,6 @@ pub struct HelpConfig {
 
 impl HelpConfig {
     pub fn load(path: impl AsRef<Path>) -> Result<Self, toml::de::Error> {
-        fn log_unknown(path: &serde_ignored::Path<'_>) {
-            static REGEX: LazyLock<Regex> = LazyLock::new(|| {
-                Regex::new(
-                    r"(?<locale>\w+)\.(?<command>\w+)(\.\?\.(?<attr>\w+))?(\.\?\.(?<param>\w+))?",
-                )
-                .unwrap()
-            });
-
-            let path = path.to_string();
-            if let Some(cap) = REGEX.captures(&path) {
-                let locale = cap.name("locale").unwrap();
-                let command = cap.name("command").unwrap();
-                match cap.name("attr") {
-                    Some(attr) => {
-                        if attr.as_str() == "parameters"
-                            && let Some(param) = cap.name("param")
-                        {
-                            tracing::warn!(
-                                locale = locale.as_str(),
-                                command = command.as_str(),
-                                parameter = param.as_str(),
-                                "unknown or invalid command parameter ignored"
-                            );
-                        } else {
-                            tracing::warn!(
-                                locale = locale.as_str(),
-                                command = command.as_str(),
-                                attribute = attr.as_str(),
-                                "unknown command attribute ignored"
-                            );
-                        }
-                    }
-                    None => {
-                        tracing::warn!(
-                            locale = locale.as_str(),
-                            command = command.as_str(),
-                            "unknown command ignored"
-                        );
-                    }
-                }
-            }
-        }
-
         let path = path.as_ref();
         let help_str = match std::fs::read_to_string(path) {
             Ok(s) => s,
@@ -563,7 +519,7 @@ impl HelpConfig {
         /// Will generate code like below for each command,
         /// should be used with [`for_each_cmd`] macro
         ///
-        /// ```rust
+        /// ```ignore
         /// match command {
         ///     CommandKind::about => CommandHelp::<About>::view_default()
         /// }
@@ -602,7 +558,7 @@ impl HelpConfig {
         ///
         /// Will generate code like below for each command,
         /// should be used with [`for_each_cmd`] macro
-        /// ```rust
+        /// ```ignore
         /// match command {
         ///     CommandKind::about => {
         ///         let Some(ref help) = help_locale.about else {
@@ -630,5 +586,103 @@ impl HelpConfig {
         }
 
         for_each_cmd!(match_help)
+    }
+}
+
+fn log_unknown(path: &serde_ignored::Path<'_>) {
+    let path = path.to_string();
+    let Some((locale, command, attr, param)) = capture_unknown(&path) else {
+        return;
+    };
+    match (attr, param) {
+        (Some("parameter"), Some(parameter)) => {
+            tracing::warn!(
+                locale,
+                command,
+                parameter,
+                "unknown or invalid command parameter ignored"
+            );
+        }
+        (Some(attribute), _) => {
+            tracing::warn!(
+                locale,
+                command,
+                attribute,
+                "unknown command attribute ignored"
+            );
+        }
+        (None, _) => {
+            tracing::warn!(locale, command, "unknown command ignored");
+        }
+    }
+}
+
+fn capture_unknown(s: &str) -> Option<(&str, &str, Option<&str>, Option<&str>)> {
+    static REGEX: lazy_regex::Lazy<lazy_regex::Regex> = lazy_regex::lazy_regex!(
+        r#"(?<locale>[^.]+)\.(?<command>[^.]+)(\.\?\.(?<attr>[^.]+))?(\.\?\.(?<param>[^.]+))?"#
+    );
+    let caps = REGEX.captures(s)?;
+    Some((
+        caps.name("locale")?.as_str(),
+        caps.name("command")?.as_str(),
+        caps.name("attr").map(|s| s.as_str()),
+        caps.name("param").map(|s| s.as_str()),
+    ))
+}
+
+#[cfg(test)]
+mod test {
+    use super::capture_unknown;
+
+    #[test]
+    fn test_capture_unknown_attr() {
+        let path = "en-US.play.?.some_attribute";
+        let caps = capture_unknown(path);
+
+        assert!(caps.is_some());
+
+        let (locale, command, attr, _) = caps.unwrap();
+
+        assert_eq!(locale, "en-US");
+        assert_eq!(command, "play");
+        assert_eq!(attr, Some("some_attribute"));
+    }
+
+    #[test]
+    fn test_capture_unknown_parameter() {
+        let path = "en-US.play.?.parameter.?.what";
+        let caps = capture_unknown(path);
+
+        assert!(caps.is_some());
+
+        let (locale, command, attr, param) = caps.unwrap();
+
+        assert_eq!(locale, "en-US");
+        assert_eq!(command, "play");
+        assert_eq!(attr, Some("parameter"));
+        assert_eq!(param, Some("what"));
+    }
+
+    #[test]
+    fn test_capture_unknown_command() {
+        let path = "en-US.unknown_command";
+        let caps = capture_unknown(path);
+
+        assert!(caps.is_some());
+
+        let (locale, command, attr, param) = caps.unwrap();
+
+        assert_eq!(locale, "en-US");
+        assert_eq!(command, "unknown_command");
+        assert_eq!(attr, None);
+        assert_eq!(param, None);
+    }
+
+    #[test]
+    fn test_capture_invalid() {
+        let path = "something_totally_invalid";
+        let caps = capture_unknown(path);
+
+        assert!(caps.is_none());
     }
 }

@@ -1,9 +1,9 @@
-use tracing::{Span, instrument};
 use crate::{
     message::TurtoMessageKind::RemoveAll,
     models::{alias::Context, error::CommandError},
     utils::turto_say,
 };
+use tracing::{Span, instrument};
 
 #[poise::command(slash_command, prefix_command, guild_only)]
 #[instrument(
@@ -14,7 +14,7 @@ use crate::{
 pub async fn clear(ctx: Context<'_>) -> Result<(), CommandError> {
     tracing::info!("invoked");
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;
     let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
 
     guild_data.playlist.clear();

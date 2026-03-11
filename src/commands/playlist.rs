@@ -37,7 +37,7 @@ pub async fn playlist(
 ) -> Result<(), CommandError> {
     tracing::info!("invoked");
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;
     let guild_data = ctx.data().guilds.entry(guild_id).or_default();
     let total_pages = playlist_page_len(&guild_data.playlist);
 

@@ -3,7 +3,7 @@ use crate::{
     models::{alias::Context, error::CommandError},
     utils::turto_say,
 };
-use serenity::all::UserId;
+use serenity::all::{Permissions, UserId};
 use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
@@ -16,17 +16,16 @@ use tracing::{Span, instrument};
 pub async fn unban(ctx: Context<'_>, user: UserId) -> Result<(), CommandError> {
     tracing::info!(target = %user, "command invoked");
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;
     let user_id = ctx.author().id;
 
     // Since this is a guild only command interaction
     let is_admin = ctx
         .author_member()
         .await
-        .unwrap()
-        .permissions
-        .unwrap()
-        .administrator();
+        .and_then(|member| member.permissions)
+        .map(Permissions::administrator)
+        .ok_or(CommandError::GuildOnly)?;
 
     if !(is_admin || ctx.data().config.is_owner(&user_id)) {
         turto_say(ctx, AdministratorOnly).await?;

@@ -22,7 +22,7 @@ pub fn get_dir_name() -> &'static str {
     "bun-linux-aarch64-musl"
 }
 
-#[cfg(all(target_os = "macos"))]
+#[cfg(target_os = "macos")]
 pub fn get_dir_name() -> &'static str {
     "bun-darwin-aarch64"
 }
@@ -47,7 +47,7 @@ pub fn get_archive_name() -> &'static str {
     "bun-linux-aarch64-musl.zip"
 }
 
-#[cfg(all(target_os = "macos"))]
+#[cfg(target_os = "macos")]
 pub fn get_archive_name() -> &'static str {
     "bun-darwin-aarch64.zip"
 }

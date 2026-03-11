@@ -1,4 +1,3 @@
-use tracing::{Span, instrument};
 use crate::{
     message::TurtoMessageKind::{DifferentVoiceChannel, UserNotInVoiceChannel},
     models::{alias::Context, error::CommandError},
@@ -7,6 +6,7 @@ use crate::{
         join_voice_channel, turto_say,
     },
 };
+use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
 #[instrument(
@@ -17,10 +17,13 @@ use crate::{
 pub async fn join(ctx: Context<'_>) -> Result<(), CommandError> {
     tracing::info!("invoked");
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
-    let vc_stat = ctx.guild().unwrap().cmp_voice_channel(&bot_id, &user_id);
+    let vc_stat = ctx
+        .guild()
+        .ok_or(CommandError::GuildOnly)?
+        .cmp_voice_channel(&bot_id, &user_id);
 
     match vc_stat {
         VoiceChannelState::Different(bot, _) => {

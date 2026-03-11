@@ -16,7 +16,7 @@ use tracing::{Span, instrument};
 pub async fn playwhat(ctx: Context<'_>) -> Result<(), CommandError> {
     tracing::info!("invoked");
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;
 
     let playing_map = ctx.data().playing.read().await;
     let Some(playing) = playing_map.get(&guild_id) else {
@@ -35,7 +35,7 @@ pub async fn playwhat(ctx: Context<'_>) -> Result<(), CommandError> {
         }
         PlayMode::Play => PlayState::Play,
         PlayMode::Pause => PlayState::Pause,
-        _ => unreachable!()
+        _ => unreachable!(),
     };
     drop(playing_map);
 

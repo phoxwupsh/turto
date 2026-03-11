@@ -1,9 +1,9 @@
-use tracing::{Span, instrument};
 use crate::{
     message::TurtoMessageKind::SetRepeat,
     models::{alias::Context, error::CommandError, toggle::ToggleOption},
     utils::turto_say,
 };
+use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
 #[instrument(
@@ -20,11 +20,8 @@ pub async fn repeat(ctx: Context<'_>, toggle: ToggleOption) -> Result<(), Comman
         ToggleOption::Off => false,
     };
 
-    let mut guild_data = ctx
-        .data()
-        .guilds
-        .entry(ctx.guild_id().unwrap())
-        .or_default();
+    let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;
+    let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
     guild_data.config.repeat = toggle;
     drop(guild_data);
 

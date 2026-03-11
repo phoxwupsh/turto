@@ -30,10 +30,13 @@ pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), CommandE
         return Ok(());
     }
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
-    let vc_stat = ctx.guild().unwrap().cmp_voice_channel(&bot_id, &user_id);
+    let vc_stat = ctx
+        .guild()
+        .ok_or(CommandError::GuildOnly)?
+        .cmp_voice_channel(&bot_id, &user_id);
 
     match vc_stat {
         VoiceChannelState::Different(bot, _) | VoiceChannelState::OnlyFirst(bot) => {

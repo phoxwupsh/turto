@@ -1,6 +1,5 @@
 use crate::models::{alias::Command, config::TurtoConfig, help::HelpConfig};
 use std::{str::FromStr, time::Duration};
-use strum::{AsRefStr, Display, EnumIter, EnumString};
 
 /// THe macro for anything that requires all of the command names
 ///
@@ -16,6 +15,8 @@ use strum::{AsRefStr, Display, EnumIter, EnumString};
 /// # Example
 ///
 /// ```rust
+/// use turto::for_each_cmd;
+///
 /// macro_rules! create_cmd {
 ///     ($($cmd:ident),* $(,)?) => {
 ///         $(println!(stringify!($cmd));)*
@@ -56,7 +57,7 @@ macro_rules! for_each_cmd {
 /// Define mod for all commands
 ///
 /// Generates code like below
-/// ```rust
+/// ```ignore
 /// mod about;
 /// ```
 macro_rules! define_cmd_mod {
@@ -72,7 +73,7 @@ for_each_cmd!(define_cmd_mod);
 /// Generates code like below
 /// ```rust
 /// #[allow(non_camel_case_types)]
-/// #[derive(Debug, poise::ChoiceParameter, Display, AsRefStr, EnumIter, EnumString)]
+/// #[derive(Debug, poise::ChoiceParameter, strum::Display, strum::AsRefStr, strum::EnumIter, strum::EnumString)]
 /// #[strum(serialize_all = "snake_case")]
 /// pub enum CommandKind {
 ///     about
@@ -81,7 +82,7 @@ for_each_cmd!(define_cmd_mod);
 macro_rules! define_cmd_kind {
     ($($cmd:ident),* $(,)?) => {
         #[allow(non_camel_case_types)]
-        #[derive(Debug, poise::ChoiceParameter, Display, AsRefStr, EnumIter, EnumString)]
+        #[derive(Debug, poise::ChoiceParameter, strum::Display, strum::AsRefStr, strum::EnumIter, strum::EnumString)]
         #[strum(serialize_all = "snake_case")]
         pub enum CommandKind {
             $($cmd,)*

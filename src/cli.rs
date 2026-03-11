@@ -1,5 +1,5 @@
-use std::{path::PathBuf, sync::Arc, time::Duration};
 use clap::ArgAction;
+use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio_cron_scheduler::{Job, JobScheduler, JobSchedulerError};
 use tracing::{error, warn};
 
