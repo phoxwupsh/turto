@@ -2,6 +2,7 @@ use super::{DepsError, extract_to};
 use crate::models::config::YtdlpConfig;
 use arc_swap::ArcSwap;
 use std::{
+    io::ErrorKind,
     path::{Path, PathBuf},
     sync::{Arc, OnceLock},
 };
@@ -41,8 +42,20 @@ pub async fn setup_ytdlp(
         std::fs::create_dir_all(ytdlp_dir)?;
     }
 
-    let exec_path = match get_local_ytdlp(ytdlp_dir).await? {
-        Some((local_ver, local_path)) => {
+    async fn download_latest_ytdlp(
+        ytdlp_dir: &Path,
+        use_nightly: bool,
+    ) -> Result<PathBuf, DepsError> {
+        tracing::warn!("local yt-dlp not found");
+
+        let latest_ver = YtdlpVersion::fetch_lastest(use_nightly).await?;
+        tracing::info!(version = %latest_ver, "found lastest yt-dlp");
+
+        update_to(ytdlp_dir, &latest_ver).await
+    }
+
+    let exec_path = match get_local_ytdlp(ytdlp_dir).await {
+        Ok(Some((local_ver, local_path))) => {
             tracing::info!(version = %local_ver, "found local yt-dlp");
 
             let latest_ver = YtdlpVersion::fetch_lastest(config.use_nightly).await?;
@@ -54,14 +67,13 @@ pub async fn setup_ytdlp(
                 local_path
             }
         }
-        None => {
-            tracing::warn!("local yt-dlp not found");
-
-            let latest_ver = YtdlpVersion::fetch_lastest(config.use_nightly).await?;
-            tracing::info!(version = %latest_ver, "found lastest yt-dlp");
-
-            update_to(ytdlp_dir, &latest_ver).await?
-        }
+        Ok(None) => download_latest_ytdlp(ytdlp_dir, config.use_nightly).await?,
+        Err(error) => match error {
+            DepsError::Io(io_error) if matches!(io_error.kind(), ErrorKind::NotFound) => {
+                download_latest_ytdlp(ytdlp_dir, config.use_nightly).await?
+            }
+            other => return Err(other),
+        },
     };
 
     YTDLP_PATH.set(ArcSwap::from_pointee(exec_path)).unwrap();
