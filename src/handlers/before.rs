@@ -32,14 +32,15 @@ pub fn command_check(
 }
 
 pub fn pre_command(ctx: Context<'_>) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-    let command_span = info_span!(
-        "command",
-        command = ctx.invoked_command_name(),
-        user = %ctx.author().id,
-        guild = %ctx.guild_id().unwrap(),
-        id = ctx.id()
-    );
+    let command = ctx.invoked_command_name();
+    let user = ctx.author().id;
+    let id = ctx.id();
 
+    let command_span = if let Some(guild) = ctx.guild_id() {
+        info_span!("command", command, %user, %guild, id)
+    } else {
+        info_span!("command", command, %user)
+    };
     let command_span_inner = command_span.clone();
 
     let fut = async move {

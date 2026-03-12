@@ -1,5 +1,5 @@
-use crate::{deps::extract_to, models::config::YtdlpConfig};
-use anyhow::Context;
+use super::{DepsError, extract_to};
+use crate::models::config::YtdlpConfig;
 use arc_swap::ArcSwap;
 use std::{
     path::{Path, PathBuf},
@@ -22,9 +22,13 @@ pub fn set_ytdlp_path(path: PathBuf) {
     YTDLP_PATH.get().unwrap().store(Arc::new(path));
 }
 
-pub async fn setup_ytdlp(config: &YtdlpConfig, ytdlp_dir: impl AsRef<Path>) -> anyhow::Result<()> {
+pub async fn setup_ytdlp(
+    config: &YtdlpConfig,
+    ytdlp_dir: impl AsRef<Path>,
+) -> Result<(), DepsError> {
     if config.use_system_ytdlp {
-        let path = which::which("yt-dlp").context("expected yt-dlp in PATH")?;
+        let path = which::which("yt-dlp")
+            .map_err(|_| std::io::Error::from(std::io::ErrorKind::NotFound))?;
         tracing::info!(path = %path.display(), "system yt-dlp found");
         YTDLP_PATH
             .set(ArcSwap::from_pointee("yt-dlp".into()))
@@ -39,10 +43,10 @@ pub async fn setup_ytdlp(config: &YtdlpConfig, ytdlp_dir: impl AsRef<Path>) -> a
 
     let exec_path = match get_local_ytdlp(ytdlp_dir).await? {
         Some((local_ver, local_path)) => {
-            tracing::info!(version = local_ver.tag(), "found local yt-dlp");
+            tracing::info!(version = %local_ver, "found local yt-dlp");
 
             let latest_ver = YtdlpVersion::fetch_lastest(config.use_nightly).await?;
-            tracing::info!(version = latest_ver.tag(), "found lastest yt-dlp");
+            tracing::info!(version = %latest_ver, "found lastest yt-dlp");
 
             if latest_ver > local_ver {
                 update_to(ytdlp_dir, &latest_ver).await?
@@ -54,7 +58,7 @@ pub async fn setup_ytdlp(config: &YtdlpConfig, ytdlp_dir: impl AsRef<Path>) -> a
             tracing::warn!("local yt-dlp not found");
 
             let latest_ver = YtdlpVersion::fetch_lastest(config.use_nightly).await?;
-            tracing::info!(version = latest_ver.tag(), "found lastest yt-dlp");
+            tracing::info!(version = %latest_ver, "found lastest yt-dlp");
 
             update_to(ytdlp_dir, &latest_ver).await?
         }
@@ -67,10 +71,10 @@ pub async fn setup_ytdlp(config: &YtdlpConfig, ytdlp_dir: impl AsRef<Path>) -> a
 pub async fn update_to(
     ytdlp_dir: impl AsRef<Path>,
     target_ver: &YtdlpVersion,
-) -> anyhow::Result<PathBuf> {
+) -> Result<PathBuf, crate::deps::DepsError> {
     let ytdlp_dir = ytdlp_dir.as_ref();
 
-    let target_tag = target_ver.tag();
+    let target_tag = target_ver.to_string();
     let extract_path = ytdlp_dir.join(&target_tag);
     std::fs::create_dir_all(&extract_path)?;
 

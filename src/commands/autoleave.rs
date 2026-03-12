@@ -14,11 +14,8 @@ use tracing::{Span, instrument};
 )]
 pub async fn autoleave(ctx: Context<'_>, toggle: AutoleaveType) -> Result<(), CommandError> {
     tracing::info!("invoked");
-    let mut guild_data = ctx
-        .data()
-        .guilds
-        .entry(ctx.guild_id().unwrap())
-        .or_default();
+    let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;
+    let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
     guild_data.config.auto_leave = toggle;
     drop(guild_data);
 

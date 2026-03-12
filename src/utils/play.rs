@@ -1,6 +1,8 @@
 use crate::{
     handlers::{track_end::TrackEndHandler, track_error::TrackErrorHandler},
-    models::{alias::Context, config::YtdlpConfig, guild::Guilds, playing::Playing},
+    models::{
+        alias::Context, config::YtdlpConfig, error::CommandError, guild::Guilds, playing::Playing,
+    },
     ytdl::{YouTubeDl, YouTubeDlError, YouTubeDlMetadata},
 };
 use serenity::all::GuildId;
@@ -52,6 +54,8 @@ async fn play_ytdlfile_inner(
         call,
         ytdl_file: ytdlfile.clone(),
     };
+
+    // these are infallible since it only returns Err when Event::Core
     track_handle
         .add_event(Event::Track(TrackEvent::End), track_end_handler)
         .unwrap();
@@ -79,13 +83,16 @@ pub struct PlayContext {
     pub ytdlp_config: Arc<YtdlpConfig>,
 }
 
-impl PlayContext {
-    pub fn from_ctx(ctx: Context<'_>) -> Option<Self> {
-        Some(Self {
-            guild_id: ctx.guild_id()?,
-            data: ctx.data().guilds.clone(),
-            playing: ctx.data().playing.clone(),
-            ytdlp_config: ctx.data().config.ytdlp.clone(),
+impl TryFrom<Context<'_>> for PlayContext {
+    type Error = CommandError;
+
+    fn try_from(value: Context<'_>) -> Result<Self, Self::Error> {
+        let guild_id = value.guild_id().ok_or(CommandError::GuildOnly)?;
+        Ok(Self {
+            guild_id,
+            data: value.data().guilds.clone(),
+            playing: value.data().playing.clone(),
+            ytdlp_config: value.data().config.ytdlp.clone(),
         })
     }
 }

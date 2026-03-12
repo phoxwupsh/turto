@@ -1,9 +1,9 @@
-use tracing::{Span, instrument};
 use crate::{
     message::TurtoMessageKind::SetVolume,
     models::{alias::Context, error::CommandError, guild::volume::GuildVolume},
     utils::turto_say,
 };
+use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
 #[instrument(
@@ -20,14 +20,13 @@ pub async fn volume(
 ) -> Result<(), CommandError> {
     tracing::info!("invoked");
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;
 
     if let Some(vol) = value {
         // Update the volume if there is a currently playing TrackHandle
-        let new_vol = GuildVolume::try_from(vol).unwrap();
+        let new_vol = GuildVolume::try_from(vol)?;
         let playing_map = ctx.data().playing.read().await;
-        if let Some(playing) = playing_map.get(&guild_id)
-        {
+        if let Some(playing) = playing_map.get(&guild_id) {
             playing.track_handle.set_volume(*new_vol)?;
         }
         drop(playing_map);

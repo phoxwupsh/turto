@@ -1,10 +1,6 @@
-use crate::utils::misc::ToEmoji;
+use crate::{models::error::CommandError, utils::misc::ToEmoji};
 use serde::{Deserialize, Serialize};
-use std::{
-    error::Error,
-    fmt::Display,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct GuildVolume(f32);
@@ -62,17 +58,18 @@ impl ToEmoji for GuildVolume {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VolumeError {
+    #[error("volume should be between 0.0 ~ 1.0")]
     OutOfRange,
 }
 
-impl Display for VolumeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            VolumeError::OutOfRange => f.write_str("GuildVolume should be between 0.0 ~ 1.0"),
+impl From<VolumeError> for CommandError {
+    fn from(value: VolumeError) -> Self {
+        match value {
+            VolumeError::OutOfRange => CommandError::InvalidOperation {
+                cause: "volume should be between 0.0 ~ 1.0",
+            },
         }
     }
 }
-
-impl Error for VolumeError {}

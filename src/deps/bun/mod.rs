@@ -3,7 +3,6 @@ use crate::{
     models::config::YtdlpConfig,
     utils::get_http_client,
 };
-use anyhow::Context;
 use reqwest::header::USER_AGENT;
 use std::{path::Path, process::Stdio, sync::OnceLock};
 use tokio::io::AsyncWriteExt;
@@ -17,9 +16,13 @@ pub fn get_bun_arg() -> &'static str {
     BUN.get().unwrap()
 }
 
-pub async fn setup_bun(config: &YtdlpConfig, bun_dir: impl AsRef<Path>) -> anyhow::Result<()> {
+pub async fn setup_bun(
+    config: &YtdlpConfig,
+    bun_dir: impl AsRef<Path>,
+) -> Result<(), super::DepsError> {
     if config.use_system_bun {
-        let path = which::which("bun").context("expected bun in PATH")?;
+        let path =
+            which::which("bun").map_err(|_| std::io::Error::from(std::io::ErrorKind::NotFound))?;
         tracing::info!(path = %path.display(), "system bun found");
         BUN.set("bun".to_string()).unwrap();
         return Ok(());
@@ -58,7 +61,7 @@ pub async fn setup_bun(config: &YtdlpConfig, bun_dir: impl AsRef<Path>) -> anyho
             .open(&archive_path)
             .await?;
 
-        tracing::info!(url = url, "fetching bun");
+        tracing::info!(url, "fetching bun");
 
         while let Some(chunk) = resp.chunk().await? {
             archive.write_all(&chunk).await?;
@@ -70,8 +73,10 @@ pub async fn setup_bun(config: &YtdlpConfig, bun_dir: impl AsRef<Path>) -> anyho
     } else {
         tracing::info!("found local bun");
     }
+
     BUN.set(format!("bun:{}", bun_exec.to_string_lossy()))
         .unwrap();
+
     Ok(())
 }
 

@@ -1,26 +1,35 @@
 use crate::{
-    deps::{fetch_github_latest, ytdlp::os::get_archive_name},
+    deps::{DepsError, fetch_github_latest, ytdlp::os::get_archive_name},
     utils::get_http_client,
 };
 use reqwest::header::USER_AGENT;
-use std::path::{Path, PathBuf};
+use std::{
+    fmt::Display,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
+use time::{
+    Date, PrimitiveDateTime,
+    format_description::BorrowedFormatItem,
+    macros::{format_description, time},
+};
 use tokio::io::AsyncWriteExt;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum YtdlpVersion {
-    Stable(chrono::NaiveDate),
-    Nightly(chrono::NaiveDateTime),
+    Stable(time::Date),
+    Nightly(time::PrimitiveDateTime),
 }
 
 impl Ord for YtdlpVersion {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         let self_datetime = match self {
             YtdlpVersion::Nightly(datetime) => *datetime,
-            YtdlpVersion::Stable(date) => date.and_hms_opt(0, 0, 0).unwrap(),
+            YtdlpVersion::Stable(date) => date.with_time(time!(00:00)),
         };
         let other_datetime = match other {
             YtdlpVersion::Nightly(datetime) => *datetime,
-            YtdlpVersion::Stable(date) => date.and_hms_opt(0, 0, 0).unwrap(),
+            YtdlpVersion::Stable(date) => date.with_time(time!(00:00)),
         };
         self_datetime.cmp(&other_datetime)
     }
@@ -33,46 +42,12 @@ impl PartialOrd for YtdlpVersion {
 }
 
 impl YtdlpVersion {
-    const STABLE_TAG_FORMAT: &str = "%Y.%m.%d";
-    const NIGHTLY_TAG_FORMAT: &str = "%Y.%m.%d.%H%M%S";
+    const STABLE_TAG_FORMAT: &[BorrowedFormatItem<'static>] =
+        format_description!("[year].[month].[day]");
+    const NIGHTLY_TAG_FORMAT: &[BorrowedFormatItem<'static>] =
+        format_description!("[year].[month].[day].[hour][minute][second]");
 
-    pub fn tag(&self) -> String {
-        match self {
-            Self::Stable(date) => date.format(Self::STABLE_TAG_FORMAT).to_string(),
-            Self::Nightly(datetime) => datetime.format(Self::NIGHTLY_TAG_FORMAT).to_string(),
-        }
-    }
-
-    pub fn parse_from_tag_str(s: &str) -> anyhow::Result<Self> {
-        let it = s.split('.').collect::<Vec<_>>();
-        if it.len() == 3 || it.len() == 4 {
-            let year = it[0].parse::<i32>()?;
-            let month = it[1].parse::<u32>()?;
-            let day = it[2].parse::<u32>()?;
-            let Some(date) = chrono::NaiveDate::from_ymd_opt(year, month, day) else {
-                return Err(anyhow::anyhow!("invalid yt-dlp tag date time"));
-            };
-            if it.len() == 3 {
-                return Ok(Self::Stable(date));
-            }
-            let time = it
-                .get(3)
-                .filter(|time_str| time_str.len() == 6)
-                .and_then(|time_str| {
-                    let hour = time_str[0..2].parse::<u32>().ok()?;
-                    let min = time_str[2..4].parse::<u32>().ok()?;
-                    let sec = time_str[4..6].parse::<u32>().ok()?;
-                    chrono::NaiveTime::from_hms_opt(hour, min, sec)
-                })
-                .unwrap_or_default();
-
-            let datetime = date.and_time(time);
-            return Ok(Self::Nightly(datetime));
-        }
-        Err(anyhow::anyhow!("invalid yt-dlp tag format"))
-    }
-
-    pub async fn fetch_lastest(nightly: bool) -> anyhow::Result<Self> {
+    pub async fn fetch_lastest(nightly: bool) -> Result<Self, DepsError> {
         let repo_slug = if nightly {
             "yt-dlp/yt-dlp-nightly-builds"
         } else {
@@ -80,10 +55,10 @@ impl YtdlpVersion {
         };
         let tag = fetch_github_latest(repo_slug).await?;
 
-        YtdlpVersion::parse_from_tag_str(&tag)
+        YtdlpVersion::from_str(&tag).map_err(Into::into)
     }
 
-    pub async fn fetch_archive(&self, ytdlp_dir: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
+    pub async fn fetch_archive(&self, ytdlp_dir: impl AsRef<Path>) -> Result<PathBuf, DepsError> {
         let url = self.download_url();
         let client = get_http_client();
         let mut resp = client
@@ -103,7 +78,7 @@ impl YtdlpVersion {
             .open(&archive_path)
             .await?;
 
-        tracing::info!(url = url, "fetching yt-dlp");
+        tracing::info!(url, "fetching yt-dlp");
 
         while let Some(chunk) = resp.chunk().await? {
             archive.write_all(&chunk).await?;
@@ -121,8 +96,84 @@ impl YtdlpVersion {
         format!(
             "https://github.com/yt-dlp/{}/releases/download/{}/{}",
             repo_name,
-            self.tag(),
+            self,
             get_archive_name()
         )
+    }
+}
+
+impl Display for YtdlpVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Stable(date) => f.write_str(&date.format(Self::STABLE_TAG_FORMAT).unwrap()),
+            Self::Nightly(datetime) => {
+                f.write_str(&datetime.format(Self::NIGHTLY_TAG_FORMAT).unwrap())
+            }
+        }
+    }
+}
+
+impl FromStr for YtdlpVersion {
+    type Err = time::error::Parse;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Ok(date) = Date::parse(s, Self::STABLE_TAG_FORMAT) {
+            Ok(YtdlpVersion::Stable(date))
+        } else {
+            PrimitiveDateTime::parse(s, Self::NIGHTLY_TAG_FORMAT).map(YtdlpVersion::Nightly)
+        }
+    }
+}
+
+#[test]
+fn test_parse_stable_tag() {
+    let tag = "2026.03.03";
+    assert_eq!(
+        YtdlpVersion::from_str(tag).unwrap(),
+        YtdlpVersion::Stable(time::Date::from_calendar_date(2026, time::Month::March, 3).unwrap())
+    );
+}
+
+#[test]
+fn test_parse_nightly_tag() {
+    let tag = "2026.03.03.162408";
+    assert_eq!(
+        YtdlpVersion::from_str(tag).unwrap(),
+        YtdlpVersion::Nightly(
+            time::Date::from_calendar_date(2026, time::Month::March, 3)
+                .unwrap()
+                .with_time(time!(16:24:08))
+        )
+    );
+}
+
+#[cfg(test)]
+mod test {
+    use super::YtdlpVersion;
+    use std::str::FromStr;
+    use time::macros::time;
+
+    #[test]
+    fn test_format_stable_tag() {
+        let ver = YtdlpVersion::Stable(
+            time::Date::from_calendar_date(2026, time::Month::March, 3).unwrap(),
+        );
+        assert_eq!(ver.to_string().as_str(), "2026.03.03");
+    }
+
+    #[test]
+    fn test_format_nightly_tag() {
+        let ver = YtdlpVersion::Nightly(
+            time::Date::from_calendar_date(2026, time::Month::March, 3)
+                .unwrap()
+                .with_time(time!(16:24:08)),
+        );
+        assert_eq!(ver.to_string().as_str(), "2026.03.03.162408");
+    }
+
+    #[test]
+    fn test_parse_invalid_tag() {
+        let tag = "some invalid tag";
+        assert!(YtdlpVersion::from_str(tag).is_err());
     }
 }

@@ -38,7 +38,7 @@ async fn handle_error(
             let resp = CreateEmbed::new()
                 .title("Internal error")
                 .color((255, 0, 0))
-                .field("Type", error.cause(), false)
+                .field("Reason", error.reason(), false)
                 .description(error.to_string());
 
             ctx.send(

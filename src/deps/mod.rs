@@ -1,19 +1,20 @@
-use std::path::Path;
-
 use crate::{models::config::YtdlpConfig, utils::get_http_client};
 use reqwest::header::{ACCEPT, HeaderName, HeaderValue, USER_AGENT};
+use std::path::Path;
 use zip::ZipArchive;
 
 pub mod bun;
-pub mod ytdlp;
 
-pub async fn setup_ext_deps(config: &YtdlpConfig) -> anyhow::Result<()> {
+pub mod ytdlp;
+use ytdlp::version::YtdlpVersion;
+
+pub async fn setup_ext_deps(config: &YtdlpConfig) -> Result<(), DepsError> {
     ytdlp::setup_ytdlp(config, "yt-dlp").await?;
     bun::setup_bun(config, "bun").await?;
     Ok(())
 }
 
-async fn fetch_github_latest(repo_slug: &str) -> anyhow::Result<String> {
+async fn fetch_github_latest(repo_slug: &str) -> Result<String, reqwest::Error> {
     let mut headers = reqwest::header::HeaderMap::new();
     headers.append(
         ACCEPT,
@@ -33,19 +34,42 @@ async fn fetch_github_latest(repo_slug: &str) -> anyhow::Result<String> {
         .send()
         .await?
         .error_for_status()?;
-    let json = resp.text().await?;
 
-    let mut map = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&json)?;
-    let Some(serde_json::Value::String(tag)) = map.get_mut("tag_name").map(serde_json::Value::take)
-    else {
-        return Err(anyhow::anyhow!("expected tag_name to be a string"));
-    };
-    Ok(tag)
+    #[derive(serde::Deserialize)]
+    struct ApiResp {
+        tag_name: String,
+    }
+
+    let resp = resp.json::<ApiResp>().await?;
+
+    Ok(resp.tag_name)
 }
 
-pub fn extract_to(arhive: impl AsRef<Path>, target: impl AsRef<Path>) -> anyhow::Result<()> {
+pub fn extract_to(arhive: impl AsRef<Path>, target: impl AsRef<Path>) -> Result<(), DepsError> {
     let file = std::fs::OpenOptions::new().read(true).open(arhive)?;
-    let mut zip_file = ZipArchive::new(file)?;
-    zip_file.extract(target)?;
-    Ok(())
+    let rdr = std::io::BufReader::new(file);
+    ZipArchive::new(rdr)
+        .and_then(|mut zip_file| zip_file.extract(target))
+        .map_err(Into::into)
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum DepsError {
+    #[error("io error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("error from reqwest: {0}")]
+    Reqwest(#[from] reqwest::Error),
+
+    #[error("yt-dlp version mismatch, expect {expect}, got {actual}")]
+    YtdlpVersionMismatch {
+        expect: YtdlpVersion,
+        actual: YtdlpVersion,
+    },
+
+    #[error("failed to parse version: {0}")]
+    Version(#[from] time::error::Parse),
+
+    #[error("failed to process zip file: {0}")]
+    Archive(#[from] zip::result::ZipError),
 }

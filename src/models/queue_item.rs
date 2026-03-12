@@ -1,5 +1,4 @@
-use crate::ytdl::{YouTubeDl, playlist::YouTubePlaylist};
-use anyhow::Result;
+use crate::ytdl::{YouTubeDl, YouTubeDlError, playlist::YouTubePlaylist};
 use url::Url;
 
 pub struct QueueItem {
@@ -16,7 +15,7 @@ impl QueueItem {
         Self { url }
     }
 
-    pub async fn query(self) -> Result<QueueItemKind> {
+    pub async fn query(self) -> Result<QueueItemKind, YouTubeDlError> {
         let ytdl = YouTubeDl::new(self.url.as_str());
 
         if ytdl.has_yt_playlist() {

@@ -1,9 +1,8 @@
 use std::{borrow::Cow, collections::HashMap, fmt::Display, path::Path, str::FromStr};
 use strum::IntoEnumIterator;
 
-use crate::message::template::names::TemplateName;
-
 pub mod names;
+use names::TemplateName;
 
 #[derive(Debug)]
 pub struct Templates {
@@ -187,7 +186,8 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::{Template, Token};
+    use super::{Template, Templates, Token, names::TemplateName};
+    use strum::IntoEnumIterator;
 
     #[test]
     fn test_template_parse() {
@@ -246,5 +246,14 @@ mod test {
                 ]
             }
         );
+    }
+
+    #[test]
+    fn test_default() {
+        let default = Templates::build_default();
+
+        for template_name in TemplateName::iter() {
+            assert!(default.get(&template_name).is_some());
+        }
     }
 }

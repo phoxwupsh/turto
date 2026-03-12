@@ -43,7 +43,7 @@ pub async fn enqueue(
                 .clone()
                 .unwrap_or_default();
 
-            let guild_id = ctx.guild_id().unwrap();
+            let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;
             let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
 
             match queue_type {
@@ -63,7 +63,7 @@ pub async fn enqueue(
         QueueItemKind::Playlist(mut yt_playlist) => {
             let title = yt_playlist.title.take().unwrap_or_default();
 
-            let guild_id = ctx.guild_id().unwrap();
+            let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;
             let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
             let ytdlp_config = ctx.data().config.ytdlp.clone();
 

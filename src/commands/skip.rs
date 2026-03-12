@@ -2,7 +2,10 @@ use crate::{
     message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Skip},
     models::{alias::Context, autoleave::AutoleaveType, error::CommandError, playing::PlayState},
     utils::{
-        create_playing_embed, guild::{GuildUtil, VoiceChannelState}, play::{PlayContext, play_ytdlfile_meta}, turto_say
+        create_playing_embed,
+        guild::{GuildUtil, VoiceChannelState},
+        play::{PlayContext, play_ytdlfile_meta},
+        turto_say,
     },
 };
 use poise::CreateReply;
@@ -17,10 +20,13 @@ use tracing::{Span, instrument};
 pub async fn skip(ctx: Context<'_>) -> Result<(), CommandError> {
     tracing::info!("invoked");
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
-    let vc_stat = ctx.guild().unwrap().cmp_voice_channel(&bot_id, &user_id);
+    let vc_stat = ctx
+        .guild()
+        .ok_or(CommandError::GuildOnly)?
+        .cmp_voice_channel(&bot_id, &user_id);
 
     match vc_stat {
         VoiceChannelState::Different(bot, _) | VoiceChannelState::OnlyFirst(bot) => {
@@ -60,7 +66,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), CommandError> {
     if let Some(next) = next {
         tracing::info!(next = next.url(), "play next");
 
-        let meta_fut = play_ytdlfile_meta(PlayContext::from_ctx(ctx).unwrap(), call, next).await?;
+        let meta_fut = play_ytdlfile_meta(PlayContext::try_from(ctx)?, call, next).await?;
         let metadata = meta_fut.await?;
 
         let resp = create_playing_embed(ctx, Some(PlayState::Skip), &metadata);

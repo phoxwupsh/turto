@@ -17,10 +17,13 @@ use tracing::{Span, instrument};
 pub async fn leave(ctx: Context<'_>) -> Result<(), CommandError> {
     tracing::info!("invoked");
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
-    let vc_stat = ctx.guild().unwrap().cmp_voice_channel(&bot_id, &user_id);
+    let vc_stat = ctx
+        .guild()
+        .ok_or(CommandError::GuildOnly)?
+        .cmp_voice_channel(&bot_id, &user_id);
 
     let channel = match vc_stat {
         VoiceChannelState::None | VoiceChannelState::OnlySecond(_) => {
@@ -36,7 +39,14 @@ pub async fn leave(ctx: Context<'_>) -> Result<(), CommandError> {
 
     let manager = songbird::get(ctx.serenity_context()).await.unwrap();
     manager.remove(guild_id).await?;
-    ctx.data().playing.write().await.remove(&guild_id);
+
+    // explicitly stop to avoid continue playing after re-join
+    if let Some(removed) = ctx.data().playing.write().await.remove(&guild_id)
+        && let Err(error) = removed.track_handle.stop()
+    {
+        tracing::error!(?error, "failed to stop track");
+        drop(removed);
+    }
 
     tracing::info!(%channel, "leave success");
 

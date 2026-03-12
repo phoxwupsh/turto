@@ -28,10 +28,13 @@ pub async fn play(
 ) -> Result<(), CommandError> {
     tracing::info!("invoke");
 
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;
     let bot_id = ctx.cache().current_user().id;
     let user_id = ctx.author().id;
-    let vc_stat = ctx.guild().unwrap().cmp_voice_channel(&bot_id, &user_id);
+    let vc_stat = ctx
+        .guild()
+        .ok_or(CommandError::GuildOnly)?
+        .cmp_voice_channel(&bot_id, &user_id);
 
     let call = match vc_stat {
         VoiceChannelState::None | VoiceChannelState::OnlyFirst(_) => {
@@ -49,7 +52,9 @@ pub async fn play(
             .await
             .unwrap()
             .get(guild_id)
-            .unwrap(),
+            .ok_or(CommandError::InvalidOperation {
+                cause: "no valid connection found, you may need to disconnect the bot manually and retry",
+            })?,
     };
 
     let data = ctx.data();
@@ -62,8 +67,7 @@ pub async fn play(
 
         ctx.defer().await?;
         let ytdlfile = YouTubeDl::new(query);
-        let meta_fut =
-            play_ytdlfile_meta(PlayContext::from_ctx(ctx).unwrap(), call, ytdlfile).await?;
+        let meta_fut = play_ytdlfile_meta(PlayContext::try_from(ctx)?, call, ytdlfile).await?;
         let meta = meta_fut.await?;
 
         tracing::info!("play success");
@@ -107,8 +111,7 @@ pub async fn play(
         if let Some(next) = next {
             tracing::info!(url = next.url(), "play first item in playlist");
 
-            let meta_fut =
-                play_ytdlfile_meta(PlayContext::from_ctx(ctx).unwrap(), call, next).await?;
+            let meta_fut = play_ytdlfile_meta(PlayContext::try_from(ctx)?, call, next).await?;
             let metadata = meta_fut.await?;
 
             let resp = create_playing_embed(ctx, Some(PlayState::Play), &metadata);

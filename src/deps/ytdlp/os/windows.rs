@@ -1,7 +1,8 @@
-use crate::deps::ytdlp::version::YtdlpVersion;
+use crate::deps::{DepsError, ytdlp::version::YtdlpVersion};
 use std::{
     io::Write,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
 pub fn update_path_ptr(ytdlp_dir: impl AsRef<Path>, tag: &str) -> std::io::Result<PathBuf> {
@@ -17,43 +18,36 @@ pub fn update_path_ptr(ytdlp_dir: impl AsRef<Path>, tag: &str) -> std::io::Resul
     Ok(exec_path)
 }
 
-pub async fn get_local_ytdlp(ytdlp_dir: &Path) -> anyhow::Result<Option<(YtdlpVersion, PathBuf)>> {
+pub async fn get_local_ytdlp(
+    ytdlp_dir: &Path,
+) -> Result<Option<(YtdlpVersion, PathBuf)>, DepsError> {
     let ptr_path = ytdlp_dir.join("current");
 
     if !ptr_path.try_exists()? {
         return Ok(None);
     }
 
-    if ptr_path.is_file() {
-        let curr_ver_str = tokio::fs::read_to_string(&ptr_path).await?;
-        let curr_exec = ytdlp_dir.join(&curr_ver_str).join("yt-dlp.exe");
+    let curr_ver_str = tokio::fs::read_to_string(&ptr_path).await?;
+    let curr_exec = ytdlp_dir.join(&curr_ver_str).join("yt-dlp.exe");
 
-        let cmd = tokio::process::Command::new(&curr_exec)
-            .arg("--version")
-            .stdout(std::process::Stdio::piped())
-            .spawn()?;
-        let output = cmd.wait_with_output().await?;
-        let exe_ver_str = String::from_utf8_lossy(&output.stdout);
+    let cmd = tokio::process::Command::new(&curr_exec)
+        .arg("--version")
+        .stdout(std::process::Stdio::piped())
+        .spawn()?;
+    let output = cmd.wait_with_output().await?;
+    let exe_ver_str = String::from_utf8_lossy(&output.stdout);
 
-        if curr_ver_str != exe_ver_str.trim() {
-            return Err(anyhow::anyhow!(
-                "local version does not match: expected {}, got {}",
-                curr_ver_str,
-                exe_ver_str
-            ));
-        }
+    let curr_ver = YtdlpVersion::from_str(&curr_ver_str.trim())?;
+    let exe_ver = YtdlpVersion::from_str(&exe_ver_str.trim())?;
 
-        return Ok(Some((
-            YtdlpVersion::parse_from_tag_str(&curr_ver_str)?,
-            curr_exec,
-        )));
-    } else if ptr_path.is_dir() {
-        return Err(anyhow::anyhow!(
-            "expected {} to be a file",
-            ptr_path.as_os_str().display()
-        ));
+    if curr_ver != exe_ver {
+        return Err(crate::deps::DepsError::YtdlpVersionMismatch {
+            expect: curr_ver,
+            actual: exe_ver,
+        });
     }
-    Ok(None)
+
+    Ok(Some((curr_ver, curr_exec)))
 }
 
 #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
