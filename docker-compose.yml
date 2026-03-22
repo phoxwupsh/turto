@@ -4,6 +4,6 @@ services:
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
     volumes:
-      - ./config.exmaple.toml:/app/config.toml
-      - ./help.exmaple.toml:/app/help.toml
-      - ./templates.exmaple.toml:/app/templates.toml
+      - ./config.example.toml:/app/config.toml
+      - ./help.example.toml:/app/help.toml
+      - ./templates.example.toml:/app/templates.toml
