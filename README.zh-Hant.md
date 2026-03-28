@@ -93,7 +93,7 @@ turto 可以在沒有設定檔的情況下運作，但你仍可以透過一些 T
 
 - [`config.toml`](https://github.com/phoxwupsh/turto/blob/main/config.example.toml)
 - [`help.toml`](https://github.com/phoxwupsh/turto/blob/main/help.example.toml)
-- [`template.toml`](https://github.com/phoxwupsh/turto/blob/main/template.example.toml)
+- [`template.toml`](https://github.com/phoxwupsh/turto/blob/main/templates.example.toml)
 
 > [!TIP]
 > 編輯時請確保符合 [TOML 格式](https://toml.io/en/v1.0.0)。
