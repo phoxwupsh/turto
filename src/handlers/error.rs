@@ -181,10 +181,14 @@ async fn handle_error(
             ctx.send(CreateReply::default().content(response).ephemeral(true))
                 .await?;
         }
-        // these two error should be unreachable since we don't use prefix commands
-        // if this really happened it means there's some problem in our code
-        FrameworkError::DynamicPrefix { .. } => unreachable!(),
-        FrameworkError::UnknownCommand { .. } => unreachable!(),
+        // these two error occurs only when someone try to call prefix command
+        // ignore them since we don't use prefix commands
+        FrameworkError::DynamicPrefix { msg, .. } => {
+            tracing::debug!(?msg, "ignore unknonwn command");
+        }
+        FrameworkError::UnknownCommand { msg, .. } => {
+            tracing::debug!(?msg, "ignore unknown command");
+        }
 
         FrameworkError::UnknownInteraction { interaction, .. } => {
             tracing::warn!(?interaction, "received unknown interaction");
