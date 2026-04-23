@@ -54,8 +54,7 @@ version = "1.48.0"
 features = ["macros", "rt-multi-thread", "signal"]
 
 [dependencies.songbird]
-git = "https://github.com/beerpsi-forks/songbird.git"
-branch = "davey"
+version = "0.6.0"
 
 [dependencies.dashmap]
 version = "6.1.0"

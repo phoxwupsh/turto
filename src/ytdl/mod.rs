@@ -200,7 +200,6 @@ impl YouTubeDl {
         let input = Input::Live(
             LiveInput::Wrapped(AudioStream {
                 input: MediaSourceStream::new(Box::new(res), MediaSourceStreamOptions::default()),
-                hint: None,
             }),
             None,
         );
@@ -270,7 +269,6 @@ impl YouTubeDl {
                         Box::new(file),
                         MediaSourceStreamOptions::default(),
                     ),
-                    hint: None,
                 }),
                 None,
             );
@@ -361,7 +359,6 @@ impl YouTubeDl {
                     Box::new(ReadOnlySource::new(reader)),
                     MediaSourceStreamOptions::default(),
                 ),
-                hint: None,
             }),
             None,
         );
