@@ -27,6 +27,8 @@ chrono = "0.4"
 tempfile = "3.23.0"
 tokio-util = { version = "0.7.17", features = ["io-util"] }
 zip = "5.1.1"
+flate2 = "1.0"
+tar = "0.4"
 clap = { version = "4.5.53", features = ["derive"] }
 tokio-cron-scheduler = "0.15.1"
 arc-swap = "1.7.1"
@@ -35,8 +37,12 @@ thiserror = "2.0.17"
 strum = { version = "0.27.2", features = ["derive"] }
 paste = "1.0.15"
 serde_ignored = "0.1.14"
-time = { version = "0.3.47", features = ["macros", "parsing", "formatting"] }
+time = "0.3.47"
 lazy-regex = "3.6.0"
+async-trait = "0.1.89"
+futures = "0.3.32"
+base64 = "0.22.1"
+bytes = "1"
 
 [dependencies.serenity]
 version = "0.12.5"

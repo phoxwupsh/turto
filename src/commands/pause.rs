@@ -48,10 +48,7 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), CommandError> {
     playing.track_handle.pause()?;
     tracing::info!(paused = playing.ytdlfile.url(), "pause success");
 
-    let meta = playing
-        .ytdlfile
-        .fetch_metadata(ctx.data().config.ytdlp.clone())
-        .await?;
+    let meta = playing.ytdlfile.fetch_metadata().await?;
 
     let resp = create_playing_embed(ctx, Some(PlayState::Pause), &meta);
     ctx.send(CreateReply::default().embed(resp)).await?;

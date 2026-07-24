@@ -50,10 +50,7 @@ pub async fn stop(ctx: Context<'_>) -> Result<(), CommandError> {
 
     tracing::info!(stopped = playing.ytdlfile.url(), "stop success");
 
-    let meta = playing
-        .ytdlfile
-        .fetch_metadata(ctx.data().config.ytdlp.clone())
-        .await?;
+    let meta = playing.ytdlfile.fetch_metadata().await?;
 
     let resp = create_playing_embed(ctx, Some(PlayState::Stop), &meta);
     ctx.send(CreateReply::default().embed(resp)).await?;

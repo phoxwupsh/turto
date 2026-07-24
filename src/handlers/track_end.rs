@@ -32,9 +32,7 @@ impl EventHandler for TrackEndHandler {
         let next = if repeat {
             None
         } else {
-            guild_data
-                .playlist
-                .pop_front_prefetch(self.ctx.ytdlp_config.clone())
+            guild_data.playlist.pop_front_prefetch()
         };
         drop(guild_data);
 

@@ -86,10 +86,7 @@ pub async fn play(
             // If there is a paused song then play it
             playing.track_handle.play()?;
 
-            let metadata = playing
-                .ytdlfile
-                .fetch_metadata(ctx.data().config.ytdlp.clone())
-                .await?;
+            let metadata = playing.ytdlfile.fetch_metadata().await?;
 
             tracing::info!(url = playing.ytdlfile.url(), "resume");
 
@@ -103,9 +100,7 @@ pub async fn play(
         ctx.defer().await?;
 
         let mut guild_data = data.guilds.entry(guild_id).or_default();
-        let next = guild_data
-            .playlist
-            .pop_front_prefetch(ctx.data().config.ytdlp.clone());
+        let next = guild_data.playlist.pop_front_prefetch();
         drop(guild_data);
 
         if let Some(next) = next {

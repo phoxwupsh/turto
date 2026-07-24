@@ -82,6 +82,11 @@ impl Cli {
             return;
         }
 
+        if let Err(err) = crate::ytdl::sidecar::init(config.ytdlp.cookies_path.as_deref()).await {
+            error!(error = ?err, "failed to start yt-dlp sidecar");
+            return;
+        }
+
         let token = match std::env::var("DISCORD_TOKEN") {
             Ok(token) => {
                 if token.is_empty() {
@@ -115,7 +120,7 @@ impl Cli {
         };
 
         let auto_save_job_factory = bot.auto_save_job();
-        let auto_update_job_factory = auto_update_ytdlp("yt-dlp", config.ytdlp.clone());
+        let auto_update_job_factory = auto_update_ytdlp(config.ytdlp.clone());
         let scheduler = async move {
             let scheduler = JobScheduler::new().await?;
             scheduler
@@ -152,6 +157,7 @@ impl Cli {
         tokio::select! {
             _ = wait_shutdown_signal() => {
                 bot.shutdown().await;
+                crate::ytdl::sidecar::shutdown().await;
                 let _ = scheduler.shutdown().await;
             }
             _ = bot.start() => ()

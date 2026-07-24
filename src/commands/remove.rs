@@ -45,10 +45,7 @@ pub async fn remove(
 
     match remove_item {
         RemoveType::Index(index) => {
-            match guild_data
-                .playlist
-                .remove_prefetch(index, ctx.data().config.ytdlp.clone())
-            {
+            match guild_data.playlist.remove_prefetch(index) {
                 Some(removed) => {
                     drop(guild_data);
 
@@ -74,7 +71,7 @@ pub async fn remove(
 
             let drained = guild_data
                 .playlist
-                .drain_prefetch(from..to, ctx.data().config.ytdlp.clone())
+                .drain_prefetch(from..to)
                 .into_iter()
                 .map(|drained_item| {
                     let title = drained_item.title().unwrap_or_default();

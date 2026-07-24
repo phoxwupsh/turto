@@ -24,10 +24,7 @@ pub async fn playwhat(ctx: Context<'_>) -> Result<(), CommandError> {
         return Ok(());
     };
 
-    let meta = playing
-        .ytdlfile
-        .fetch_metadata(ctx.data().config.ytdlp.clone())
-        .await?;
+    let meta = playing.ytdlfile.fetch_metadata().await?;
     let play_state = match playing.track_handle.get_info().await?.playing {
         PlayMode::Stop | PlayMode::End | PlayMode::Errored(_) => {
             turto_say(ctx, NotPlaying).await?;

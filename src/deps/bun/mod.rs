@@ -12,8 +12,10 @@ use os::{get_archive_name, get_exec_name};
 
 static BUN: OnceLock<String> = OnceLock::new();
 
+/// The bun runtime arg passed to the sidecar (`"bun"` or `"bun:<path>"`).
+/// Panics if [`setup_bun`] has not run -- a wiring bug, not a runtime condition.
 pub fn get_bun_arg() -> &'static str {
-    BUN.get().unwrap()
+    BUN.get().expect("setup_bun must run first")
 }
 
 pub async fn setup_bun(

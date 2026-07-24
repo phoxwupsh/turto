@@ -58,9 +58,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), CommandError> {
     ctx.defer().await?;
 
     let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
-    let next = guild_data
-        .playlist
-        .pop_front_prefetch(ctx.data().config.ytdlp.clone());
+    let next = guild_data.playlist.pop_front_prefetch();
     drop(guild_data);
 
     if let Some(next) = next {
