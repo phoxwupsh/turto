@@ -44,7 +44,6 @@ impl Turto {
         let serenity_event_handler = SerenityEventHandler {
             playing: data.playing.clone(),
             guild_data: data.guilds.clone(),
-            voice_channel_counts: Default::default(),
         };
         let framework = Framework::builder()
             .setup(|ctx, _ready, framework| {
