@@ -1,6 +1,7 @@
 use crate::models::config::YtdlpConfig;
 use std::{pin::Pin, sync::Arc};
 use tokio_cron_scheduler::JobScheduler;
+use tracing::{Instrument, info_span};
 use uuid::Uuid;
 
 /// Build the periodic yt-dlp update job. It upgrades the sidecar's yt-dlp and,
@@ -11,12 +12,15 @@ pub fn auto_update_ytdlp(
 ) -> impl FnMut(Uuid, JobScheduler) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync {
     let nightly = config.use_nightly;
     move |_uuid, _job_scheduler| {
-        Box::pin(async move {
-            match crate::ytdl::sidecar::update(nightly).await {
-                Ok(true) => tracing::info!("yt-dlp updated; sidecar recycled"),
-                Ok(false) => tracing::debug!("yt-dlp already up to date"),
-                Err(err) => tracing::error!(error = ?err, "failed to update yt-dlp"),
+        Box::pin(
+            async move {
+                match crate::ytdl::sidecar::update(nightly).await {
+                    Ok(true) => tracing::info!("yt-dlp updated; sidecar recycled"),
+                    Ok(false) => tracing::debug!("yt-dlp already up to date"),
+                    Err(err) => tracing::error!(error = ?err, "failed to update yt-dlp"),
+                }
             }
-        })
+            .instrument(info_span!("job", kind = "ytdlp_update")),
+        )
     }
 }

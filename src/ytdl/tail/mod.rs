@@ -24,6 +24,7 @@ use std::{
 use symphonia::core::io::{MediaSourceStream, MediaSourceStreamOptions};
 use tempfile::NamedTempFile;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncWriteExt, ReadBuf};
+use tracing::Instrument;
 
 #[cfg(test)]
 mod test;
@@ -74,10 +75,15 @@ where
     // The producer fills the tail file; the finalizer decides its fate once the
     // producer returns. songbird's `AsyncAdapterStream` spawns its own driver
     // that pulls the reader (waker-driven, no polling) into a sync MediaSource.
-    tokio::spawn(async move {
-        let result = producer(writer).await;
-        finalizer.finish(result, cache);
-    });
+    // `in_current_span` carries the caller's `play_track` span (with the url) into
+    // the detached task, so resume/chunk/finalize events stay attributed.
+    tokio::spawn(
+        async move {
+            let result = producer(writer).await;
+            finalizer.finish(result, cache);
+        }
+        .in_current_span(),
+    );
 
     let adapter = AsyncAdapterStream::new(Box::new(reader), ADAPTER_BUF);
     Ok(Input::Live(

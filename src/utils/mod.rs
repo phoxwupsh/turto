@@ -19,7 +19,6 @@ use tokio::sync::Mutex;
 pub mod guild;
 pub mod json;
 pub mod misc;
-pub mod play;
 pub mod queue;
 
 static HTTP_CLIENT: OnceLock<Client> = OnceLock::new();

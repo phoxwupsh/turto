@@ -45,7 +45,7 @@ pub async fn remove(
 
     match remove_item {
         RemoveType::Index(index) => {
-            match guild_data.playlist.remove_prefetch(index) {
+            match guild_data.playlist.remove(index) {
                 Some(removed) => {
                     drop(guild_data);
 
@@ -61,8 +61,12 @@ pub async fn remove(
             }
         }
         RemoveType::Range { from, to } => {
-            // Check if the range is invalid
-            if from > to || length <= from || length <= to {
+            // `to` is already the exclusive end (`to_which` is inclusive), so the
+            // range is valid iff `from < to <= length`. `to > length` rather than
+            // `length <= to`, which rejected every range ending at the last item;
+            // `from >= to` catches an inverted range like `/remove 2 1`, which
+            // would otherwise drain nothing and reply with an empty message.
+            if from >= to || to > length {
                 drop(guild_data);
 
                 turto_say(ctx, InvalidRangeRemove { from, to, length }).await?;
@@ -71,7 +75,7 @@ pub async fn remove(
 
             let drained = guild_data
                 .playlist
-                .drain_prefetch(from..to)
+                .drain(from..to)
                 .into_iter()
                 .map(|drained_item| {
                     let title = drained_item.title().unwrap_or_default();

@@ -37,6 +37,7 @@ use symphonia::core::io::MediaSource;
 use tokio::io::{AsyncRead, AsyncSeek, ReadBuf};
 use tokio::sync::Notify;
 use tokio_util::io::StreamReader;
+use tracing::Instrument;
 
 #[cfg(test)]
 mod test;
@@ -299,6 +300,12 @@ impl ChunkSpec {
     /// yields an empty (clean-EOF) source -- the correct end for a resume that
     /// lands exactly at the end.
     async fn open(self, start: u64) -> Result<ChunkedSource, AudioStreamError> {
+        // Attribute the lazy chunk fetches to whoever opened the source. The span
+        // has to ride on the *stream*, not the task: on the prefetch path
+        // `Compose::create_async` hands the source to `AsyncAdapterStream`, which
+        // spawns its own driver with no span propagation, so the later chunks are
+        // polled from a task we never get to instrument.
+        let span = tracing::Span::current();
         // Absolute offset of the next byte to fetch, advanced by the bytes each
         // chunk *actually delivers* -- not by the range it was asked for. A
         // well-formed 206 that under-fills its range then realigns seamlessly,
@@ -307,6 +314,7 @@ impl ChunkSpec {
         let delivered = Arc::new(AtomicU64::new(start));
 
         let first_end = chunk_end(start, self.chunk, self.total);
+        tracing::debug!(start, end = first_end, "fetching first chunk");
         let first: BoxedByteStream =
             match fetch_range(&self.client, &self.url, &self.headers, start, first_end).await {
                 Ok(RangeResp::Body(resp)) => Box::pin(count_bytes(resp, delivered.clone())),
@@ -335,6 +343,7 @@ impl ChunkSpec {
         let rest = stream::try_unfold(None::<u64>, move |last_fetch| {
             let spec = spec.clone();
             let delivered = progress.clone();
+            let span = span.clone();
             async move {
                 let pos = delivered.load(Ordering::Relaxed);
                 if spec.total.is_some_and(|t| pos >= t) {
@@ -358,6 +367,7 @@ impl ChunkSpec {
                 {
                     return Ok(None);
                 }
+                tracing::debug!(offset = pos, end, "fetching chunk");
                 match fetch_range(&spec.client, &spec.url, &spec.headers, pos, end).await {
                     Ok(RangeResp::Body(resp)) => {
                         Ok(Some((count_bytes(resp, delivered.clone()), Some(pos))))
@@ -366,6 +376,7 @@ impl ChunkSpec {
                     Err(err) => Err(io::Error::other(err)),
                 }
             }
+            .instrument(span)
         })
         .try_flatten();
 

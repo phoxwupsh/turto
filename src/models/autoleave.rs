@@ -15,3 +15,17 @@ pub enum AutoleaveType {
     #[name = "off"]
     Off,
 }
+
+impl AutoleaveType {
+    /// Leave once the queue has drained. The policy for the end of the last track,
+    /// shared by the autonomous advance and the `skip` command so the two cannot
+    /// diverge.
+    pub fn leaves_on_empty_queue(self) -> bool {
+        matches!(self, Self::On | Self::Silent)
+    }
+
+    /// Leave once the last other user has left the bot's voice channel.
+    pub fn leaves_on_empty_channel(self) -> bool {
+        matches!(self, Self::On | Self::Empty)
+    }
+}

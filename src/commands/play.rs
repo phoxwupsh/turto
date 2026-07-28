@@ -1,11 +1,11 @@
 use crate::{
     message::TurtoMessageKind::{DifferentVoiceChannel, InvalidUrl, UserNotInVoiceChannel},
     models::{alias::Context, error::CommandError, playing::PlayState},
+    player::{self, PlayContext},
     utils::{
         create_playing_embed,
         guild::{GuildUtil, VoiceChannelState},
         join_voice_channel,
-        play::{PlayContext, play_ytdlfile_meta},
         turto_say,
     },
     ytdl::YouTubeDl,
@@ -67,7 +67,7 @@ pub async fn play(
 
         ctx.defer().await?;
         let ytdlfile = YouTubeDl::new(query);
-        let meta_fut = play_ytdlfile_meta(PlayContext::try_from(ctx)?, call, ytdlfile).await?;
+        let meta_fut = player::play_track(PlayContext::try_from(ctx)?, call, ytdlfile).await?;
         let meta = meta_fut.await?;
 
         tracing::info!("play success");
@@ -100,13 +100,13 @@ pub async fn play(
         ctx.defer().await?;
 
         let mut guild_data = data.guilds.entry(guild_id).or_default();
-        let next = guild_data.playlist.pop_front_prefetch();
+        let next = guild_data.playlist.pop_front();
         drop(guild_data);
 
         if let Some(next) = next {
             tracing::info!(url = next.url(), "play first item in playlist");
 
-            let meta_fut = play_ytdlfile_meta(PlayContext::try_from(ctx)?, call, next).await?;
+            let meta_fut = player::play_track(PlayContext::try_from(ctx)?, call, next).await?;
             let metadata = meta_fut.await?;
 
             let resp = create_playing_embed(ctx, Some(PlayState::Play), &metadata);

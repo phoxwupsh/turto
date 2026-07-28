@@ -46,8 +46,8 @@ pub async fn enqueue(
             let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
 
             match queue_type {
-                QueueType::Front => guild_data.playlist.push_front_prefetch(playlist_item),
-                QueueType::Back => guild_data.playlist.push_back_prefetch(playlist_item),
+                QueueType::Front => guild_data.playlist.push_front(playlist_item),
+                QueueType::Back => guild_data.playlist.push_back(playlist_item),
             }
             drop(guild_data);
 
@@ -65,9 +65,9 @@ pub async fn enqueue(
                 QueueType::Front => {
                     let new_playlist = yt_playlist.to_playlist();
                     let tail = replace(&mut guild_data.playlist, new_playlist);
-                    guild_data.playlist.extend_prefetch(tail);
+                    guild_data.playlist.extend(tail);
                 }
-                QueueType::Back => guild_data.playlist.extend_prefetch(yt_playlist),
+                QueueType::Back => guild_data.playlist.extend(yt_playlist),
             }
             drop(guild_data);
 

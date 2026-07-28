@@ -1,4 +1,7 @@
-use crate::models::{autoleave::AutoleaveType, guild::Guilds, playing::Playing};
+use crate::{
+    models::{guild::Guilds, playing::Playing},
+    player,
+};
 use dashmap::DashMap;
 use serenity::{
     all::{ChannelId, GuildId},
@@ -14,7 +17,7 @@ use std::{
     },
 };
 use tokio::sync::RwLock;
-use tracing::{error, info};
+use tracing::{Instrument, error, info, info_span};
 
 pub mod before;
 pub mod error;
@@ -65,7 +68,24 @@ impl EventHandler for SerenityEventHandler {
         let Some(guild_id) = new.guild_id else {
             return;
         };
+        self.on_voice_state(ctx, old, new, guild_id)
+            .instrument(info_span!("voice_update", guild = %guild_id))
+            .await;
+    }
+}
 
+impl SerenityEventHandler {
+    /// The body of [`EventHandler::voice_state_update`], under the `voice_update`
+    /// span. Handles a manual bot disconnect (tear down the current track) and,
+    /// for other users' moves, keeps voice-channel counts and auto-leaves an
+    /// emptied channel.
+    async fn on_voice_state(
+        &self,
+        ctx: Context,
+        old: Option<VoiceState>,
+        new: VoiceState,
+        guild_id: GuildId,
+    ) {
         if new.user_id == ctx.cache.current_user().id {
             // if the bot is manually disconnected by the user instead using command,
             // then remove the current track handle (if there is one)
@@ -91,7 +111,7 @@ impl EventHandler for SerenityEventHandler {
                 .or_default()
                 .config
                 .auto_leave;
-            if autoleave == AutoleaveType::Empty || autoleave == AutoleaveType::On {
+            if autoleave.leaves_on_empty_channel() {
                 let Some(call) = songbird::get(&ctx).await.unwrap().get(guild_id) else {
                     return;
                 };
@@ -99,25 +119,19 @@ impl EventHandler for SerenityEventHandler {
                 let Some(bot_channel) = call.current_channel() else {
                     return;
                 };
-                if self
+                let empty = self
                     .voice_channel_counts
                     .entry(bot_channel.0.into())
                     .or_default()
                     .load(Ordering::Acquire)
-                    == 0
-                    && let Err(error) = call.leave().await
-                {
-                    error!(
-                        ?error, %bot_channel,
-                        "failed to leave voice channel"
-                    );
+                    == 0;
+                if empty {
+                    player::leave(&mut call, guild_id).await;
                 }
             }
         }
     }
-}
 
-impl SerenityEventHandler {
     fn voice_channel_add(&self, channel_id: ChannelId) {
         self.voice_channel_counts
             .entry(channel_id)

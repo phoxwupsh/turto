@@ -18,6 +18,7 @@ use tokio::{
     process::{Child, Command},
     sync::Mutex,
 };
+use tracing::instrument;
 use uuid::Uuid;
 
 /// The embedded sidecar source.
@@ -261,6 +262,7 @@ async fn spawn_instance() -> Result<(Sidecar, Child), SidecarError> {
 /// Run an extraction. `flat` requests a flat-playlist dump; otherwise a single
 /// processed video info dict (with format selection applied). Returns the
 /// yt-dlp info dict as JSON for the caller to deserialize.
+#[instrument(skip_all, fields(url = %url, flat))]
 pub async fn extract(url: &str, flat: bool) -> Result<serde_json::Value, SidecarError> {
     let sc = current()?;
     let body = serde_json::json!({
@@ -269,6 +271,8 @@ pub async fn extract(url: &str, flat: bool) -> Result<serde_json::Value, Sidecar
         "cookies_b64": cookies_b64(),
     });
 
+    tracing::debug!("calling sidecar /extract");
+    let started = std::time::Instant::now();
     let resp = sc
         .client
         .post(format!("{}/extract", sc.base))
@@ -278,11 +282,20 @@ pub async fn extract(url: &str, flat: bool) -> Result<serde_json::Value, Sidecar
         .send()
         .await?;
 
+    // Timed after the body is read and parsed, not just after the headers: a
+    // flat-playlist dump is multi-MB, and the download plus `serde_json` parse is
+    // the non-trivial tail of the call.
     let status = resp.status();
     if status.is_success() {
-        Ok(resp.json::<serde_json::Value>().await?)
+        let info = resp.json::<serde_json::Value>().await?;
+        let elapsed_ms = started.elapsed().as_millis() as u64;
+        tracing::info!(status = status.as_u16(), elapsed_ms, "extract succeeded");
+        Ok(info)
     } else {
-        Err(error_from_response(resp).await)
+        let err = error_from_response(resp).await;
+        let elapsed_ms = started.elapsed().as_millis() as u64;
+        tracing::warn!(status = status.as_u16(), elapsed_ms, error = %err, "extract failed");
+        Err(err)
     }
 }
 
@@ -291,10 +304,12 @@ pub async fn extract(url: &str, flat: bool) -> Result<serde_json::Value, Sidecar
 /// no-url). `info` is the yt-dlp info dict already produced by `/extract`, so
 /// the sidecar downloads via `--load-info-json` (no second extraction). Returns
 /// the streaming [`reqwest::Response`]; the caller reads its body chunk by chunk.
+#[instrument(skip_all)]
 pub async fn download(info: &serde_json::Value) -> Result<reqwest::Response, SidecarError> {
     let sc = current()?;
     let body = serde_json::json!({ "info": info, "cookies_b64": cookies_b64() });
 
+    tracing::debug!("calling sidecar /download");
     let resp = sc
         .client
         .post(format!("{}/download", sc.base))
@@ -303,10 +318,14 @@ pub async fn download(info: &serde_json::Value) -> Result<reqwest::Response, Sid
         .send()
         .await?;
 
-    if resp.status().is_success() {
+    let status = resp.status();
+    if status.is_success() {
+        tracing::info!(status = status.as_u16(), content_length = ?resp.content_length(), "download started");
         Ok(resp)
     } else {
-        Err(error_from_response(resp).await)
+        let err = error_from_response(resp).await;
+        tracing::warn!(status = status.as_u16(), error = %err, "download failed");
+        Err(err)
     }
 }
 

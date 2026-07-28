@@ -12,7 +12,6 @@ use symphonia::core::io::{
     MediaSource, MediaSourceStream, MediaSourceStreamOptions, ReadOnlySource,
 };
 use tempfile::tempfile;
-use tracing::instrument;
 use url::Url;
 
 mod chunked;
@@ -20,6 +19,11 @@ pub mod playlist;
 pub mod sidecar;
 mod source;
 mod tail;
+
+/// A deferred metadata fetch handed back by the play path, awaited by the caller
+/// once playback has started.
+pub type MetadataFuture =
+    Pin<Box<dyn Future<Output = Result<Arc<YouTubeDlMetadata>, YouTubeDlError>> + Send>>;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct YouTubeDl {
@@ -175,7 +179,7 @@ impl YouTubeDl {
                 match source::download_to_file(compose).await {
                     Ok(file) => Ok(file),
                     Err(err) => {
-                        tracing::warn!(error = %err, url = %self.inner.url, "prefetch byte open failed; re-extracting for a fresh url");
+                        tracing::warn!(error = %err, "prefetch byte open failed; re-extracting for a fresh url");
                         self.retry_download_to_file().await
                     }
                 }
@@ -222,16 +226,7 @@ impl YouTubeDl {
         Ok(val.clone())
     }
 
-    #[instrument(skip_all, fields(url = self.inner.url))]
-    pub async fn play(
-        &self,
-    ) -> Result<
-        (
-            Pin<Box<dyn Future<Output = Result<Arc<YouTubeDlMetadata>, YouTubeDlError>> + Send>>,
-            Input,
-        ),
-        YouTubeDlError,
-    > {
+    pub async fn play(&self) -> Result<(MetadataFuture, Input), YouTubeDlError> {
         if let Some(file) = self.inner.file.get() {
             let mut file = file.try_clone()?;
             file.seek(SeekFrom::Start(0))?;
@@ -259,7 +254,7 @@ impl YouTubeDl {
             source::ByteSource::Http(req) => match req.open_source().await {
                 Ok(paced) => self.http_live_input(paced)?,
                 Err(err) => {
-                    tracing::warn!(error = %err, url = %self.inner.url, "byte open failed; re-extracting for a fresh url");
+                    tracing::warn!(error = %err, "byte open failed; re-extracting for a fresh url");
                     self.retry_live_input().await?
                 }
             },
@@ -267,7 +262,7 @@ impl YouTubeDl {
             source::ByteSource::Hls(compose) => match source::open_byte_stream(compose).await {
                 Ok(raw) => self.tee_live_input(raw)?,
                 Err(err) => {
-                    tracing::warn!(error = %err, url = %self.inner.url, "byte open failed; re-extracting for a fresh url");
+                    tracing::warn!(error = %err, "byte open failed; re-extracting for a fresh url");
                     self.retry_live_input().await?
                 }
             },

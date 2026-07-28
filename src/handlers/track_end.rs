@@ -1,8 +1,4 @@
-use crate::{
-    models::autoleave::AutoleaveType,
-    utils::play::{PlayContext, play_ytdlfile},
-    ytdl::YouTubeDl,
-};
+use crate::{player, player::PlayContext, ytdl::YouTubeDl};
 use serenity::async_trait;
 use songbird::{
     Call,
@@ -11,7 +7,7 @@ use songbird::{
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::error;
+use tracing::{Instrument, info_span};
 
 pub struct TrackEndHandler {
     pub call: Arc<Mutex<Call>>,
@@ -25,40 +21,26 @@ impl EventHandler for TrackEndHandler {
         let EventContext::Track(ctx) = ctx else {
             return None;
         };
-
-        let mut guild_data = self.ctx.data.entry(self.ctx.guild_id).or_default();
-        let repeat = guild_data.config.repeat;
-        let auto_leave = guild_data.config.auto_leave;
-        let next = if repeat {
-            None
-        } else {
-            guild_data.playlist.pop_front_prefetch()
-        };
-        drop(guild_data);
-
         let (state, _handle) = ctx[0];
-
+        // Pattern match, not `==`: `PlayMode` compares by the `TrackEvent` it maps
+        // to, and `Stop` maps to `End` too. Only a track that ended on its own
+        // advances the queue -- a `call.stop()` (a skip, or the stop that precedes
+        // the next track) must not.
         let PlayMode::End = state.playing else {
             return None;
         };
 
-        if repeat {
-            play_ytdlfile(self.ctx.clone(), self.call.clone(), self.ytdl_file.clone())
-                .await
-                .ok()?;
-            return None;
-        }
-
-        if let Some(next) = next {
-            play_ytdlfile(self.ctx.clone(), self.call.clone(), next)
-                .await
-                .ok()?;
-        } else if auto_leave == AutoleaveType::Silent || auto_leave == AutoleaveType::On {
-            let mut call = self.call.lock().await;
-            if let Err(err) = call.leave().await {
-                error!(error = ?err, channel = ?call.current_channel(), "failed to leave voice channel");
-            }
-        }
+        // Hand off to the queue policy. Spawned rather than awaited: `act` runs
+        // inline on songbird's single per-driver event task, so awaiting the next
+        // track's open would stall every other event for this guild until it
+        // finished. `parent: None` because that task is itself instrumented --
+        // otherwise the contextual parent is songbird's `runner` span, which never
+        // closes.
+        let span = info_span!(parent: None, "track_end", guild = %self.ctx.guild_id);
+        tokio::spawn(
+            player::advance(self.ctx.clone(), self.call.clone(), self.ytdl_file.clone())
+                .instrument(span),
+        );
         None
     }
 }

@@ -29,11 +29,22 @@ pub(super) enum ByteSource {
     Sidecar,
 }
 
+impl ByteSource {
+    /// A short static label for the chosen path, for logging.
+    fn label(&self) -> &'static str {
+        match self {
+            ByteSource::Http(_) => "http",
+            ByteSource::Hls(_) => "hls",
+            ByteSource::Sidecar => "sidecar",
+        }
+    }
+}
+
 /// Classify the resolved format into the byte path that serves it.
 pub(super) fn classify_source(meta: &YouTubeDlMetadata) -> ByteSource {
     let headers = build_header_map(&meta.http_headers);
     let client = get_http_client();
-    match meta.protocol.as_deref() {
+    let source = match meta.protocol.as_deref() {
         Some("m3u8_native") | Some("m3u8") => ByteSource::Hls(Box::new(
             HlsRequest::new_with_headers(client, meta.url.clone(), headers),
         )),
@@ -43,7 +54,14 @@ pub(super) fn classify_source(meta: &YouTubeDlMetadata) -> ByteSource {
             chunked::ChunkedHttpRequest::new(client, meta.url.clone(), headers, meta.filesize),
         ),
         _ => ByteSource::Sidecar,
-    }
+    };
+    // Never logs `meta.url` (the signed URL); the watch URL comes from the span.
+    tracing::debug!(
+        protocol = meta.protocol.as_deref().unwrap_or("none"),
+        source = source.label(),
+        "classified byte source"
+    );
+    source
 }
 
 fn build_header_map(headers: &Option<HashMap<String, String>>) -> HeaderMap {
