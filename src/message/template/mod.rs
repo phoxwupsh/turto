@@ -111,17 +111,16 @@ impl Template {
                     last_left = pos;
                     has_left = true;
                 }
-                '}' => {
-                    if has_left {
-                        let text = template[start..last_left].to_string();
-                        let arg = template[last_left + 1..pos].to_string();
-                        tokens.push(Token::Text(text));
-                        tokens.push(Token::Arg(arg));
-                        start = pos + 1;
-                        last_left = start;
-                        has_left = false;
-                    }
+                '}' if has_left => {
+                    let text = template[start..last_left].to_string();
+                    let arg = template[last_left + 1..pos].to_string();
+                    tokens.push(Token::Text(text));
+                    tokens.push(Token::Arg(arg));
+                    start = pos + 1;
+                    last_left = start;
+                    has_left = false;
                 }
+
                 _ => (),
             }
             pos += c.len_utf8();
