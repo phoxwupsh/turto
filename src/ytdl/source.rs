@@ -48,20 +48,21 @@ pub(super) fn is_direct(meta: &YouTubeDlMetadata) -> bool {
 pub(super) fn classify_source(meta: &YouTubeDlMetadata) -> ByteSource {
     let headers = build_header_map(&meta.http_headers);
     let client = get_http_client();
-    let source = match meta.protocol.as_deref() {
-        Some("m3u8_native" | "m3u8") => ByteSource::Hls(Box::new(
-            HlsRequest::new_with_headers(client, meta.url.clone(), headers),
-        )),
-        // Direct http(s): the chunked source dodges googlevideo's >10 MB throttle;
-        // `filesize` lets it stop exactly at EOF.
-        _ if is_direct(meta) => ByteSource::Http(chunked::ChunkRequest::new(
-            client,
-            meta.url.clone(),
-            headers,
-            meta.filesize,
-        )),
-        _ => ByteSource::Sidecar,
-    };
+    let source =
+        match meta.protocol.as_deref() {
+            Some("m3u8_native" | "m3u8") => ByteSource::Hls(Box::new(
+                HlsRequest::new_with_headers(client, meta.url.clone(), headers),
+            )),
+            // Direct http(s): the chunked source dodges googlevideo's >10 MB throttle;
+            // `filesize` lets it stop exactly at EOF.
+            _ if is_direct(meta) => ByteSource::Http(chunked::ChunkRequest::new(
+                client,
+                meta.url.clone(),
+                headers,
+                meta.filesize,
+            )),
+            _ => ByteSource::Sidecar,
+        };
     // Never logs `meta.url` (the signed URL); the watch URL comes from the span.
     tracing::debug!(
         protocol = meta.protocol.as_deref().unwrap_or("none"),

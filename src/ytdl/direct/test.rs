@@ -218,7 +218,10 @@ async fn attaching_a_reader_resumes_a_parked_prefetch() {
         .read_to_end(&mut out)
         .await
         .unwrap();
-    assert_eq!(out, body, "the reader must resume the parked download to its end");
+    assert_eq!(
+        out, body,
+        "the reader must resume the parked download to its end"
+    );
 }
 
 /// The paced fetcher must not race ahead of consumption: with nothing reading, it

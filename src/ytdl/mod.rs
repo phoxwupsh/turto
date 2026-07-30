@@ -274,7 +274,10 @@ impl YouTubeDl {
 
     /// Spawn the producer for one classified byte source. Only the direct-HTTP one has a
     /// recovery loop: it alone holds a URL that expires *and* knows where to resume.
-    async fn open_tail(&self, source: source::ByteSource) -> Result<tail::TailHandle, YouTubeDlError> {
+    async fn open_tail(
+        &self,
+        source: source::ByteSource,
+    ) -> Result<tail::TailHandle, YouTubeDlError> {
         let cancel = self.inner.cancel.clone();
         match source {
             source::ByteSource::Http(req) => {

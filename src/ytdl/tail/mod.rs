@@ -374,7 +374,10 @@ impl TailHandle {
             self.state.failed.store(true, Ordering::Release);
             tracing::warn!(error = %err, "tail download failed");
         } else {
-            tracing::info!(bytes = self.state.written.load(Ordering::Acquire), "tail download complete");
+            tracing::info!(
+                bytes = self.state.written.load(Ordering::Acquire),
+                "tail download complete"
+            );
         }
         self.state.done.store(true, Ordering::Release);
         self.state.waker.wake();

@@ -64,9 +64,7 @@ pub(super) enum FetchError {
     /// describe different representations. Nothing to retry and nothing to re-extract --
     /// resuming in place is what is impossible. Reported rather than treated as a clean
     /// end, which would publish a short tail as the whole track and cache it.
-    #[error(
-        "range from {at} refused but the format declares {total} bytes (server: {declared:?})"
-    )]
+    #[error("range from {at} refused but the format declares {total} bytes (server: {declared:?})")]
     Truncated {
         at: u64,
         total: u64,

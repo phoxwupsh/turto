@@ -111,8 +111,7 @@ async fn sidecar_producer_stops_on_track_cancel() {
                 break;
             }
         }
-        let head =
-            format!("HTTP/1.1 200 OK\r\nContent-Length: {len}\r\nConnection: close\r\n\r\n");
+        let head = format!("HTTP/1.1 200 OK\r\nContent-Length: {len}\r\nConnection: close\r\n\r\n");
         if sock.write_all(head.as_bytes()).await.is_err() {
             return;
         }
@@ -175,7 +174,10 @@ async fn tail_handle_mints_readers_at_any_point() {
     let mut mid = handle.reader().unwrap();
     let mut buf = vec![0u8; head.len()];
     mid.read_exact(&mut buf).await.unwrap();
-    assert_eq!(buf, head, "a late reader starts at the beginning of the file");
+    assert_eq!(
+        buf, head,
+        "a late reader starts at the beginning of the file"
+    );
 
     writer.write(rest).await.unwrap();
     handle.finish(Ok(()), &cancel);
@@ -189,7 +191,11 @@ async fn tail_handle_mints_readers_at_any_point() {
     let mut late = handle.reader().unwrap();
     let mut all = Vec::new();
     late.read_to_end(&mut all).await.unwrap();
-    assert_eq!(all, [head, rest].concat(), "a replay reader sees everything");
+    assert_eq!(
+        all,
+        [head, rest].concat(),
+        "a replay reader sees everything"
+    );
 }
 
 /// A reader minted after a *failed* download must surface the failure, not a clean
@@ -261,7 +267,12 @@ async fn hls_bridge_writes_all_bytes() {
     handle.finish(Ok(()), &cancel);
 
     let mut out = Vec::new();
-    handle.reader().unwrap().read_to_end(&mut out).await.unwrap();
+    handle
+        .reader()
+        .unwrap()
+        .read_to_end(&mut out)
+        .await
+        .unwrap();
     assert_eq!(out, body, "bridged bytes must match the source exactly");
 }
 

@@ -1,8 +1,8 @@
 //! Lifecycle & client for the yt-dlp sidecar.
 //!
 //! The sidecar is a long-lived Python process (run on the uv-managed venv)
-//! that imports yt-dlp once and serves over HTTP. This module spawns it, 
-//! learns its ephemeral port, health-checks it, and exposes a typed [`extract`] 
+//! that imports yt-dlp once and serves over HTTP. This module spawns it,
+//! learns its ephemeral port, health-checks it, and exposes a typed [`extract`]
 //! client used by [`crate::ytdl`].
 
 use crate::deps::{bun::get_bun_arg, uv::get_uv_python};
@@ -78,7 +78,7 @@ pub enum SpawnError {
     /// startup (usually a failed `import yt_dlp`; see the captured stderr).
     #[error("sidecar exited before announcing its port")]
     NoPort,
-    
+
     /// The first stdout line was not the expected `PORT=<n>`.
     #[error("expected a `PORT=<n>` line from the sidecar, got {line:?}")]
     BadPortLine { line: String },
@@ -86,7 +86,7 @@ pub enum SpawnError {
     /// Building the loopback HTTP client failed.
     #[error("failed to build the sidecar http client: {0}")]
     Client(#[source] reqwest::Error),
-    
+
     /// The child never announced its port / passed health check in the window.
     #[error("sidecar did not become ready within {}", .0.as_secs_f32())]
     Timeout(Duration),
@@ -146,12 +146,12 @@ pub enum SidecarError {
     },
 }
 
-/// Bring the sidecar up for the whole process: 
-/// 
+/// Bring the sidecar up for the whole process:
+///
 /// 1. Load and validate the cookies file
 /// 2. Spawn the sidecar process
 /// 3. Learn the sidecar's port
-/// 4. Wait until it's healthy. 
+/// 4. Wait until it's healthy.
 pub async fn init(cookies_path: Option<&str>) -> Result<(), SidecarError> {
     init_cookies(cookies_path).await?;
     let (sidecar, child) = spawn_instance().await?;
@@ -202,7 +202,7 @@ async fn spawn_instance() -> Result<(Sidecar, Child), SidecarError> {
     let stderr = child.stderr.take().expect("piped stderr");
 
     // Feed the embedded sidecar source over stdin
-    // A write failure here means the interpreter died before reading the program, 
+    // A write failure here means the interpreter died before reading the program,
     let mut stdin = child.stdin.take().expect("piped stdin");
     if let Err(err) = stdin.write_all(SIDECAR_PY).await {
         let _ = child.kill().await;
@@ -352,11 +352,11 @@ async fn init_cookies(cookies_path: Option<&str>) -> Result<(), SidecarError> {
     Ok(())
 }
 
-/// The cached base64 cookies (or [`None`] if unconfigured). 
-/// 
+/// The cached base64 cookies (or [`None`] if unconfigured).
+///
 /// # Panics
-/// 
-/// Panics if [`init_cookies`] has not run, that is a wiring bug, 
+///
+/// Panics if [`init_cookies`] has not run, that is a wiring bug,
 /// not a runtime state.
 fn cookies_b64() -> Option<&'static str> {
     COOKIES_B64
@@ -366,12 +366,12 @@ fn cookies_b64() -> Option<&'static str> {
 }
 
 /// Check for a newer yt-dlp and, if found, recycle the sidecar blue/green:
-/// 
+///
 /// 1. Upgrade the venv on disk
 /// 2. Spawn & health-check a fresh instance
 /// 3. Atomically cut new requests over to it
 /// 4. Drain the old one in the background.
-/// 
+///
 /// Returns `Ok(true)` if a recycle happened, `Ok(false)` if already current.
 pub async fn update(nightly: bool) -> Result<bool, SidecarError> {
     let _serialize = UPDATE_LOCK.lock().await;
@@ -408,10 +408,10 @@ pub async fn update(nightly: bool) -> Result<bool, SidecarError> {
     Ok(true)
 }
 
-/// Retire an old sidecar after a swap: ask it to drain gracefully via HTTP API, 
-/// wait for it to exit, and hard-kill it if it overruns [`DRAIN_TIMEOUT`]. 
-/// 
-/// Holds the old handle so its client stays alive for any in-flight requests 
+/// Retire an old sidecar after a swap: ask it to drain gracefully via HTTP API,
+/// wait for it to exit, and hard-kill it if it overruns [`DRAIN_TIMEOUT`].
+///
+/// Holds the old handle so its client stays alive for any in-flight requests
 /// still draining.
 async fn drain_old(old: Arc<Sidecar>, mut child: Child) {
     let signalled = old
@@ -562,8 +562,8 @@ mod tests {
     use super::{SidecarError, init_cookies};
 
     /// A configured-but-unreadable cookies file is a misconfiguration: it must
-    /// error rather than silently serving cookieless. 
-    /// Errors before `COOKIES_B64` is set, so it does not disturb the global 
+    /// error rather than silently serving cookieless.
+    /// Errors before `COOKIES_B64` is set, so it does not disturb the global
     /// for other tests.
     #[tokio::test]
     async fn init_cookies_errors_on_unreadable_path() {

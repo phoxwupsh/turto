@@ -44,7 +44,9 @@ async fn chunks_reassemble_in_order_with_expected_request_count() {
     let srv = serve_ranges(body.clone(), Fault::None).await;
 
     // -> chunks of 10k, 10k, 5k == 3 requests
-    let out = read_all(request(srv.url, len, 10_000)).await.expect("read to end");
+    let out = read_all(request(srv.url, len, 10_000))
+        .await
+        .expect("read to end");
 
     assert_eq!(out, body, "reassembled bytes must match the original file");
     assert_eq!(
@@ -84,7 +86,9 @@ async fn short_range_response_realigns_without_gap() {
     let body: Vec<u8> = (0..len).map(|i| (i % 251) as u8).collect();
     let srv = serve_ranges(body.clone(), Fault::ShortBodyOnce).await;
 
-    let out = read_all(request(srv.url, len, 10_000)).await.expect("read to end");
+    let out = read_all(request(srv.url, len, 10_000))
+        .await
+        .expect("read to end");
 
     assert!(
         srv.faulted.load(Ordering::SeqCst),
