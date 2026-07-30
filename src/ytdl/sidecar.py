@@ -36,6 +36,7 @@ import shutil
 import socket
 import sys
 import tempfile
+import threading
 from collections.abc import AsyncIterator, Callable, Iterator
 from typing import Any
 
@@ -45,6 +46,7 @@ from fastapi import FastAPI, Header
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
+from yt_dlp.utils import DownloadCancelled
 
 FORMAT = "ba[abr>0][vcodec=none]/best"
 
@@ -79,6 +81,9 @@ JS_RUNTIMES = build_js_runtimes(ARGS.bun)
 # extraction. Each unit of work still gets its own YoutubeDL, run in a thread.
 EXTRACT_SEM = asyncio.Semaphore(max(1, ARGS.max_concurrency))
 DOWNLOAD_SEM = asyncio.Semaphore(max(1, ARGS.max_concurrency))
+# Live cleanup tasks, held so a detached one cannot be garbage-collected mid-wait
+# (see reap_download).
+DOWNLOAD_REAPERS: set[asyncio.Task[None]] = set()
 
 app = FastAPI()
 
@@ -189,9 +194,10 @@ def run_download(
     cookies_b64: str | None,
     tmpdir: str,
     on_filename: Callable[[str], None],
+    cancel: threading.Event,
 ) -> None:
     """Download the audio for an already-extracted info dict into `tmpdir`
-    (blocking; raises on failure).
+    (blocking; raises on failure, including a cancellation).
 
     Uses ``download_with_info_file`` (the library form of ``--load-info-json``)
     so the expensive extraction done by ``/extract`` is NOT repeated. yt-dlp's
@@ -200,9 +206,16 @@ def run_download(
     re-extracts from ``webpage_url``. ``nopart=True`` writes straight to the
     final file so the streamer can tail it; ``on_filename`` reports that path
     (from the progress hook) as soon as it is known.
+
+    The progress hook is also where a stop lands: yt-dlp has no other way in
+    mid-download, and it re-raises ``DownloadCancelled`` untouched rather than
+    turning it into a ``DownloadError`` (which ``download_with_info_file`` would
+    answer by re-extracting and starting over).
     """
 
     def hook(d: dict[str, Any]) -> None:
+        if cancel.is_set():
+            raise DownloadCancelled("consumer went away")
         filename = d.get("filename")
         if filename:
             on_filename(filename)
@@ -252,6 +265,31 @@ class DownloadState:
         self.error = error
 
 
+def reap_download(running: asyncio.Future[None], tmpdir: str) -> None:
+    """Free one download's resources once its worker thread has actually stopped.
+
+    Both belong to the worker until then: ``tmpdir`` is what it writes into, and the
+    permit is what makes ``--max-concurrency`` a limit. Releasing either while the
+    worker still runs leaves it downloading at full speed into a deleted directory,
+    off the books.
+
+    Detached rather than awaited because the caller's ``finally`` may already be
+    running under a cancelled task (a client disconnect), where every ``await``
+    returns at once -- the wait has to outlive it.
+    """
+
+    async def reap() -> None:
+        try:
+            await running
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+            DOWNLOAD_SEM.release()
+
+    task = asyncio.create_task(reap())
+    DOWNLOAD_REAPERS.add(task)
+    task.add_done_callback(DOWNLOAD_REAPERS.discard)
+
+
 async def download_stream(
     info: dict[str, Any], cookies_b64: str | None
 ) -> AsyncIterator[bytes]:
@@ -273,6 +311,9 @@ async def download_stream(
     * On failure the worker records ``state.error`` (ordered before ``done`` by
       FIFO callback scheduling) and we raise, aborting the response, so the
       client treats it as failed and never caches a truncated/empty file.
+    * ``cancel`` is the one field both threads touch, hence a ``threading.Event``:
+      set here when nobody is left to read the bytes, polled by the worker's
+      progress hook.
 
     Assumes yt-dlp writes the output sequentially (append-only): true here
     (audio-only format, ``nopart=True``, no post-processing, no concurrent
@@ -281,6 +322,8 @@ async def download_stream(
     await DOWNLOAD_SEM.acquire()
     tmpdir = None
     handle = None
+    running = None
+    cancel = threading.Event()
     try:
         # Inside the try so a failure here (e.g. mkdtemp) still hits the finally
         # that releases the semaphore -- acquiring before the try would leak a
@@ -296,13 +339,13 @@ async def download_stream(
 
         def worker() -> None:  # runs in the executor thread
             try:
-                run_download(info, cookies_b64, tmpdir, report_filename)
+                run_download(info, cookies_b64, tmpdir, report_filename, cancel)
             except Exception as exc:  # noqa: BLE001
                 loop.call_soon_threadsafe(state.set_error, str(exc))
             finally:
                 loop.call_soon_threadsafe(done.set)
 
-        loop.run_in_executor(None, worker)
+        running = loop.run_in_executor(None, worker)
 
         streamed = 0
         while True:
@@ -339,11 +382,19 @@ async def download_stream(
             else:
                 await asyncio.sleep(0.05)
     finally:
+        # Nobody is left to read the bytes -- the track was skipped, the client hung
+        # up, or the download is simply over -- so stop yt-dlp instead of paying full
+        # bandwidth for a file that is about to be deleted.
+        cancel.set()
         if handle is not None:
             handle.close()
-        if tmpdir is not None:
-            shutil.rmtree(tmpdir, ignore_errors=True)
-        DOWNLOAD_SEM.release()
+        if running is None:
+            # Never got as far as a worker; nothing to wait for.
+            if tmpdir is not None:
+                shutil.rmtree(tmpdir, ignore_errors=True)
+            DOWNLOAD_SEM.release()
+        else:
+            reap_download(running, tmpdir)
 
 
 @app.post("/download", response_model=None)
