@@ -79,8 +79,8 @@ pub enum SpawnError {
     #[error("sidecar exited before announcing its port")]
     NoPort,
     
-    /// The first stdout line was not the expected `PORT <n>`.
-    #[error("expected a `PORT <n>` line from the sidecar, got {line:?}")]
+    /// The first stdout line was not the expected `PORT=<n>`.
+    #[error("expected a `PORT=<n>` line from the sidecar, got {line:?}")]
     BadPortLine { line: String },
 
     /// Building the loopback HTTP client failed.

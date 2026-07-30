@@ -5,7 +5,7 @@ on loopback via FastAPI/uvicorn. It does extraction ONLY -- audio bytes stay
 in Rust.
 
 Protocol:
-  - On startup, prints ``PORT <n>`` as the first stdout line, then serves.
+  - On startup, prints ``PORT=<n>`` as the first stdout line, then serves.
   - ``GET  /health``   -> 200 {"ok": true}                (unauthenticated)
   - ``POST /extract``  -> 200 <yt-dlp info dict as JSON>  (X-Turto-Secret gated)
         request body: {"url": str, "flat_playlist": bool, "cookies_b64": str|null}
