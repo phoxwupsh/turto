@@ -1,5 +1,4 @@
-//! End-to-end smoke test for the warm yt-dlp sidecar + Rust byte path
-//! (Phases 1 & 2).
+//! End-to-end smoke test for the warm yt-dlp sidecar and the Rust byte path.
 //!
 //! Ignored by default: it downloads the uv binary, a managed CPython, and
 //! yt-dlp into a temp dir, then hits live YouTube. Run on demand with:
@@ -87,47 +86,61 @@ async fn sidecar_end_to_end() {
         .expect("playlist entries");
     assert!(!entries.is_empty(), "expected non-empty playlist entries");
 
-    // Phase 2 byte path: play() must open the resolved http(s) stream with the
-    // format's headers. The original reqwest attempt 403'd from missing headers,
-    // so a successful open here is the key regression guard.
+    // play() must open the resolved http(s) stream *with the format's headers*:
+    // googlevideo answers a header-less request with a 403, so a successful open here
+    // is the guard on them being carried through.
     let ytdl = YouTubeDl::new(SINGLE_URL);
-    let (meta_fut, input) = ytdl.play().await.expect("play opens byte stream");
-    let played = meta_fut.await.expect("play metadata");
+    let (played, input) = ytdl.play().await.expect("play opens byte stream");
     assert_eq!(played.protocol.as_deref(), Some("https"));
     assert!(!played.url.is_empty());
     drop(input);
 
-    // fetch_file() must fully download the track through the byte path into the
-    // cache tempfile (exercises download_to_file end to end).
-    let prefetch = YouTubeDl::new(SINGLE_URL);
-    prefetch
-        .fetch_file()
+    // warm() must fetch the whole track through the byte path into its tail file.
+    // Not what the queue does (see prefetch() below), but it is the guarantee the
+    // tail rests on: a completed tail is the replay cache, so playing it again mints
+    // a reader over the same bytes rather than downloading them twice.
+    let warmed = YouTubeDl::new(SINGLE_URL);
+    warmed.warm().await.expect("warm fetches the whole track");
+    let (_, input) = warmed
+        .play()
         .await
-        .expect("fetch_file downloads + caches");
+        .expect("play attaches to the completed tail");
+    drop(input);
 
-    // Phase 4: URL-expiry retry guard. A resolved googlevideo URL is time-/IP-
+    // What the queue actually does: prefetch() takes the extract plus a *bounded* head
+    // start on the bytes, returning long before the track is local, and the playback
+    // that follows must attach to that same parked download rather than starting its own.
+    let primed = YouTubeDl::new(SINGLE_URL);
+    primed.prefetch().await.expect("prefetch primes the track");
+    let (_, input) = primed
+        .play()
+        .await
+        .expect("play attaches to the primed tail");
+    drop(input);
+
+    // URL-expiry retry guard. A resolved googlevideo URL is time-/IP-
     // bound and can expire while a track waits deep in the queue. Simulate that
     // stale cache with `new_with`: the resolved metadata points at a dead local
     // endpoint (instant connection-refused) so the first byte-open fails, while
     // the webpage URL is real -- the guard must re-extract and recover. Two
-    // fresh objects because a success caches the file (which would shortcut the
-    // second call). fetch_file completing at all proves the retry's fresh URL
-    // downloaded the whole track; play() returning Ok proves it reopened the
-    // stream (the first, stale attempt can only reach Ok via the retry).
-    let stale = YouTubeDl::new_with(SINGLE_URL, None, stale_media_metadata());
+    // fresh objects because a success keeps the tail (which would shortcut the
+    // second call). warm() completing at all proves the retry's fresh URL fetched
+    // the whole track; play() returning Ok proves it opened the stream (the first,
+    // stale attempt can only reach Ok via the retry).
+    let stale = YouTubeDl::new_with(SINGLE_URL, stale_media_metadata());
     stale
-        .fetch_file()
+        .warm()
         .await
         .expect("retry guard recovers a prefetch from an expired url");
 
-    let stale_play = YouTubeDl::new_with(SINGLE_URL, None, stale_media_metadata());
-    let (_meta_fut, input) = stale_play
+    let stale_play = YouTubeDl::new_with(SINGLE_URL, stale_media_metadata());
+    let (_meta, input) = stale_play
         .play()
         .await
         .expect("retry guard recovers play() from an expired url");
     drop(input);
 
-    // Phase 3: the sidecar /download endpoint downloads from an already-extracted
+    // The sidecar /download endpoint downloads from an already-extracted
     // info dict (--load-info-json, no second extraction) and tail-streams media
     // bytes. Read a little and disconnect to also exercise mid-stream cleanup.
     let dl_info = sidecar::extract(SINGLE_URL, false)
@@ -170,7 +183,7 @@ async fn sidecar_end_to_end() {
         );
     }
 
-    // Phase 4: blue/green update. Upgrading to the nightly channel almost
+    // Blue/green update. Upgrading to the nightly channel almost
     // always yields a newer version than the running stable build, forcing a
     // real recycle: spawn green -> health-check -> atomic swap -> drain the old
     // instance via /shutdown. Whether or not it recycles, extraction must keep
@@ -202,8 +215,8 @@ async fn sidecar_end_to_end() {
 }
 
 /// A resolved-format metadata whose media URL points at a dead loopback port,
-/// standing in for an expired googlevideo URL: `classify_source` routes it to a
-/// direct `HttpRequest`, whose first request is refused instantly. All other
+/// standing in for an expired googlevideo URL: `classify_source` routes it to the
+/// direct byte-range path, whose first request is refused instantly. All other
 /// fields default to `None`.
 fn stale_media_metadata() -> YouTubeDlMetadata {
     serde_json::from_value(serde_json::json!({

@@ -1,29 +1,19 @@
 use crate::ytdl::playlist::{YouTubeDlPlaylistOutput, YouTubePlaylist};
 use serde::Deserialize;
-use songbird::input::{AudioStream, Compose, Input, LiveInput};
-use std::{
-    collections::HashMap,
-    future::Future,
-    io::{Seek, SeekFrom},
-    pin::Pin,
-    sync::Arc,
-};
-use symphonia::core::io::{
-    MediaSource, MediaSourceStream, MediaSourceStreamOptions, ReadOnlySource,
-};
-use tempfile::tempfile;
+use songbird::input::Input;
+use std::{collections::HashMap, sync::Arc};
 use url::Url;
 
+mod cancel;
 mod chunked;
+mod direct;
 pub mod playlist;
 pub mod sidecar;
 mod source;
 mod tail;
 
-/// A deferred metadata fetch handed back by the play path, awaited by the caller
-/// once playback has started.
-pub type MetadataFuture =
-    Pin<Box<dyn Future<Output = Result<Arc<YouTubeDlMetadata>, YouTubeDlError>> + Send>>;
+#[cfg(test)]
+mod test_support;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct YouTubeDl {
@@ -56,8 +46,6 @@ pub struct YouTubeDlMetadata {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct YoutubeDlFileInner {
     url: String,
-    #[serde(skip)]
-    file: tokio::sync::OnceCell<std::fs::File>,
     #[serde(
         serialize_with = "serialize_oncecell_arc",
         deserialize_with = "deserialize_oncecell_arc"
@@ -67,6 +55,27 @@ struct YoutubeDlFileInner {
     /// only so the `/download` fallback can reuse it.
     #[serde(skip)]
     info: tokio::sync::OnceCell<std::sync::Arc<serde_json::Value>>,
+    /// This track's stop signal, handed to every byte producer it starts. Session
+    /// state, so a deserialized queue entry gets a fresh one.
+    #[serde(skip)]
+    cancel: Arc<cancel::Cancel>,
+    /// The tail this track's bytes land in, once something has asked for them -- also the
+    /// replay cache, since a completed tail keeps its file.
+    ///
+    /// Held across the extract and the first-byte open, which is what makes "one producer
+    /// per track" true. It cannot deadlock against [`Drop`](Self::drop): holding the lock
+    /// requires holding an `Arc`, so the refcount cannot reach zero.
+    #[serde(skip)]
+    bytes: tokio::sync::Mutex<Option<tail::TailHandle>>,
+}
+
+impl Drop for YoutubeDlFileInner {
+    /// The last handle to this track is gone -- removed from the queue, or replaced in the
+    /// playing slot -- so nobody can read its bytes again: stop fetching them. Producers
+    /// hold nothing of this struct, so this really does fire mid-download.
+    fn drop(&mut self) {
+        self.cancel.cancel();
+    }
 }
 
 fn serialize_oncecell_arc<S, T>(
@@ -100,24 +109,24 @@ impl YouTubeDl {
         Self {
             inner: Arc::new(YoutubeDlFileInner {
                 url: url.into(),
-                file: tokio::sync::OnceCell::new(),
                 metadata: tokio::sync::OnceCell::new(),
                 info: tokio::sync::OnceCell::new(),
+                cancel: Arc::default(),
+                bytes: tokio::sync::Mutex::new(None),
             }),
         }
     }
 
-    pub fn new_with(
-        url: impl Into<String>,
-        file: Option<std::fs::File>,
-        metadata: YouTubeDlMetadata,
-    ) -> Self {
+    /// A track whose metadata is already known (a playlist entry), so the first
+    /// display does not need an extract.
+    pub fn new_with(url: impl Into<String>, metadata: YouTubeDlMetadata) -> Self {
         Self {
             inner: Arc::new(YoutubeDlFileInner {
                 url: url.into(),
-                file: tokio::sync::OnceCell::new_with(file),
                 metadata: tokio::sync::OnceCell::new_with(Some(Arc::new(metadata))),
                 info: tokio::sync::OnceCell::new(),
+                cancel: Arc::default(),
+                bytes: tokio::sync::Mutex::new(None),
             }),
         }
     }
@@ -156,49 +165,6 @@ impl YouTubeDl {
         self.inner.url.as_str()
     }
 
-    pub async fn fetch_file(&self) -> Result<Input, YouTubeDlError> {
-        let file = self
-            .inner
-            .file
-            .get_or_try_init(|| async {
-                // Warm-extract, then download the whole track to a tempfile.
-                let meta = self.fetch_metadata().await?;
-                // A queued track's resolved URL can expire before prefetch reaches
-                // it, so retry once with a fresh extract on the first byte-open
-                // failure. Http and Hls both download through a `Compose`; only the
-                // sidecar path differs, so it returns early and the rest is shared.
-                let compose: Box<dyn Compose + Send> = match source::classify_source(&meta) {
-                    source::ByteSource::Http(req) => Box::new(req),
-                    source::ByteSource::Hls(compose) => compose,
-                    source::ByteSource::Sidecar => {
-                        let info = self.fetch_info().await?;
-                        let resp = sidecar::download(&info).await?;
-                        return source::sidecar_download_to_file(resp).await;
-                    }
-                };
-                match source::download_to_file(compose).await {
-                    Ok(file) => Ok(file),
-                    Err(err) => {
-                        tracing::warn!(error = %err, "prefetch byte open failed; re-extracting for a fresh url");
-                        self.retry_download_to_file().await
-                    }
-                }
-            })
-            .await?;
-
-        let mut res = file.try_clone()?;
-        res.seek(SeekFrom::Start(0))?;
-
-        let input = Input::Live(
-            LiveInput::Wrapped(AudioStream {
-                input: MediaSourceStream::new(Box::new(res), MediaSourceStreamOptions::default()),
-            }),
-            None,
-        );
-
-        Ok(input)
-    }
-
     /// Extract (once) the full yt-dlp info dict, caching it for the session so the
     /// `/download` fallback can reuse it.
     async fn fetch_info(&self) -> Result<Arc<serde_json::Value>, YouTubeDlError> {
@@ -226,82 +192,112 @@ impl YouTubeDl {
         Ok(val.clone())
     }
 
-    pub async fn play(&self) -> Result<(MetadataFuture, Input), YouTubeDlError> {
-        if let Some(file) = self.inner.file.get() {
-            let mut file = file.try_clone()?;
-            file.seek(SeekFrom::Start(0))?;
-
-            let input = Input::Live(
-                LiveInput::Wrapped(AudioStream {
-                    input: MediaSourceStream::new(
-                        Box::new(file),
-                        MediaSourceStreamOptions::default(),
-                    ),
-                }),
-                None,
-            );
-            let self_inner = self.clone();
-            let meta_fut = async move { self_inner.fetch_metadata().await };
-            return Ok((Box::pin(meta_fut), input));
-        }
-
-        // The googlevideo URL is time-limited (~6 h) and a track can sit in the
-        // queue past that, so the eager first fetch surfaces an expired URL (403)
-        // here and the retry re-extracts a fresh one.
+    /// Start playing this track: its metadata, and an `Input` reading the bytes.
+    ///
+    /// Never waits for the whole download -- the returned `Input` tails the tail file,
+    /// so playback starts as soon as the first bytes land (instantly if the track was
+    /// already warmed or played once).
+    pub async fn play(&self) -> Result<(Arc<YouTubeDlMetadata>, Input), YouTubeDlError> {
+        let handle = self.tail().await?;
         let meta = self.fetch_metadata().await?;
-        let input = match source::classify_source(&meta) {
-            // Direct HTTP: tail a paced background download.
-            source::ByteSource::Http(req) => match req.open_source().await {
-                Ok(paced) => self.http_live_input(paced)?,
-                Err(err) => {
-                    tracing::warn!(error = %err, "byte open failed; re-extracting for a fresh url");
-                    self.retry_live_input().await?
-                }
-            },
-            // HLS: tee songbird's adapter into the cache tempfile.
-            source::ByteSource::Hls(compose) => match source::open_byte_stream(compose).await {
-                Ok(raw) => self.tee_live_input(raw)?,
-                Err(err) => {
-                    tracing::warn!(error = %err, "byte open failed; re-extracting for a fresh url");
-                    self.retry_live_input().await?
-                }
-            },
+        Ok((meta, handle.input()?))
+    }
+
+    /// Prime this track for its turn, without downloading it: the `/extract` always --
+    /// multi-second, and where the failures live -- plus one chunk of bytes on the
+    /// direct-HTTP path, whose producer then parks at the boundary.
+    ///
+    /// HLS and the sidecar `/download` have no boundary to park at, so they get the
+    /// extract alone rather than a whole download of a track that may never play.
+    ///
+    /// Returns once the first bytes are moving, not once they have landed;
+    /// [`Self::play`] attaches to the same download either way.
+    pub async fn prefetch(&self) -> Result<(), YouTubeDlError> {
+        let meta = self.fetch_metadata().await?;
+        if !source::is_direct(&meta) {
+            tracing::debug!("byte path cannot be bounded; primed the extract only");
+            return Ok(());
+        }
+        self.tail().await?;
+        Ok(())
+    }
+
+    /// Fetch this track's bytes in full, resolving once they are all local. Not what the
+    /// queue does (see [`Self::prefetch`]) -- it is how the drain-to-the-end path is
+    /// exercised without a voice connection.
+    pub async fn warm(&self) -> Result<(), YouTubeDlError> {
+        let handle = self.tail().await?;
+        handle.warm().await?;
+        Ok(())
+    }
+
+    /// The single way bytes are acquired -- and the point is that the first case is the
+    /// common one, so a prefetch and the playback after it are the *same* download:
+    ///
+    /// - a live or completed tail: attach, fetching nothing.
+    /// - no tail: extract, open the byte source, spawn a producer.
+    /// - a *failed* tail: discard it and start over from a fresh extract, since it can
+    ///   only ever hand its readers an error.
+    async fn tail(&self) -> Result<tail::TailHandle, YouTubeDlError> {
+        let mut slot = self.inner.bytes.lock().await;
+        match slot.as_ref() {
+            Some(handle) if !handle.failed() => return Ok(handle.clone()),
+            Some(_) => tracing::info!("previous byte fetch failed; starting a fresh one"),
+            None => {}
+        }
+        let handle = self.start_tail().await?;
+        *slot = Some(handle.clone());
+        Ok(handle)
+    }
+
+    /// Open this track's byte source and spawn the producer that drains it into a fresh
+    /// tail. The eager first fetch means an unplayable track fails *here*, where a command
+    /// can report it, and [`Self::start_tail_fresh`] gets one shot at a re-extract --
+    /// separate from keeping a *working* fetch going, which is [`direct`]'s job.
+    async fn start_tail(&self) -> Result<tail::TailHandle, YouTubeDlError> {
+        let meta = self.fetch_metadata().await?;
+        match self.open_tail(source::classify_source(&meta)).await {
+            Ok(handle) => Ok(handle),
+            Err(err) => {
+                tracing::warn!(error = %err, "byte open failed; re-extracting for a fresh url");
+                self.start_tail_fresh().await
+            }
+        }
+    }
+
+    /// The URL-expiry retry, tried once: re-extract past the session caches, then open
+    /// whatever the fresh metadata names -- possibly a different byte path entirely.
+    async fn start_tail_fresh(&self) -> Result<tail::TailHandle, YouTubeDlError> {
+        let (meta, _) = self.re_extract().await?;
+        self.open_tail(source::classify_source(&meta)).await
+    }
+
+    /// Spawn the producer for one classified byte source. Only the direct-HTTP one has a
+    /// recovery loop: it alone holds a URL that expires *and* knows where to resume.
+    async fn open_tail(&self, source: source::ByteSource) -> Result<tail::TailHandle, YouTubeDlError> {
+        let cancel = self.inner.cancel.clone();
+        match source {
+            source::ByteSource::Http(req) => {
+                let (fetch, reporter) =
+                    direct::DirectFetch::open(self.inner.url.clone(), req, cancel.clone())
+                        .await
+                        .map_err(|err| YouTubeDlError::Stream(err.into()))?;
+                Ok(tail::spawn_tail(cancel, Some(reporter), move |tail| {
+                    fetch.run(tail)
+                })?)
+            }
+            source::ByteSource::Hls(compose) => {
+                let raw = source::open_byte_stream(compose).await?;
+                Ok(tail::spawn_hls_tail(cancel, raw)?)
+            }
             // No URL-expiry guard needed: the sidecar re-extracts from `webpage_url`
             // itself. Reuse the cached info dict.
             source::ByteSource::Sidecar => {
                 let info = self.fetch_info().await?;
                 let resp = sidecar::download(&info).await?;
-                self.sidecar_live_input(resp)?
+                Ok(tail::spawn_sidecar_tail(cancel, resp)?)
             }
-        };
-
-        let meta_fut = async move { Ok::<_, YouTubeDlError>(meta) };
-        Ok((Box::pin(meta_fut), input))
-    }
-
-    /// Wrap a freshly opened byte stream as a live `Input`, teeing bytes into a
-    /// tempfile that is promoted to the replay cache on clean EOF.
-    fn tee_live_input(&self, raw: Box<dyn MediaSource>) -> Result<Input, YouTubeDlError> {
-        let tee = source::TeeToCache::new(raw, tempfile()?, self.inner.clone());
-        Ok(Input::Live(
-            LiveInput::Wrapped(AudioStream {
-                input: MediaSourceStream::new(
-                    Box::new(ReadOnlySource::new(tee)),
-                    MediaSourceStreamOptions::default(),
-                ),
-            }),
-            None,
-        ))
-    }
-
-    /// Sidecar `/download` live path: tail a background drain of the response.
-    fn sidecar_live_input(&self, resp: reqwest::Response) -> Result<Input, YouTubeDlError> {
-        Ok(tail::sidecar_tail(self.inner.clone(), resp)?)
-    }
-
-    /// Direct-HTTP chunked live path: tail a background drain of the paced source.
-    fn http_live_input(&self, paced: chunked::PacedSource) -> Result<Input, YouTubeDlError> {
-        Ok(tail::http_tail(self.inner.clone(), paced)?)
+        }
     }
 
     /// Re-extract the info dict + typed metadata straight from the sidecar,
@@ -312,45 +308,6 @@ impl YouTubeDl {
         let info = sidecar::extract(self.inner.url.as_str(), false).await?;
         let meta = YouTubeDlMetadata::deserialize(&info)?;
         Ok((Arc::new(meta), Arc::new(info)))
-    }
-
-    /// URL-expiry retry for [`Self::play`]: re-extract fresh, then build a live
-    /// input. A format that has flipped to SABR/no-url on the fresh extract falls
-    /// through to the sidecar `/download` path.
-    async fn retry_live_input(&self) -> Result<Input, YouTubeDlError> {
-        let (meta, info) = self.re_extract().await?;
-        match source::classify_source(&meta) {
-            source::ByteSource::Http(req) => {
-                let paced = req
-                    .open_source()
-                    .await
-                    .map_err(|err| YouTubeDlError::Stream(err.into()))?;
-                self.http_live_input(paced)
-            }
-            source::ByteSource::Hls(compose) => {
-                let raw = source::open_byte_stream(compose).await?;
-                self.tee_live_input(raw)
-            }
-            source::ByteSource::Sidecar => {
-                let resp = sidecar::download(&info).await?;
-                self.sidecar_live_input(resp)
-            }
-        }
-    }
-
-    /// URL-expiry retry for [`Self::fetch_file`]: re-extract fresh, then download
-    /// the whole track. Mirrors [`Self::retry_live_input`] but yields a rewound
-    /// tempfile for the replay cache.
-    async fn retry_download_to_file(&self) -> Result<std::fs::File, YouTubeDlError> {
-        let (meta, info) = self.re_extract().await?;
-        match source::classify_source(&meta) {
-            source::ByteSource::Http(req) => source::download_to_file(Box::new(req)).await,
-            source::ByteSource::Hls(compose) => source::download_to_file(compose).await,
-            source::ByteSource::Sidecar => {
-                let resp = sidecar::download(&info).await?;
-                source::sidecar_download_to_file(resp).await
-            }
-        }
     }
 }
 

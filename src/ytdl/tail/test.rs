@@ -1,9 +1,10 @@
-use crate::ytdl::chunked::{ChunkedHttpRequest, pace_channel};
-use super::{TailReader, TailState, TailWriter, drain_response, drain_resuming};
-use reqwest::header::HeaderMap;
+use super::{
+    Cancel, MediaSource, TailHandle, TailReader, TailState, TailWriter, drain_blocking,
+    drain_response,
+};
 use std::io::Write;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tempfile::NamedTempFile;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -80,239 +81,11 @@ async fn tail_reader_surfaces_failure_as_error() {
     assert_eq!(err.kind(), std::io::ErrorKind::Other);
 }
 
-/// End-to-end for the direct-HTTP tail path: a range server that drops the
-/// body mid-way on its first response (announcing the full length, so the
-/// client sees a truncation error, not a clean EOF). `drain_resuming` must
-/// resume from where it stopped and still write the whole file, which the
-/// tailing [`TailReader`] then reads back intact.
+/// The sidecar `/download` tail has no pacer, but cancelling the track must still
+/// stop it: `drain_response` polls the shared signal and returns at the next chunk
+/// boundary instead of draining a whole (possibly hour-long) response.
 #[tokio::test]
-async fn http_tail_producer_resumes_mid_stream_drop() {
-    let len = 40_000usize;
-    let body: Vec<u8> = (0..len).map(|i| (i % 251) as u8).collect();
-
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let url = format!("http://{}/media", listener.local_addr().unwrap());
-    let dropped = Arc::new(AtomicBool::new(false));
-
-    let srv_body = body.clone();
-    let dropped_srv = dropped.clone();
-    tokio::spawn(async move {
-        loop {
-            let Ok((mut sock, _)) = listener.accept().await else {
-                break;
-            };
-            let body = srv_body.clone();
-            let dropped = dropped_srv.clone();
-            tokio::spawn(async move {
-                let mut req = Vec::new();
-                let mut tmp = [0u8; 1024];
-                loop {
-                    match sock.read(&mut tmp).await {
-                        Ok(0) => return,
-                        Ok(n) => req.extend_from_slice(&tmp[..n]),
-                        Err(_) => return,
-                    }
-                    if req.windows(4).any(|w| w == b"\r\n\r\n") {
-                        break;
-                    }
-                }
-                let text = String::from_utf8_lossy(&req).to_ascii_lowercase();
-                let spec = text
-                    .lines()
-                    .find_map(|l| l.trim().strip_prefix("range: bytes="))
-                    .expect("client always sends a closed Range");
-                let (a, b) = spec.split_once('-').unwrap();
-                let start: usize = a.trim().parse().unwrap();
-                let end_incl: usize = b.trim().parse().unwrap();
-                let slice = &body[start..=end_incl];
-
-                // Always announce the full range length.
-                let head = format!(
-                    "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\nContent-Range: bytes {}-{}/{}\r\nAccept-Ranges: bytes\r\nConnection: close\r\n\r\n",
-                    slice.len(),
-                    start,
-                    end_incl,
-                    body.len(),
-                );
-                let _ = sock.write_all(head.as_bytes()).await;
-
-                // First response: send half the body, then hang up.
-                if !dropped.swap(true, Ordering::SeqCst) {
-                    let _ = sock.write_all(&slice[..slice.len() / 2]).await;
-                    let _ = sock.flush().await;
-                    return;
-                }
-                let _ = sock.write_all(slice).await;
-                let _ = sock.flush().await;
-            });
-        }
-    });
-
-    let req = ChunkedHttpRequest::new(
-        reqwest::Client::new(),
-        url,
-        HeaderMap::new(),
-        Some(len as u64),
-    );
-    let src = req.open_with_pace(None).await.expect("open source");
-
-    let backing = NamedTempFile::new().unwrap();
-    let read_handle = backing.reopen().unwrap();
-    let write_handle = tokio::fs::File::from_std(backing.reopen().unwrap());
-    let state = Arc::new(TailState::default());
-
-    let tail = TailWriter::new(write_handle, state.clone());
-    drain_resuming(src, tail)
-        .await
-        .expect("producer must finish cleanly after resuming");
-    assert!(
-        dropped.load(Ordering::SeqCst),
-        "server must have injected a mid-stream drop"
-    );
-    // Finalize as `spawn_tail_input` would, so the tail reader sees a clean EOF
-    // rather than parking forever at end-of-data.
-    state.done.store(true, Ordering::Release);
-    state.waker.wake();
-
-    // Read back what the producer wrote via the tail reader.
-    let mut reader = TailReader {
-        file: read_handle,
-        pos: 0,
-        state,
-        pace: None,
-    };
-    let mut out = Vec::new();
-    reader.read_to_end(&mut out).await.unwrap();
-    assert_eq!(
-        out, body,
-        "tailed bytes must equal the original despite the mid-stream drop"
-    );
-}
-
-/// The paced live path must not race ahead of playback: with a consumer that
-/// never reads, the fetcher parks after ~one window of read-ahead instead of
-/// downloading the whole file, and dropping the reader (a skip) cancels it.
-#[tokio::test]
-async fn paced_producer_stays_bounded_and_cancels_on_reader_drop() {
-    let len = 100_000usize;
-    let body: Vec<u8> = (0..len).map(|i| (i % 251) as u8).collect();
-
-    // A range server that always serves the requested range in full.
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let url = format!("http://{}/media", listener.local_addr().unwrap());
-    let srv_body = body.clone();
-    tokio::spawn(async move {
-        loop {
-            let Ok((mut sock, _)) = listener.accept().await else {
-                break;
-            };
-            let body = srv_body.clone();
-            tokio::spawn(async move {
-                let mut req = Vec::new();
-                let mut tmp = [0u8; 1024];
-                loop {
-                    match sock.read(&mut tmp).await {
-                        Ok(0) => return,
-                        Ok(n) => req.extend_from_slice(&tmp[..n]),
-                        Err(_) => return,
-                    }
-                    if req.windows(4).any(|w| w == b"\r\n\r\n") {
-                        break;
-                    }
-                }
-                let text = String::from_utf8_lossy(&req).to_ascii_lowercase();
-                let spec = text
-                    .lines()
-                    .find_map(|l| l.trim().strip_prefix("range: bytes="))
-                    .expect("client always sends a closed Range");
-                let (a, b) = spec.split_once('-').unwrap();
-                let start: usize = a.trim().parse().unwrap();
-                let end_incl: usize = b.trim().parse().unwrap();
-                let slice = &body[start..=end_incl];
-                let head = format!(
-                    "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\nContent-Range: bytes {}-{}/{}\r\nAccept-Ranges: bytes\r\nConnection: close\r\n\r\n",
-                    slice.len(),
-                    start,
-                    end_incl,
-                    body.len(),
-                );
-                let _ = sock.write_all(head.as_bytes()).await;
-                let _ = sock.write_all(slice).await;
-                let _ = sock.flush().await;
-            });
-        }
-    });
-
-    // 10 KB chunks with a one-chunk (10 KB) read-ahead window.
-    let mut req = ChunkedHttpRequest::new(
-        reqwest::Client::new(),
-        url,
-        HeaderMap::new(),
-        Some(len as u64),
-    );
-    req.set_chunk(10_000);
-    let (gate, reporter) = pace_channel(10_000);
-    let src = req
-        .open_with_pace(Some(gate))
-        .await
-        .expect("open source");
-
-    let backing = NamedTempFile::new().unwrap();
-    let read_handle = backing.reopen().unwrap();
-    let write_handle = tokio::fs::File::from_std(backing.reopen().unwrap());
-    let state = Arc::new(TailState::default());
-
-    // Playback that never reads: `consumed` stays at 0, so the fetcher must
-    // park at the pace gate after buffering ~one window ahead.
-    let reader = TailReader {
-        file: read_handle,
-        pos: 0,
-        state: state.clone(),
-        pace: Some(reporter.clone()),
-    };
-
-    let tail = TailWriter::new(write_handle, state.clone());
-    let producer = tokio::spawn(async move { drain_resuming(src, tail).await });
-
-    // Let the fetcher run as far as the window allows, then confirm it parked.
-    tokio::time::sleep(Duration::from_millis(100)).await;
-    assert!(
-        !producer.is_finished(),
-        "fetcher must park at the pace gate, not run to completion"
-    );
-    let ahead = state.written.load(Ordering::Acquire);
-    assert!(ahead > 0, "the eager first chunk must have been drained");
-    assert!(
-        ahead <= 30_000,
-        "fetcher must stay near the window ahead of a stalled reader, got {ahead}"
-    );
-    assert!(
-        (ahead as usize) < len,
-        "fetcher must not have downloaded the whole file"
-    );
-
-    // A skip: dropping the reader cancels the fetcher, which then returns.
-    drop(reader);
-    tokio::time::timeout(Duration::from_secs(2), producer)
-        .await
-        .expect("fetcher must return promptly after cancel")
-        .unwrap()
-        .expect("a cancelled fetcher ends its stream cleanly");
-    assert!(
-        reporter.is_cancelled(),
-        "dropping the reader must cancel the pacer"
-    );
-    assert!(
-        (state.written.load(Ordering::Acquire) as usize) < len,
-        "cancel must stop the fetcher before the whole file is downloaded"
-    );
-}
-
-/// The sidecar `/download` tail has no pacer, but a skip must still stop it: the
-/// reader's drop sets the shared cancel flag and `drain_response` returns at the
-/// next chunk boundary instead of draining a whole (possibly hour-long) response.
-#[tokio::test]
-async fn sidecar_producer_cancels_on_reader_drop() {
+async fn sidecar_producer_stops_on_track_cancel() {
     let piece = vec![7u8; 4096];
     let pieces = 50usize;
     let len = piece.len() * pieces;
@@ -357,28 +130,22 @@ async fn sidecar_producer_cancels_on_reader_drop() {
     let resp = reqwest::Client::new().get(&url).send().await.unwrap();
 
     let backing = NamedTempFile::new().unwrap();
-    let read_handle = backing.reopen().unwrap();
     let write_handle = tokio::fs::File::from_std(backing.reopen().unwrap());
     let state = Arc::new(TailState::default());
+    let cancel: Arc<Cancel> = Arc::default();
 
-    // Sidecar path: no pacer. The reader carries only the shared cancel flag.
-    let reader = TailReader {
-        file: read_handle,
-        pos: 0,
-        state: state.clone(),
-        pace: None,
-    };
-
-    let tail = TailWriter::new(write_handle, state.clone());
+    // Sidecar path: no pacer, so the producer only ever observes the signal between
+    // body chunks -- no reader is involved in stopping it.
+    let tail = TailWriter::new(write_handle, state.clone(), cancel.clone());
     let producer = tokio::spawn(async move { drain_response(resp, tail).await });
 
-    // Let it drain a few pieces, then skip.
+    // Let it drain a few pieces, then drop the track.
     tokio::time::sleep(Duration::from_millis(30)).await;
     assert!(
         !producer.is_finished(),
         "producer must still be draining the slow response"
     );
-    drop(reader);
+    cancel.cancel();
 
     tokio::time::timeout(Duration::from_secs(2), producer)
         .await
@@ -386,11 +153,147 @@ async fn sidecar_producer_cancels_on_reader_drop() {
         .unwrap()
         .expect("a cancelled sidecar producer ends cleanly");
     assert!(
-        state.cancelled.load(Ordering::Acquire),
-        "dropping the reader must set the shared cancel flag"
-    );
-    assert!(
         (state.written.load(Ordering::Acquire) as usize) < len,
         "cancel must stop the download before the whole body is drained"
+    );
+}
+
+/// The point of [`TailHandle`]: one download, readers minted whenever they are
+/// wanted. A reader attached mid-download serves what is durable and parks for the
+/// rest, and a reader minted after completion replays the whole file -- which is what
+/// lets a prefetch nobody is listening to yet become the playback that arrives later.
+#[tokio::test]
+async fn tail_handle_mints_readers_at_any_point() {
+    let cancel: Arc<Cancel> = Arc::default();
+    let (handle, mut writer) = TailHandle::new(cancel.clone(), None).unwrap();
+    let head: &[u8] = b"first-half-";
+    let rest: &[u8] = b"second-half";
+
+    writer.write(head).await.unwrap();
+
+    // Attach mid-download.
+    let mut mid = handle.reader().unwrap();
+    let mut buf = vec![0u8; head.len()];
+    mid.read_exact(&mut buf).await.unwrap();
+    assert_eq!(buf, head, "a late reader starts at the beginning of the file");
+
+    writer.write(rest).await.unwrap();
+    handle.finish(Ok(()), &cancel);
+
+    // The mid-download reader carries on to a clean EOF.
+    let mut tail_bytes = Vec::new();
+    mid.read_to_end(&mut tail_bytes).await.unwrap();
+    assert_eq!(tail_bytes, rest);
+
+    // A reader minted after completion replays from the start.
+    let mut late = handle.reader().unwrap();
+    let mut all = Vec::new();
+    late.read_to_end(&mut all).await.unwrap();
+    assert_eq!(all, [head, rest].concat(), "a replay reader sees everything");
+}
+
+/// A reader minted after a *failed* download must surface the failure, not a clean
+/// EOF over the partial file -- otherwise attaching late to a dead prefetch would
+/// silently play a truncated track.
+#[tokio::test]
+async fn tail_handle_reader_after_failure_errors() {
+    let cancel: Arc<Cancel> = Arc::default();
+    let (handle, mut writer) = TailHandle::new(cancel.clone(), None).unwrap();
+
+    writer.write(b"partial").await.unwrap();
+    handle.finish(Err(std::io::Error::other("producer blew up")), &cancel);
+
+    let mut reader = handle.reader().unwrap();
+    assert!(handle.failed(), "the owner must see the tail as unusable");
+    let mut out = Vec::new();
+    let err = reader.read_to_end(&mut out).await.unwrap_err();
+
+    assert_eq!(out, b"partial", "durable bytes are served before failing");
+    assert_eq!(err.kind(), std::io::ErrorKind::Other);
+}
+
+/// A sync [`MediaSource`], which is all songbird's `HlsRequest` will hand out. Reads
+/// are small and slow so the bridge has to make many hops and a cancel has somewhere
+/// to land.
+struct SlowSyncSource {
+    data: std::io::Cursor<Vec<u8>>,
+    per_read: usize,
+}
+
+impl std::io::Read for SlowSyncSource {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        std::thread::sleep(Duration::from_millis(2));
+        let take = self.per_read.min(buf.len());
+        std::io::Read::read(&mut self.data, &mut buf[..take])
+    }
+}
+
+impl std::io::Seek for SlowSyncSource {
+    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+        std::io::Seek::seek(&mut self.data, pos)
+    }
+}
+
+impl MediaSource for SlowSyncSource {
+    fn is_seekable(&self) -> bool {
+        false
+    }
+    fn byte_len(&self) -> Option<u64> {
+        None
+    }
+}
+
+/// The HLS path can only be pulled by a blocking read, so it is bridged off the
+/// runtime. The bridge must still deliver every byte in order.
+#[tokio::test]
+async fn hls_bridge_writes_all_bytes() {
+    let body: Vec<u8> = (0..40_000).map(|i| (i % 251) as u8).collect();
+    let cancel: Arc<Cancel> = Arc::default();
+    let (handle, writer) = TailHandle::new(cancel.clone(), None).unwrap();
+
+    let src = Box::new(SlowSyncSource {
+        data: std::io::Cursor::new(body.clone()),
+        per_read: 4096,
+    });
+    drain_blocking(src, writer)
+        .await
+        .expect("the bridge must drain a sync source cleanly");
+    handle.finish(Ok(()), &cancel);
+
+    let mut out = Vec::new();
+    handle.reader().unwrap().read_to_end(&mut out).await.unwrap();
+    assert_eq!(out, body, "bridged bytes must match the source exactly");
+}
+
+/// Cancelling the track must stop the blocking side within one read, rather than
+/// pulling a whole HLS track nobody will listen to.
+#[tokio::test]
+async fn hls_bridge_stops_on_track_cancel() {
+    let len = 400_000usize;
+    let body: Vec<u8> = (0..len).map(|i| (i % 251) as u8).collect();
+    let cancel: Arc<Cancel> = Arc::default();
+    let (handle, writer) = TailHandle::new(cancel.clone(), None).unwrap();
+
+    let src = Box::new(SlowSyncSource {
+        data: std::io::Cursor::new(body),
+        per_read: 4096,
+    });
+    let producer = tokio::spawn(async move { drain_blocking(src, writer).await });
+
+    tokio::time::sleep(Duration::from_millis(30)).await;
+    assert!(
+        !producer.is_finished(),
+        "producer must still be pulling the slow source"
+    );
+    cancel.cancel();
+
+    tokio::time::timeout(Duration::from_secs(2), producer)
+        .await
+        .expect("a cancelled bridge must return promptly")
+        .unwrap()
+        .expect("a cancelled bridge ends cleanly");
+    assert!(
+        (handle.written() as usize) < len,
+        "cancel must stop the pull before the whole source is read"
     );
 }

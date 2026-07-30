@@ -1,4 +1,5 @@
 use crate::ytdl::YouTubeDl;
+use rand::{seq::SliceRandom, thread_rng};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{VecDeque, vec_deque::IntoIter},
@@ -8,12 +9,13 @@ use tracing::{Instrument, instrument};
 
 /// The guild's play queue.
 ///
-/// Every mutation that can change the front warms it in the background, so the
-/// next track is ready to play the moment it is popped.
-/// Coupling the prefetch to the mutation makes it impossible to forget and models
-/// it as what it is: a side effect of the queue changing. The spawned prefetch
-/// inherits the span of whatever event triggered the mutation (a command, a track
-/// end), so it is traced under its cause.
+/// Every mutation that can change the front primes it in the background, so the
+/// next track is ready to play the moment it is popped. That holds only while
+/// *every* mutation goes through these methods, hence no `DerefMut` and nothing
+/// handing out a `&mut` into the wrapped [`VecDeque`].
+///
+/// Deserializing a saved queue deliberately does not prime: nothing plays at
+/// startup, so it would cost an extract per guild for nothing.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Playlist(VecDeque<YouTubeDl>);
 
@@ -52,10 +54,13 @@ impl Playlist {
         self.prefetch_front();
     }
 
-    pub fn make_contiguous(&mut self) -> &mut [YouTubeDl] {
-        self.0.make_contiguous()
+    /// Shuffle the queue in place, priming whatever lands at the front.
+    pub fn shuffle(&mut self) {
+        self.0.make_contiguous().shuffle(&mut thread_rng());
+        self.prefetch_front();
     }
 
+    /// The one mutation with nothing to prime: it leaves no front.
     pub fn clear(&mut self) {
         self.0.clear();
     }
@@ -75,7 +80,7 @@ impl Playlist {
         drained
     }
 
-    /// Warm the current front so it is ready to play when popped. Spawns a
+    /// Prime the current front so it is ready to play when popped. Spawns a
     /// background [`prefetch`] under the current span (the triggering event), so
     /// the fetch is traced under its cause; a no-op on an empty queue.
     fn prefetch_front(&self) {
@@ -85,12 +90,18 @@ impl Playlist {
     }
 }
 
-/// Fetch a track to its replay tempfile ahead of playback.
+/// Prime a track ahead of its turn: its extract, and a bounded head start on its bytes
+/// where the byte path allows one. The playback that follows attaches to this same
+/// download, so an unfinished prefetch is a head start, never duplicated work.
+///
+/// "Primed" is weaker than "downloaded" — this resolves once the first bytes are moving.
+/// The producer is spawned from here, so how the rest of the download ends still reports
+/// under this span.
 #[instrument(name = "prefetch", skip_all, fields(url = %next.url()))]
 async fn prefetch(next: YouTubeDl) {
     tracing::info!("prefetch started");
-    match next.fetch_file().await {
-        Ok(_) => tracing::info!("prefetch complete"),
+    match next.prefetch().await {
+        Ok(()) => tracing::info!("prefetch primed"),
         Err(err) => tracing::warn!(error = %err, "prefetch failed"),
     }
 }

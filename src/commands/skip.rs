@@ -64,8 +64,7 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), CommandError> {
     if let Some(next) = next {
         tracing::info!(next = next.url(), "play next");
 
-        let meta_fut = player::play_track(PlayContext::try_from(ctx)?, call, next).await?;
-        let metadata = meta_fut.await?;
+        let metadata = player::play_track(PlayContext::try_from(ctx)?, call, next).await?;
 
         let resp = create_playing_embed(ctx, Some(PlayState::Skip), &metadata);
         ctx.send(CreateReply::default().embed(resp)).await?;

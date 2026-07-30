@@ -13,7 +13,7 @@
 use crate::{
     handlers::{track_end::TrackEndHandler, track_error::TrackErrorHandler},
     models::{alias::Context, error::CommandError, guild::Guilds, playing::Playing},
-    ytdl::{MetadataFuture, YouTubeDl, YouTubeDlError},
+    ytdl::{YouTubeDl, YouTubeDlError, YouTubeDlMetadata},
 };
 use serenity::all::GuildId;
 use songbird::{Call, Event, TrackEvent, input::Input, tracks::Track};
@@ -21,21 +21,18 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{Mutex, RwLock};
 use tracing::{Instrument, instrument};
 
-/// Start streaming `ytdlfile` on `call`, returning a future that resolves to its
-/// metadata -- awaited by the command paths to render the "now playing" reply,
-/// dropped by the autonomous ones.
+/// Start streaming `ytdlfile` on `call`, returning its metadata -- used by the
+/// command paths to render the "now playing" reply, ignored by the autonomous ones.
 ///
-/// The one way to start a track, whatever the trigger. [`YouTubeDl::play`] serves
-/// the prefetched tempfile when the queue already warmed it and a paced live
-/// stream when it did not, so playback starts without waiting for the whole
-/// track either way -- unlike [`YouTubeDl::fetch_file`], which blocks until the
-/// download completes.
+/// The one way to start a track, whatever the trigger. [`YouTubeDl::play`] attaches
+/// to the track's tail, so playback starts on the first bytes whether the queue had
+/// already warmed it or not -- it never waits for a whole download.
 #[instrument(name = "play_track", skip_all, fields(guild = %ctx.guild_id, url = %ytdlfile.url()))]
 pub async fn play_track(
     ctx: PlayContext,
     call: Arc<Mutex<Call>>,
     ytdlfile: YouTubeDl,
-) -> Result<MetadataFuture, YouTubeDlError> {
+) -> Result<Arc<YouTubeDlMetadata>, YouTubeDlError> {
     tracing::info!("streaming track");
     let (meta, input) = ytdlfile.play().await?;
     tokio::spawn(spawn_playback(ctx, call, input, ytdlfile).in_current_span());
@@ -101,8 +98,8 @@ pub async fn advance(ctx: PlayContext, call: Arc<Mutex<Call>>, current: YouTubeD
     };
     drop(guild_data);
 
-    // The returned metadata future is dropped: there is no reply to render on an
-    // autonomous advance, and it is never polled.
+    // The returned metadata is discarded: there is no reply to render on an
+    // autonomous advance.
     if repeat {
         tracing::info!("repeating current track");
         if let Err(err) = play_track(ctx, call, current).await {

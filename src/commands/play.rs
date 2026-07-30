@@ -67,8 +67,7 @@ pub async fn play(
 
         ctx.defer().await?;
         let ytdlfile = YouTubeDl::new(query);
-        let meta_fut = player::play_track(PlayContext::try_from(ctx)?, call, ytdlfile).await?;
-        let meta = meta_fut.await?;
+        let meta = player::play_track(PlayContext::try_from(ctx)?, call, ytdlfile).await?;
 
         tracing::info!("play success");
 
@@ -106,8 +105,7 @@ pub async fn play(
         if let Some(next) = next {
             tracing::info!(url = next.url(), "play first item in playlist");
 
-            let meta_fut = player::play_track(PlayContext::try_from(ctx)?, call, next).await?;
-            let metadata = meta_fut.await?;
+            let metadata = player::play_track(PlayContext::try_from(ctx)?, call, next).await?;
 
             let resp = create_playing_embed(ctx, Some(PlayState::Play), &metadata);
             ctx.send(CreateReply::default().embed(resp)).await?;

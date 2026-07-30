@@ -3,7 +3,6 @@ use crate::{
     models::{alias::Context, error::CommandError},
     utils::turto_say,
 };
-use rand::{seq::SliceRandom, thread_rng};
 use tracing::{Span, instrument};
 
 #[poise::command(slash_command, guild_only)]
@@ -22,8 +21,7 @@ pub async fn shuffle(ctx: Context<'_>) -> Result<(), CommandError> {
         turto_say(ctx, EmptyPlaylist).await?;
         return Ok(());
     }
-    let playlist = guild_data.playlist.make_contiguous();
-    playlist.shuffle(&mut thread_rng());
+    guild_data.playlist.shuffle();
     drop(guild_data);
 
     tracing::info!("shuffle success");

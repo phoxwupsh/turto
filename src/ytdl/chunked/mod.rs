@@ -1,27 +1,30 @@
-//! Chunked HTTP byte source for the direct-play path.
+//! Chunked HTTP byte fetching for the direct-play path.
 //!
 //! googlevideo throttles any single request larger than ~10 MB, so a whole-file
-//! range request on a long track crawls. [`ChunkedHttpRequest`] fetches the media
-//! as sequential closed byte-ranges of at most [`HTTP_CHUNK`] and concatenates
-//! them into one stream. Because the chunks are adjacent ranges of the same file,
-//! the decoder sees byte-identical output, with no seam at a boundary.
+//! range request on a long track crawls. [`ChunkRequest`] fetches the media as
+//! sequential closed byte-ranges of at most [`HTTP_CHUNK`] and presents their
+//! concatenation as one stream. Because the chunks are adjacent ranges of the same
+//! file, the decoder sees byte-identical output, with no seam at a boundary.
 //!
-//! - The first chunk is fetched eagerly, so an expired-URL 403 surfaces at open
-//!   time for the caller's URL-expiry retry; later chunks are fetched lazily.
-//! - A mid-play read error recovers through [`AsyncMediaSource::try_resume`],
-//!   which rebuilds the stream from the delivered offset.
-//! - On the live path the fetcher drains into a tail file in the background, paced
-//!   by a [`PaceGate`]/[`PaceReporter`] pair to stay ~one chunk ahead of playback;
-//!   prefetch ([`Compose::create_async`]) is unpaced.
+//! This module is *only* the fetch. It has no opinion on what to do when one fails:
+//! failures come out typed as [`FetchError`], and the recovery policy lives with the
+//! code that can actually act on them ([`super::direct`]) -- only that layer knows
+//! the track's watch URL and how to re-extract it.
+//!
+//! - The first range is fetched eagerly, so a dead URL surfaces at open time instead
+//!   of mid-playback; later ranges are fetched lazily as the consumer advances.
+//! - The fetcher is held to a bounded read-ahead by a [`PaceGate`]/[`PaceReporter`]
+//!   pair, gating only *between* chunks -- never mid-response, which would trickle a
+//!   connection at playback rate and invite googlevideo's connection reaper. With
+//!   nothing reading yet -- a queued track's prefetch -- the read-ahead is *nothing*:
+//!   one chunk in hand, and park.
 
+use super::cancel::Cancel;
 use bytes::Bytes;
 use futures::{Stream, StreamExt, TryStreamExt, stream};
 use reqwest::{
-    Client,
-    header::{HeaderMap, RANGE},
-};
-use songbird::input::{
-    AsyncAdapterStream, AsyncMediaSource, AudioStream, AudioStreamError, Compose,
+    Client, StatusCode,
+    header::{CONTENT_RANGE, HeaderMap, RANGE},
 };
 use std::{
     io,
@@ -30,14 +33,8 @@ use std::{
         Arc,
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
-    task::{Context, Poll},
-    time::Duration,
 };
-use symphonia::core::io::MediaSource;
-use tokio::io::{AsyncRead, AsyncSeek, ReadBuf};
 use tokio::sync::Notify;
-use tokio_util::io::StreamReader;
-use tracing::Instrument;
 
 #[cfg(test)]
 mod test;
@@ -46,45 +43,76 @@ mod test;
 /// than ~10 MB; this matches yt-dlp's own `http_chunk_size`.
 pub(super) const HTTP_CHUNK: u64 = 10 * 1024 * 1024;
 
-/// Ring buffer for the chunked source's async→sync bridge. At ~16 KB/s opus this
-/// is ~60 s of read-ahead, so the range-request latency at a chunk boundary can
-/// never drain it before the next chunk's bytes arrive.
-const CHUNKED_ADAPTER_BUF: usize = 1024 * 1024;
+/// The media as a stream of byte chunks, in order and gap-free.
+pub(super) type ByteStream = Pin<Box<dyn Stream<Item = Result<Bytes, FetchError>> + Send>>;
 
-/// How many times to rebuild the stream at the *same* offset before giving up. A
-/// resume that makes progress resets the count, so this bounds only a genuine
-/// stall (a dead URL, a persistently failing range) -- never a long track that
-/// hits occasional transient blips.
-const MAX_STALLED_RESUMES: u32 = 5;
+/// Why a range fetch failed. The distinction is the whole point of this type: each case
+/// needs a different remedy, and only the caller can apply any of them.
+#[derive(Debug, thiserror::Error)]
+pub(super) enum FetchError {
+    /// The server rejected the request in a way only a *fresh URL* can fix -- how
+    /// googlevideo answers an expired or IP-rebound signature. Retrying the same URL
+    /// is guaranteed to fail again.
+    #[error("range request rejected with status {0}")]
+    Rejected(StatusCode),
+    /// A transport error, a 5xx, or a range that delivered no bytes: worth another
+    /// attempt against the same URL.
+    #[error("range fetch failed: {0}")]
+    Transport(#[from] io::Error),
+    /// A `416` at an offset the format says is inside the file: the server's object is
+    /// *shorter* than we were told, which can only happen if the URL and the length
+    /// describe different representations. Nothing to retry and nothing to re-extract --
+    /// resuming in place is what is impossible. Reported rather than treated as a clean
+    /// end, which would publish a short tail as the whole track and cache it.
+    #[error(
+        "range from {at} refused but the format declares {total} bytes (server: {declared:?})"
+    )]
+    Truncated {
+        at: u64,
+        total: u64,
+        /// The server's own view of the length, from the `Content-Range: bytes */N` a
+        /// 416 should carry. `None` if it sent none.
+        declared: Option<u64>,
+    },
+}
 
-/// Attempts to rebuild the stream within a single resume, and the pause between
-/// them. The ring buffer's read-ahead hides the couple of seconds of retrying.
-const RESUME_OPEN_ATTEMPTS: u32 = 3;
-const RESUME_OPEN_BACKOFF: Duration = Duration::from_millis(500);
+impl From<FetchError> for io::Error {
+    fn from(err: FetchError) -> Self {
+        io::Error::other(err)
+    }
+}
 
 /// Shared state behind the [`PaceGate`]/[`PaceReporter`] pair. Split into two
 /// typed halves (via [`pace_channel`]) so the fetcher can only *wait* and the
 /// reader can only *report*.
+#[derive(Debug)]
 struct PaceInner {
     /// Absolute byte offset playback has consumed so far.
     consumed: AtomicU64,
-    /// Signalled by the reader on each advance and on cancellation; the fetcher
-    /// parks on it when too far ahead.
+    /// Has anything actually read a byte yet? Set by the first
+    /// [`advance`](PaceReporter::advance) and never cleared: a download has one
+    /// beginning, and later readers of the same tail are not a fresh start.
+    started: AtomicBool,
+    /// Signalled by the reader on each advance; the fetcher parks on it when too
+    /// far ahead.
     signal: Notify,
-    /// Set when playback is gone, so the fetcher stops instead of finishing a
-    /// skipped track.
-    cancelled: AtomicBool,
+    /// The track's cancel signal. Stopping is a property of the track's lifetime,
+    /// not of the pacer, so the gate only *reads* it -- see [`Cancel`].
+    cancel: Arc<Cancel>,
     /// Max bytes the fetcher may stay ahead of `consumed`.
     window: u64,
 }
 
-/// Create a coupled pair bounding the fetcher to `window` bytes of read-ahead:
-/// the [`PaceGate`] waits, the [`PaceReporter`] reports.
-pub(super) fn pace_channel(window: u64) -> (PaceGate, PaceReporter) {
+/// Create a coupled pair bounding the fetcher to `window` bytes of read-ahead --
+/// or, until something reads, to none at all: the [`PaceGate`] waits, the
+/// [`PaceReporter`] reports. `cancel` is the owning track's signal, which releases a
+/// parked gate for good.
+pub(super) fn pace_channel(window: u64, cancel: Arc<Cancel>) -> (PaceGate, PaceReporter) {
     let inner = Arc::new(PaceInner {
         consumed: AtomicU64::new(0),
+        started: AtomicBool::new(false),
         signal: Notify::new(),
-        cancelled: AtomicBool::new(false),
+        cancel,
         window,
     });
     (
@@ -96,7 +124,7 @@ pub(super) fn pace_channel(window: u64) -> (PaceGate, PaceReporter) {
 }
 
 /// Fetcher half of the pacer: it can only *wait*, via
-/// [`await_room`](Self::await_room). Cloning shares the state, so a resumed source
+/// [`await_room`](Self::await_room). Cloning shares the state, so a reopened request
 /// keeps pacing against the same reader.
 #[derive(Clone)]
 pub(super) struct PaceGate {
@@ -104,70 +132,73 @@ pub(super) struct PaceGate {
 }
 
 impl PaceGate {
-    /// Resolve once it is OK to fetch the next chunk (playback is within `window`
-    /// of `produced`), returning `true`; or `false` if the consumer is gone.
-    /// Called only at a chunk boundary, so a park here never holds a response open.
+    /// Resolve once it is OK to fetch the next chunk (playback is within the
+    /// effective window of `produced`), returning `true`; or `false` once the track is
+    /// cancelled. Called only at a chunk boundary, so a park here never holds a
+    /// response open.
     async fn await_room(&self, produced: u64) -> bool {
         loop {
-            // Create the waiter *before* checking, so a signal arriving after the
+            // Until something reads, the window is *closed*: the chunk already in
+            // hand is the whole read-ahead a queued track wants. Once a reader
+            // consumes its first byte the window opens to its full size, so a
+            // playing track keeps one whole chunk beyond the one being consumed.
+            let window = if self.inner.started.load(Ordering::Acquire) {
+                self.inner.window
+            } else {
+                0
+            };
+            // Create both waiters *before* checking, so a signal arriving after the
             // check but before we park is still observed -- tokio's documented
             // lost-wakeup-free idiom. (`notify_one` also keeps one permit for a
             // not-yet-parked waiter as a backstop.) On a fast-path return the
-            // unpolled future is just dropped: a no-op.
-            let notified = self.inner.signal.notified();
-            if self.inner.cancelled.load(Ordering::Acquire) {
+            // unpolled futures are just dropped: a no-op.
+            let advanced = self.inner.signal.notified();
+            let cancelled = self.inner.cancel.notified();
+            if self.inner.cancel.is_cancelled() {
                 return false;
             }
-            if produced.saturating_sub(self.inner.consumed.load(Ordering::Acquire))
-                <= self.inner.window
-            {
+            if produced.saturating_sub(self.inner.consumed.load(Ordering::Acquire)) <= window {
                 return true;
             }
-            notified.await;
+            // Either signal just re-runs the checks above, so a spurious wake is
+            // harmless.
+            tokio::select! {
+                _ = advanced => {}
+                _ = cancelled => {}
+            }
         }
     }
 }
 
 /// Reader half of the pacer: it can only *report* — [`advance`](Self::advance) as
-/// playback consumes bytes, [`cancel`](Self::cancel) when playback goes away.
-/// Cloning shares the state.
-#[derive(Clone)]
+/// playback consumes bytes. Stopping the fetcher is not its job; that is the
+/// track's [`Cancel`]. Cloning shares the state.
+#[derive(Clone, Debug)]
 pub(super) struct PaceReporter {
     inner: Arc<PaceInner>,
 }
 
 impl PaceReporter {
-    /// Report that playback has consumed up to `consumed` bytes.
+    /// Report that playback has consumed up to `consumed` bytes. The first call also
+    /// opens the window (see [`PaceGate::await_room`]) -- consumption, not the
+    /// existence of a reader, is what turns a parked prefetch back into a download.
     pub(super) fn advance(&self, consumed: u64) {
         self.inner.consumed.store(consumed, Ordering::Release);
+        self.inner.started.store(true, Ordering::Release);
+        // Both stores precede the notify, so the woken gate cannot miss either. In
+        // the interleavings where it reads one and not the other it merely parks
+        // again, and this notify has already reserved its permit.
         self.inner.signal.notify_one();
-    }
-
-    /// The consumer is gone; wake the fetcher so it stops.
-    pub(super) fn cancel(&self) {
-        self.inner.cancelled.store(true, Ordering::Release);
-        self.inner.signal.notify_one();
-    }
-
-    /// Test-only accessor to assert the pacer was cancelled.
-    #[cfg(test)]
-    pub(super) fn is_cancelled(&self) -> bool {
-        self.inner.cancelled.load(Ordering::Acquire)
     }
 }
 
-/// A resume-capable byte source paired with the [`PaceReporter`] coupled to its
-/// background fetcher.
-pub(super) struct PacedSource {
-    pub(super) source: Box<dyn AsyncMediaSource>,
-    pub(super) reporter: PaceReporter,
-}
-
-/// The immutable request parameters for one track, shared by the initial open
-/// and every [`ChunkedSource::try_resume`]. Cloning is cheap: [`Client`] is
-/// `Arc`-backed and the rest are small.
+/// Everything one track's range requests need.
+///
+/// `url` and `headers` are the *signed* media URL, which expires; they are swapped in
+/// place by [`rebind`](Self::rebind) when the owner re-extracts. Cloning is cheap:
+/// [`Client`] is `Arc`-backed and the rest are small.
 #[derive(Clone)]
-struct ChunkSpec {
+pub(super) struct ChunkRequest {
     client: Client,
     url: String,
     headers: HeaderMap,
@@ -176,63 +207,146 @@ struct ChunkSpec {
     total: Option<u64>,
     /// Max bytes per request; [`HTTP_CHUNK`] in production, small in tests.
     chunk: u64,
-    /// The fetcher's [`PaceGate`] on the live path; `None` on prefetch (unpaced).
+    /// Read-ahead gate. `None` leaves the fetcher unpaced.
     pace: Option<PaceGate>,
 }
 
-/// A lazily-fetched, throttle-dodging HTTP byte source. See the module docs.
-pub(super) struct ChunkedHttpRequest {
-    spec: ChunkSpec,
-}
-
-impl ChunkedHttpRequest {
+impl ChunkRequest {
     pub(super) fn new(client: Client, url: String, headers: HeaderMap, total: Option<u64>) -> Self {
         Self {
-            spec: ChunkSpec {
-                client,
-                url,
-                headers,
-                total,
-                chunk: HTTP_CHUNK,
-                pace: None,
-            },
+            client,
+            url,
+            headers,
+            total,
+            chunk: HTTP_CHUNK,
+            pace: None,
         }
     }
 
-    /// Open the resume-capable byte source for the *live* path: wire in a one-chunk
-    /// ([`HTTP_CHUNK`]) read-ahead pacer and eagerly fetch the first range so an
-    /// expired-URL 403 surfaces here for the caller to re-extract. Unlike
-    /// [`Compose::create_async`], the source is returned raw (no
-    /// [`AsyncAdapterStream`]) so a background producer can drain it directly,
-    /// alongside the [`PaceReporter`] coupling it to playback.
-    pub(super) async fn open_source(&self) -> Result<PacedSource, AudioStreamError> {
-        let (gate, reporter) = pace_channel(HTTP_CHUNK);
-        let mut spec = self.spec.clone();
-        spec.pace = Some(gate);
-        Ok(PacedSource {
-            source: Box::new(spec.open(0).await?),
-            reporter,
+    /// Hold the fetcher to `gate`'s read-ahead window.
+    pub(super) fn set_pace(&mut self, gate: PaceGate) {
+        self.pace = Some(gate);
+    }
+
+    /// The declared length this fetch was built around, if the format gave one. The
+    /// owner needs it to check that a re-extracted format is still the *same* bytes
+    /// before resuming in place -- see [`super::direct`].
+    pub(super) fn total(&self) -> Option<u64> {
+        self.total
+    }
+
+    /// Point the same fetch at a freshly extracted signed URL. Everything else --
+    /// offsets, chunk size, pacing -- is deliberately preserved, so a rebind resumes
+    /// exactly where the dead URL left off.
+    pub(super) fn rebind(&mut self, url: String, headers: HeaderMap) {
+        self.url = url;
+        self.headers = headers;
+    }
+
+    /// Stream the media from `offset` to its end.
+    ///
+    /// The first range is fetched eagerly, so a dead URL or connection fails *here*
+    /// rather than on the first poll. An `offset` past the end yields an empty
+    /// (clean-EOF) stream -- the right answer for a resume that lands exactly at the
+    /// end.
+    pub(super) async fn open(&self, offset: u64) -> Result<ByteStream, FetchError> {
+        // Absolute offset of the next byte to fetch, advanced by the bytes each
+        // chunk *actually delivers* -- not by the range it was asked for. A
+        // well-formed 206 that under-fills its range then realigns seamlessly,
+        // instead of leaving a silent gap the consumer would take as a clean early
+        // end (and cache as a truncated track).
+        let delivered = Arc::new(AtomicU64::new(offset));
+
+        let first_end = chunk_end(offset, self.chunk, self.total);
+        tracing::debug!(offset, end = first_end, "fetching first chunk");
+        let first: ByteStream =
+            match fetch_range(&self.client, &self.url, &self.headers, offset, first_end).await? {
+                RangeResp::Body(resp) => Box::pin(count_bytes(resp, delivered.clone())),
+                RangeResp::PastEnd { declared } => {
+                    if offset == 0 {
+                        // Nothing at all behind the URL. Not a rejection, so a fresh
+                        // extract is unlikely to help, but the caller still gets to try.
+                        return Err(FetchError::Transport(io::Error::other(
+                            "empty media: range from 0 unsatisfiable",
+                        )));
+                    }
+                    // Reopening inside the declared length: see [`FetchError::Truncated`].
+                    if let Some(total) = self.total.filter(|total| offset < *total) {
+                        return Err(FetchError::Truncated {
+                            at: offset,
+                            total,
+                            declared,
+                        });
+                    }
+                    // Length unknown, or genuinely at the end: a resume landing exactly
+                    // on EOF is a clean, empty stream.
+                    Box::pin(stream::empty())
+                }
+            };
+
+        // Remaining chunks, one at a time as the consumer advances. The unfold's
+        // state is the offset of the previous fetch: `try_flatten` fully drains each
+        // chunk before polling for the next, so `delivered` not moving past it means
+        // that chunk made no progress -- an error, never an infinite refetch of the
+        // same range.
+        let req = self.clone();
+        let progress = delivered.clone();
+        let rest = stream::try_unfold(None::<u64>, move |last_fetch| {
+            let req = req.clone();
+            let delivered = progress.clone();
+            async move {
+                let pos = delivered.load(Ordering::Relaxed);
+                if req.total.is_some_and(|t| pos >= t) {
+                    return Ok(None);
+                }
+                if last_fetch == Some(pos) {
+                    return Err(FetchError::Transport(io::Error::other(format!(
+                        "range from {pos} delivered no bytes"
+                    ))));
+                }
+                let end = chunk_end(pos, req.chunk, req.total);
+                if end <= pos {
+                    return Ok(None);
+                }
+                // Pace at the chunk boundary -- the one point where no response body
+                // is open -- so a pause never leaves a connection draining slowly.
+                // Waits until the consumer is within one window; stops (clean end)
+                // once the track is cancelled. `None` never waits.
+                if let Some(pace) = &req.pace
+                    && !pace.await_room(pos).await
+                {
+                    return Ok(None);
+                }
+                tracing::debug!(offset = pos, end, "fetching chunk");
+                match fetch_range(&req.client, &req.url, &req.headers, pos, end).await? {
+                    RangeResp::Body(resp) => {
+                        Ok(Some((count_bytes(resp, delivered.clone()), Some(pos))))
+                    }
+                    // Inside the declared length this is a contradiction, not an end (see
+                    // [`FetchError::Truncated`]); with no declared length it *is* the end.
+                    RangeResp::PastEnd { declared } => match req.total.filter(|t| pos < *t) {
+                        Some(total) => Err(FetchError::Truncated {
+                            at: pos,
+                            total,
+                            declared,
+                        }),
+                        None => Ok(None),
+                    },
+                }
+            }
         })
+        .try_flatten();
+
+        Ok(Box::pin(first.chain(rest)))
     }
 }
 
 #[cfg(test)]
-impl ChunkedHttpRequest {
+impl ChunkRequest {
     /// Shrink the per-request chunk so tests exercise multiple ranges (and thus
     /// pacing) without multi-MB bodies.
     pub(super) fn set_chunk(&mut self, chunk: u64) {
-        self.spec.chunk = chunk;
-    }
-
-    /// Open with an explicit [`PaceGate`] (or none) so tests can drive the
-    /// fetch/resume paths under a controlled window.
-    pub(super) async fn open_with_pace(
-        &self,
-        pace: Option<PaceGate>,
-    ) -> Result<Box<dyn AsyncMediaSource>, AudioStreamError> {
-        let mut spec = self.spec.clone();
-        spec.pace = pace;
-        Ok(Box::new(spec.open(0).await?))
+        self.chunk = chunk;
     }
 }
 
@@ -248,35 +362,69 @@ fn chunk_end(start: u64, chunk: u64, total: Option<u64>) -> u64 {
 enum RangeResp {
     /// A 2xx response carrying (part of) the requested range.
     Body(reqwest::Response),
-    /// `416 Range Not Satisfiable`: the start is past EOF, i.e. a clean end.
-    PastEnd,
+    /// `416 Range Not Satisfiable`: the start is at or past the end of the representation
+    /// the server selected. A range merely *overhanging* the end is satisfiable and comes
+    /// back clamped, so this means "your start is past my EOF" and nothing else.
+    PastEnd {
+        /// The server's own total length, from `Content-Range: bytes */N`.
+        declared: Option<u64>,
+    },
 }
 
-/// Send one closed-range GET (`bytes=start-{end-1}`). A `416` is reported as
-/// [`RangeResp::PastEnd`]; any other non-2xx is an error.
+/// The total length a 416 reports in `Content-Range: bytes */N`, which a server
+/// answering a byte-range request should send. Missing or unparseable is not an error:
+/// it only costs the detail in the log.
+fn unsatisfied_length(resp: &reqwest::Response) -> Option<u64> {
+    resp.headers()
+        .get(CONTENT_RANGE)?
+        .to_str()
+        .ok()?
+        .rsplit_once('/')?
+        .1
+        .trim()
+        .parse()
+        .ok()
+}
+
+/// Send one closed-range GET (`bytes=start-{end-1}`), classifying the answer.
 async fn fetch_range(
     client: &Client,
     url: &str,
     headers: &HeaderMap,
     start: u64,
     end: u64,
-) -> Result<RangeResp, reqwest::Error> {
+) -> Result<RangeResp, FetchError> {
     // An empty range (start == end) is end-of-stream; treating it as such also
     // keeps `end - 1` below from underflowing on a zero-length file.
     if end <= start {
-        return Ok(RangeResp::PastEnd);
+        return Ok(RangeResp::PastEnd { declared: None });
     }
     let resp = client
         .get(url)
         .headers(headers.clone())
         .header(RANGE, format!("bytes={start}-{}", end - 1))
         .send()
-        .await?;
-    if resp.status() == reqwest::StatusCode::RANGE_NOT_SATISFIABLE {
-        Ok(RangeResp::PastEnd)
-    } else {
-        let resp = resp.error_for_status()?;
+        .await
+        .map_err(|err| FetchError::Transport(io::Error::other(err)))?;
+
+    let status = resp.status();
+    if status == StatusCode::RANGE_NOT_SATISFIABLE {
+        Ok(RangeResp::PastEnd {
+            declared: unsatisfied_length(&resp),
+        })
+    } else if status.is_success() {
         Ok(RangeResp::Body(resp))
+    } else if matches!(
+        status,
+        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN | StatusCode::GONE
+    ) {
+        // How googlevideo answers an expired signature or a rebound IP. Reported
+        // separately because retrying is futile and re-extracting is not.
+        Err(FetchError::Rejected(status))
+    } else {
+        Err(FetchError::Transport(io::Error::other(format!(
+            "range request failed with status {status}"
+        ))))
     }
 }
 
@@ -284,242 +432,12 @@ async fn fetch_range(
 fn count_bytes(
     resp: reqwest::Response,
     delivered: Arc<AtomicU64>,
-) -> impl Stream<Item = io::Result<Bytes>> + Send + Sync {
+) -> impl Stream<Item = Result<Bytes, FetchError>> + Send {
     resp.bytes_stream()
-        .map_err(io::Error::other)
+        .map_err(|err| FetchError::Transport(io::Error::other(err)))
         .inspect_ok(move |bytes| {
             // Relaxed: only ever read/written from the one task that drives the
             // stream (`try_flatten` drains a chunk before polling for the next).
             delivered.fetch_add(bytes.len() as u64, Ordering::Relaxed);
         })
-}
-
-impl ChunkSpec {
-    /// Build the byte source starting at `start`, eagerly fetching the first range
-    /// so a dead URL or connection surfaces here (fail-fast). A `start` past EOF
-    /// yields an empty (clean-EOF) source -- the correct end for a resume that
-    /// lands exactly at the end.
-    async fn open(self, start: u64) -> Result<ChunkedSource, AudioStreamError> {
-        // Attribute the lazy chunk fetches to whoever opened the source. The span
-        // has to ride on the *stream*, not the task: on the prefetch path
-        // `Compose::create_async` hands the source to `AsyncAdapterStream`, which
-        // spawns its own driver with no span propagation, so the later chunks are
-        // polled from a task we never get to instrument.
-        let span = tracing::Span::current();
-        // Absolute offset of the next byte to fetch, advanced by the bytes each
-        // chunk *actually delivers* -- not by the range it was asked for. A
-        // well-formed 206 that under-fills its range then realigns seamlessly,
-        // instead of leaving a silent gap the decoder would take as a clean
-        // early end (promoting a truncated file into the replay cache).
-        let delivered = Arc::new(AtomicU64::new(start));
-
-        let first_end = chunk_end(start, self.chunk, self.total);
-        tracing::debug!(start, end = first_end, "fetching first chunk");
-        let first: BoxedByteStream =
-            match fetch_range(&self.client, &self.url, &self.headers, start, first_end).await {
-                Ok(RangeResp::Body(resp)) => Box::pin(count_bytes(resp, delivered.clone())),
-                Ok(RangeResp::PastEnd) => {
-                    if start == 0 {
-                        // Nothing at all behind the URL: surface it at open time
-                        // so the caller's URL-expiry retry can re-extract.
-                        let msg: Box<dyn std::error::Error + Send + Sync> =
-                            "empty media: range from 0 unsatisfiable".into();
-                        return Err(AudioStreamError::Fail(msg));
-                    }
-                    Box::pin(stream::empty::<io::Result<Bytes>>())
-                }
-                Err(err) => return Err(AudioStreamError::Fail(err.into())),
-            };
-
-        // Remaining chunks, fetched one at a time as playback advances. The
-        // unfold owns a clone of the spec; the source keeps the original so
-        // try_resume can reissue ranges. Its state is the offset of the previous
-        // fetch: `try_flatten` fully drains each chunk before polling for the
-        // next, so `delivered` not moving past it means that chunk made no
-        // progress -- an error (bounded by the resume stall guard), never an
-        // infinite refetch of the same range.
-        let spec = self.clone();
-        let progress = delivered.clone();
-        let rest = stream::try_unfold(None::<u64>, move |last_fetch| {
-            let spec = spec.clone();
-            let delivered = progress.clone();
-            let span = span.clone();
-            async move {
-                let pos = delivered.load(Ordering::Relaxed);
-                if spec.total.is_some_and(|t| pos >= t) {
-                    return Ok(None);
-                }
-                if last_fetch == Some(pos) {
-                    return Err(io::Error::other(format!(
-                        "range from {pos} delivered no bytes"
-                    )));
-                }
-                let end = chunk_end(pos, spec.chunk, spec.total);
-                if end <= pos {
-                    return Ok(None);
-                }
-                // Pace at the chunk boundary -- the one point where no response
-                // body is open -- so a pause never leaves a connection draining
-                // slowly. Waits until playback is within one window; stops (clean
-                // end) if playback has gone away. `None` on prefetch: never waits.
-                if let Some(pace) = &spec.pace
-                    && !pace.await_room(pos).await
-                {
-                    return Ok(None);
-                }
-                tracing::debug!(offset = pos, end, "fetching chunk");
-                match fetch_range(&spec.client, &spec.url, &spec.headers, pos, end).await {
-                    Ok(RangeResp::Body(resp)) => {
-                        Ok(Some((count_bytes(resp, delivered.clone()), Some(pos))))
-                    }
-                    Ok(RangeResp::PastEnd) => Ok(None),
-                    Err(err) => Err(io::Error::other(err)),
-                }
-            }
-            .instrument(span)
-        })
-        .try_flatten();
-
-        let body: BoxedByteStream = Box::pin(first.chain(rest));
-        Ok(ChunkedSource {
-            reader: StreamReader::new(body),
-            spec: self,
-            start,
-            stalled_resumes: 0,
-        })
-    }
-}
-
-#[async_trait::async_trait]
-impl Compose for ChunkedHttpRequest {
-    fn create(&mut self) -> Result<AudioStream<Box<dyn MediaSource>>, AudioStreamError> {
-        // Async only: the eager first fetch has to run on the runtime.
-        Err(AudioStreamError::Unsupported)
-    }
-
-    async fn create_async(
-        &mut self,
-    ) -> Result<AudioStream<Box<dyn MediaSource>>, AudioStreamError> {
-        let source = self.spec.clone().open(0).await?;
-        let stream = AsyncAdapterStream::new(Box::new(source), CHUNKED_ADAPTER_BUF);
-        Ok(AudioStream {
-            input: Box::new(stream),
-        })
-    }
-
-    fn should_create_async(&self) -> bool {
-        true
-    }
-}
-
-type BoxedByteStream = Pin<Box<dyn Stream<Item = io::Result<Bytes>> + Send + Sync>>;
-
-/// Adapts the concatenated chunk stream into an [`AsyncMediaSource`]. Not
-/// seekable (the cached tempfile serves later seeks/replays), but it *does*
-/// implement [`try_resume`](AsyncMediaSource::try_resume) so a mid-play
-/// connection drop rebuilds the stream instead of truncating the track.
-struct ChunkedSource {
-    reader: StreamReader<BoxedByteStream, Bytes>,
-    /// Request parameters, kept so `try_resume` can reissue ranges from a new
-    /// offset.
-    spec: ChunkSpec,
-    /// Absolute byte offset this source started at. Lets `try_resume` tell real
-    /// progress (a later offset) from a stall (the same offset again).
-    start: u64,
-    /// Consecutive resumes that made no progress. Reset once the stream advances,
-    /// so only a stuck URL trips [`MAX_STALLED_RESUMES`].
-    stalled_resumes: u32,
-}
-
-impl AsyncRead for ChunkedSource {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
-    ) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.get_mut().reader).poll_read(cx, buf)
-    }
-}
-
-impl AsyncSeek for ChunkedSource {
-    fn start_seek(self: Pin<&mut Self>, _pos: io::SeekFrom) -> io::Result<()> {
-        Err(io::ErrorKind::Unsupported.into())
-    }
-
-    fn poll_complete(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<u64>> {
-        Poll::Ready(Err(io::ErrorKind::Unsupported.into()))
-    }
-}
-
-#[async_trait::async_trait]
-impl AsyncMediaSource for ChunkedSource {
-    fn is_seekable(&self) -> bool {
-        false
-    }
-
-    async fn byte_len(&self) -> Option<u64> {
-        self.spec.total
-    }
-
-    /// Rebuild the chunked stream from `offset` after a mid-play read error, so a
-    /// dropped connection resumes instead of truncating the track. `offset` is the
-    /// total bytes read so far -- the next byte to fetch.
-    async fn try_resume(
-        &mut self,
-        offset: u64,
-    ) -> Result<Box<dyn AsyncMediaSource>, AudioStreamError> {
-        // Advancing past where this source opened means a genuine transient blip,
-        // so forgive earlier attempts. No advance means we're stuck at one offset.
-        let stalled = if offset > self.start {
-            0
-        } else {
-            self.stalled_resumes + 1
-        };
-        if stalled > MAX_STALLED_RESUMES {
-            // Giving up: the track ends here -- worth a `warn`.
-            tracing::warn!(
-                offset,
-                total = ?self.spec.total,
-                "chunked stream stuck; giving up, track will end early"
-            );
-            let msg: Box<dyn std::error::Error + Send + Sync> = format!(
-                "chunked stream stuck at offset {offset} after {MAX_STALLED_RESUMES} resume attempts"
-            )
-            .into();
-            return Err(AudioStreamError::Fail(msg));
-        }
-        // A resume is routine, not a fault; logged at `info`.
-        tracing::info!(
-            offset,
-            total = ?self.spec.total,
-            stalled,
-            "chunked stream connection dropped; resuming"
-        );
-        // open() fetches eagerly, so a dead URL fails fast; a few paced attempts
-        // ride out a transient one (the ring buffer's read-ahead hides the pauses).
-        let mut attempt = 0;
-        loop {
-            attempt += 1;
-            match self.spec.clone().open(offset).await {
-                Ok(mut resumed) => {
-                    resumed.stalled_resumes = stalled;
-                    return Ok(Box::new(resumed));
-                }
-                Err(err) if attempt < RESUME_OPEN_ATTEMPTS => {
-                    tracing::debug!(offset, attempt, error = %err, "resume open failed; retrying");
-                    tokio::time::sleep(RESUME_OPEN_BACKOFF).await;
-                }
-                Err(err) => {
-                    // Attempts exhausted: the track ends here -- worth a `warn`.
-                    tracing::warn!(
-                        offset,
-                        attempts = RESUME_OPEN_ATTEMPTS,
-                        error = %err,
-                        "chunked stream resume failed, track will end early"
-                    );
-                    return Err(err);
-                }
-            }
-        }
-    }
 }

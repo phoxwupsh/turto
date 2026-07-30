@@ -21,7 +21,7 @@ impl YouTubePlaylist {
     pub fn to_vec(self) -> Vec<YouTubeDl> {
         self.entries
             .into_iter()
-            .map(|metadata| YouTubeDl::new_with(metadata.url.clone(), None, metadata))
+            .map(|metadata| YouTubeDl::new_with(metadata.url.clone(), metadata))
             .collect()
     }
 }
@@ -48,7 +48,7 @@ impl Iterator for YouTubePlaylistIter {
     fn next(&mut self) -> Option<Self::Item> {
         self.inner
             .next()
-            .map(|metadata| YouTubeDl::new_with(metadata.url.clone(), None, metadata))
+            .map(|metadata| YouTubeDl::new_with(metadata.url.clone(), metadata))
     }
 }
 
