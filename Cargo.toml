@@ -25,7 +25,6 @@ which = "6.0.3"
 tracing-appender = "0.2.3"
 chrono = "0.4"
 tempfile = "3.23.0"
-tokio-util = { version = "0.7.17", features = ["io-util"] }
 zip = "5.1.1"
 flate2 = "1.0"
 tar = "0.4"
