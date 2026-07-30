@@ -9,6 +9,7 @@ use std::{
     path::{Path, PathBuf},
     process::Stdio,
     sync::OnceLock,
+    time::Duration,
 };
 use tokio::io::AsyncWriteExt;
 
@@ -17,6 +18,12 @@ use os::{get_archive_name, get_exec_name, get_managed_python_exe, get_venv_pytho
 
 /// Python version requested from uv's managed interpreters for the sidecar venv.
 const PYTHON_VERSION: &str = "3.13";
+
+/// Ceiling on one uv invocation. Deliberately generous -- a cold `uv pip install`
+/// legitimately takes minutes on a slow link -- because the point is only that a
+/// wedged uv cannot hang startup before the Discord client exists, or hold
+/// `sidecar::update`'s lock for the rest of the process.
+const UV_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 
 static UV_PYTHON: OnceLock<PathBuf> = OnceLock::new();
 static UV_EXEC: OnceLock<PathBuf> = OnceLock::new();
@@ -273,7 +280,7 @@ pub async fn installed_ytdlp_version() -> Result<String, DepsError> {
 /// Find the uv-managed CPython interpreter under `py_dir`. uv installs to
 /// `<py_dir>/cpython-<ver>-<triple>/...`; there may be both a concrete
 /// versioned dir and a `cpython-<minor>-<triple>` alias — either works, so we
-/// take the highest-sorting one whose interpreter exists.
+/// take the newest patch whose interpreter exists.
 fn locate_managed_python(py_dir: &Path) -> Option<PathBuf> {
     let prefix = format!("cpython-{PYTHON_VERSION}");
     let mut dirs: Vec<PathBuf> = std::fs::read_dir(py_dir)
@@ -287,48 +294,67 @@ fn locate_managed_python(py_dir: &Path) -> Option<PathBuf> {
                     .is_some_and(|n| n.starts_with(&prefix))
         })
         .collect();
-    dirs.sort();
+    dirs.sort_by(|a, b| newest_patch_first(a, b));
     dirs.into_iter()
-        .rev()
         .map(|d| get_managed_python_exe(&d))
         .find(|p| p.is_file())
         .and_then(|p| std::fs::canonicalize(&p).ok().or(Some(p)))
 }
 
-/// Run a uv subcommand, inheriting turto's environment unchanged. uv owns its
-/// own configuration (cache dir, managed-Python dir, ...) via its many env
-/// vars and defaults; turto deliberately does not set any of them.
+/// Order two install dirs newest-patch-first, the unversioned alias last, then by name
+/// so the choice does not depend on `read_dir` order.
+fn newest_patch_first(a: &Path, b: &Path) -> std::cmp::Ordering {
+    managed_patch(b)
+        .cmp(&managed_patch(a))
+        .then_with(|| a.cmp(b))
+}
+
+/// The patch number of a `cpython-3.13.9-<triple>` install dir; `None` for uv's
+/// unversioned `cpython-3.13-<triple>` alias. Parsed rather than compared as text
+/// because lexicographically `3.13.10` sorts *below* `3.13.9`.
+fn managed_patch(dir: &Path) -> Option<u32> {
+    dir.file_name()?
+        .to_str()?
+        .strip_prefix("cpython-")?
+        .split('-')
+        .next()?
+        .split('.')
+        .nth(2)?
+        .parse()
+        .ok()
+}
+
+/// Run a uv subcommand, discarding its stdout. See [`run_uv_captured`].
 async fn run_uv<I, S>(uv_exec: &Path, args: I) -> Result<(), DepsError>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
-    let output = tokio::process::Command::new(uv_exec)
-        .args(args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .output()
-        .await?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(DepsError::Uv(stderr.trim().to_string()));
-    }
-    Ok(())
+    run_uv_captured(uv_exec, args).await.map(|_| ())
 }
 
-/// Like [`run_uv`] but returns captured stdout on success.
+/// Run a uv subcommand and return its captured stdout, inheriting turto's environment
+/// unchanged. uv owns its own configuration (cache dir, managed-Python dir, ...) via its
+/// many env vars and defaults; turto deliberately does not set any of them.
+///
+/// Bounded by [`UV_TIMEOUT`], and `kill_on_drop` so the timeout actually ends the
+/// process: an orphaned uv would keep its lock on the venv and stall every later
+/// invocation.
 async fn run_uv_captured<I, S>(uv_exec: &Path, args: I) -> Result<String, DepsError>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
-    let output = tokio::process::Command::new(uv_exec)
+    let child = tokio::process::Command::new(uv_exec)
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .output()
-        .await?;
+        .kill_on_drop(true)
+        .spawn()?;
+
+    let output = tokio::time::timeout(UV_TIMEOUT, child.wait_with_output())
+        .await
+        .map_err(|_| DepsError::UvTimeout(UV_TIMEOUT))??;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -379,4 +405,66 @@ fn make_executable(path: &Path) -> std::io::Result<()> {
 #[cfg(not(unix))]
 fn make_executable(_path: &Path) -> std::io::Result<()> {
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{locate_managed_python, managed_patch, newest_patch_first};
+    use std::path::{Path, PathBuf};
+
+    /// Install dir names in the order [`locate_managed_python`] considers them.
+    fn sorted(names: &[&str]) -> Vec<String> {
+        let mut dirs: Vec<PathBuf> = names.iter().map(PathBuf::from).collect();
+        dirs.sort_by(|a, b| newest_patch_first(a, b));
+        dirs.iter()
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect()
+    }
+
+    /// Patch numbers must be compared numerically: `3.13.10` is newer than `3.13.9`,
+    /// though it sorts below it as text.
+    #[test]
+    fn the_newest_patch_wins_over_the_longer_string() {
+        assert_eq!(
+            managed_patch(Path::new("cpython-3.13.9-linux-x86_64-gnu")),
+            Some(9)
+        );
+        assert_eq!(
+            managed_patch(Path::new("cpython-3.13.10-linux-x86_64-gnu")),
+            Some(10)
+        );
+        assert_eq!(
+            sorted(&[
+                "cpython-3.13.9-linux-x86_64-gnu",
+                "cpython-3.13.10-linux-x86_64-gnu",
+            ])[0],
+            "cpython-3.13.10-linux-x86_64-gnu"
+        );
+    }
+
+    /// uv's unversioned alias dir has no patch to compare, so it is the last resort
+    /// rather than an unknown that outranks a real install.
+    #[test]
+    fn the_unversioned_alias_sorts_last() {
+        assert_eq!(
+            managed_patch(Path::new("cpython-3.13-linux-x86_64-gnu")),
+            None
+        );
+        assert_eq!(
+            sorted(&[
+                "cpython-3.13-linux-x86_64-gnu",
+                "cpython-3.13.9-linux-x86_64-gnu",
+            ]),
+            vec![
+                "cpython-3.13.9-linux-x86_64-gnu",
+                "cpython-3.13-linux-x86_64-gnu",
+            ]
+        );
+    }
+
+    /// A missing python dir is a normal state (nothing installed yet), not a panic.
+    #[test]
+    fn a_missing_python_dir_is_none() {
+        assert!(locate_managed_python(Path::new("/nonexistent/turto-uv-python")).is_none());
+    }
 }

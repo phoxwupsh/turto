@@ -82,6 +82,9 @@ pub enum DepsError {
     #[error("uv command failed: {0}")]
     Uv(String),
 
+    #[error("uv command timed out after {0:?}")]
+    UvTimeout(std::time::Duration),
+
     #[error("uv binary not found after extraction")]
     UvNotFound,
 }

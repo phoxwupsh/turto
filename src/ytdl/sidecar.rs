@@ -129,8 +129,12 @@ pub enum SidecarError {
     Update(#[from] crate::deps::DepsError),
     #[error("sidecar /health response did not include a yt-dlp version")]
     MissingHealthVersion,
-    #[error("extraction failed ({status}{}): {error}", kind.as_deref().map(|k| format!(", {k}")).unwrap_or_default())]
-    Extract {
+    /// A sidecar endpoint answered with a non-success status. Names the endpoint,
+    /// since all three carry the same `{"error", "type"?}` body but fail for
+    /// different reasons.
+    #[error("sidecar {endpoint} failed ({status}{}): {error}", kind.as_deref().map(|k| format!(", {k}")).unwrap_or_default())]
+    Endpoint {
+        endpoint: &'static str,
         status: u16,
         error: String,
         kind: Option<String>,
@@ -292,7 +296,7 @@ pub async fn extract(url: &str, flat: bool) -> Result<serde_json::Value, Sidecar
         tracing::info!(status = status.as_u16(), elapsed_ms, "extract succeeded");
         Ok(info)
     } else {
-        let err = error_from_response(resp).await;
+        let err = error_from_response("/extract", resp).await;
         let elapsed_ms = started.elapsed().as_millis() as u64;
         tracing::warn!(status = status.as_u16(), elapsed_ms, error = %err, "extract failed");
         Err(err)
@@ -323,7 +327,7 @@ pub async fn download(info: &serde_json::Value) -> Result<reqwest::Response, Sid
         tracing::info!(status = status.as_u16(), content_length = ?resp.content_length(), "download started");
         Ok(resp)
     } else {
-        let err = error_from_response(resp).await;
+        let err = error_from_response("/download", resp).await;
         tracing::warn!(status = status.as_u16(), error = %err, "download failed");
         Err(err)
     }
@@ -434,6 +438,10 @@ async fn drain_old(old: Arc<Sidecar>, mut child: Child) {
 }
 
 /// Ask a sidecar which yt-dlp version it currently has imported (from `/health`).
+///
+/// The status is checked before the body: an unhealthy sidecar makes [`update`] skip
+/// that cycle's yt-dlp upgrade, so it must say *that* rather than report a decode
+/// failure over an error page.
 async fn health_version(sc: &Sidecar) -> Result<String, SidecarError> {
     #[derive(serde::Deserialize)]
     struct Health {
@@ -445,15 +453,18 @@ async fn health_version(sc: &Sidecar) -> Result<String, SidecarError> {
         .timeout(Duration::from_secs(5))
         .send()
         .await?;
+    if !resp.status().is_success() {
+        return Err(error_from_response("/health", resp).await);
+    }
     resp.json::<Health>()
         .await?
         .yt_dlp
         .ok_or(SidecarError::MissingHealthVersion)
 }
 
-/// Build an [`SidecarError::Extract`] from a non-success sidecar response whose
+/// Build a [`SidecarError::Endpoint`] from a non-success response of `endpoint`, whose
 /// body is the `{"error", "type"?}` JSON shape.
-async fn error_from_response(resp: reqwest::Response) -> SidecarError {
+async fn error_from_response(endpoint: &'static str, resp: reqwest::Response) -> SidecarError {
     #[derive(serde::Deserialize, Default)]
     struct ErrorBody {
         error: Option<String>,
@@ -464,7 +475,8 @@ async fn error_from_response(resp: reqwest::Response) -> SidecarError {
     // A non-JSON or unexpected body falls back to defaults rather than masking
     // the original status.
     let body = resp.json::<ErrorBody>().await.unwrap_or_default();
-    SidecarError::Extract {
+    SidecarError::Endpoint {
+        endpoint,
         status,
         error: body.error.unwrap_or_else(|| "unknown error".to_string()),
         kind: body.kind,
