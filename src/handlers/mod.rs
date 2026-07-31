@@ -54,9 +54,11 @@ impl SerenityEventHandler {
     async fn on_voice_state(&self, ctx: Context, new: VoiceState, guild_id: GuildId) {
         let bot_id = ctx.cache.current_user().id;
         if new.user_id == bot_id {
-            // if the bot is manually disconnected by the user instead using command,
-            // then remove the current track handle (if there is one)
-            if let Some(removed) = self.playing.write().await.remove(&guild_id) {
+            // A disconnect only. The same event also carries mutes, suppression and
+            // channel moves, which leave the track playing.
+            if new.channel_id.is_none()
+                && let Some(removed) = self.playing.write().await.remove(&guild_id)
+            {
                 if let Err(error) = removed.track_handle.stop() {
                     error!(?error, "failed to stop track");
                 }
