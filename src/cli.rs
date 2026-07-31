@@ -40,7 +40,17 @@ impl Cli {
             .block_on(self.main());
     }
 
+    /// Runs the bot, then retires the sidecar however that ended -- a shutdown
+    /// signal, a gateway failure, or a startup step that gave up. The sidecar
+    /// outlives its parent otherwise, it is in its own process group.
     async fn main(&self) {
+        self.serve().await;
+        crate::ytdl::sidecar::shutdown().await;
+    }
+
+    /// Load the config files, bring the external deps and the sidecar up, then run
+    /// the bot alongside the scheduler until either ends.
+    async fn serve(&self) {
         if let Err(err) = dotenvy::dotenv() {
             warn!(error = ?err, "Failed to load .env file");
         }
@@ -155,12 +165,14 @@ impl Cli {
         };
 
         tokio::select! {
-            _ = wait_shutdown_signal() => {
-                bot.shutdown().await;
-                crate::ytdl::sidecar::shutdown().await;
-                let _ = scheduler.shutdown().await;
+            _ = wait_shutdown_signal() => (),
+            result = bot.start() => {
+                if let Err(err) = result {
+                    error!(error = ?err, "bot client stopped");
+                }
             }
-            _ = bot.start() => ()
         }
+        bot.shutdown().await;
+        let _ = scheduler.shutdown().await;
     }
 }

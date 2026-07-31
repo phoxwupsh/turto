@@ -380,7 +380,7 @@ pub async fn update(nightly: bool) -> Result<bool, SidecarError> {
     crate::deps::uv::upgrade_ytdlp(nightly).await?;
     let installed = crate::deps::uv::installed_ytdlp_version().await?;
 
-    if installed == running {
+    if same_version(&installed, &running) {
         tracing::info!(version = %installed, "yt-dlp already current; no recycle");
         return Ok(false);
     }
@@ -406,6 +406,24 @@ pub async fn update(nightly: bool) -> Result<bool, SidecarError> {
         tokio::spawn(drain_old(old, child));
     }
     Ok(true)
+}
+
+/// Whether two version strings name the same yt-dlp release
+/// 
+/// Comparing dot-separated components as numbers: yt-dlp's own `__version__` 
+/// keeps its release tag's zero padding (`2026.07.04`) where `uv pip show` 
+/// reports the PEP 440 normalization (`2026.7.4`). A version with a non-numeric
+/// component is compared as text.
+fn same_version(a: &str, b: &str) -> bool {
+    fn numeric(v: &str) -> Result<Vec<u64>, std::num::ParseIntError> {
+        v.split('.')
+            .map(str::parse::<u64>)
+            .collect::<Result<Vec<_>, _>>()
+    }
+    match (numeric(a), numeric(b)) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => a == b,
+    }
 }
 
 /// Retire an old sidecar after a swap: ask it to drain gracefully via HTTP API,
@@ -559,7 +577,7 @@ async fn wait_healthy(sc: &Sidecar, deadline: tokio::time::Instant) -> Result<()
 
 #[cfg(test)]
 mod tests {
-    use super::{SidecarError, init_cookies};
+    use super::{SidecarError, init_cookies, same_version};
 
     /// A configured-but-unreadable cookies file is a misconfiguration: it must
     /// error rather than silently serving cookieless.
@@ -571,5 +589,27 @@ mod tests {
             .await
             .expect_err("a missing cookies file must be a hard error");
         assert!(matches!(err, SidecarError::Cookies { .. }));
+    }
+
+    /// The pair [`update`] actually compares: `/health` reports the padded release
+    /// tag, `uv pip show` its PEP 440 normalization.
+    #[test]
+    fn a_padded_version_matches_its_normalized_form() {
+        assert!(same_version("2026.07.04", "2026.7.4"));
+        assert!(same_version("2026.07.04.232811", "2026.7.4.232811"));
+    }
+
+    #[test]
+    fn different_releases_do_not_match() {
+        assert!(!same_version("2026.07.04", "2026.07.05"));
+        assert!(!same_version("2026.07.04", "2026.7.5"));
+        // A nightly of the same day is a different build.
+        assert!(!same_version("2026.07.04", "2026.7.4.232811"));
+    }
+
+    #[test]
+    fn a_non_numeric_version_compares_as_text() {
+        assert!(same_version("2026.07.04rc1", "2026.07.04rc1"));
+        assert!(!same_version("2026.07.04rc1", "2026.7.4"));
     }
 }
