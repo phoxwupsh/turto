@@ -24,7 +24,18 @@ const PLAYLIST_URL: &str =
 #[tokio::test]
 #[ignore = "downloads uv + managed python + yt-dlp; needs network"]
 async fn sidecar_end_to_end() {
-    let config = Arc::new(YtdlpConfig::default());
+    // A minimal valid Netscape cookies.txt makes the whole suite run "with cookies"
+    // (0 cookies == harmless for public videos), and lets us assert at the end that the
+    // sidecar never wrote back to OUR file: yt-dlp rewrites its cookiefile on close, so
+    // it must target a private per-request copy, never the caller's.
+    let cookie_path = std::env::temp_dir().join("turto-cookies-e2e.txt");
+    let cookie_content: &[u8] = b"# Netscape HTTP Cookie File\n";
+    std::fs::write(&cookie_path, cookie_content).expect("write cookies file");
+
+    let config = Arc::new(YtdlpConfig {
+        cookies_path: Some(cookie_path.to_str().expect("utf8 cookie path").to_owned()),
+        ..Default::default()
+    });
     // Stable dir so the vendored uv binary + managed Python + venv persist
     // across reruns (avoids re-downloading and re-hitting the GitHub API).
     let uv_dir = std::env::temp_dir().join("turto-uv-e2e");
@@ -45,20 +56,9 @@ async fn sidecar_end_to_end() {
         "managed CPython under uv_dir/python"
     );
 
-    // Cookies load once at startup as base64 *content*; in
-    // production sidecar::init does this. A minimal valid Netscape cookies.txt
-    // makes the whole suite run "with cookies" (0 cookies == harmless for public
-    // videos), and lets us assert at the end that the sidecar never wrote back to
-    // OUR file: yt-dlp rewrites its cookiefile on close, so it must target a
-    // private per-request copy, never the caller's.
-    let cookie_path = std::env::temp_dir().join("turto-cookies-e2e.txt");
-    let cookie_content: &[u8] = b"# Netscape HTTP Cookie File\n";
-    std::fs::write(&cookie_path, cookie_content).expect("write cookies file");
-
-    // init brings up the sidecar process and loads the cookies file in one step.
-    sidecar::init(Some(cookie_path.to_str().expect("utf8 cookie path")))
-        .await
-        .expect("sidecar init");
+    // init brings up the sidecar process, loads the cookies file, and records the
+    // concurrency cap a later respawn reuses.
+    sidecar::init(&config).await.expect("sidecar init");
 
     // Single video: must select an audio-only format with a usable URL.
     let info = sidecar::extract(SINGLE_URL, false)

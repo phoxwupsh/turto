@@ -92,7 +92,7 @@ impl Cli {
             return;
         }
 
-        if let Err(err) = crate::ytdl::sidecar::init(config.ytdlp.cookies_path.as_deref()).await {
+        if let Err(err) = crate::ytdl::sidecar::init(&config.ytdlp).await {
             error!(error = ?err, "failed to start yt-dlp sidecar");
             return;
         }

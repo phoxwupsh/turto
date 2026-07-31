@@ -64,6 +64,7 @@ define_config! {
         pub use_system_bun: bool = false,
         pub use_system_uv: bool = false,
         pub cookies_path: Option<String> = None,
+        pub max_concurrency: u32 = 8,
     }
 }
 

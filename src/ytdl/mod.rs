@@ -254,12 +254,14 @@ impl YouTubeDl {
 
     /// Open this track's byte source and spawn the producer that drains it into a fresh
     /// tail. The eager first fetch means an unplayable track fails *here*, where a command
-    /// can report it, and [`Self::start_tail_fresh`] gets one shot at a re-extract --
-    /// separate from keeping a *working* fetch going, which is [`direct`]'s job.
+    /// can report it, and a failure a fresh URL could fix gets one re-extract
+    /// ([`Self::start_tail_fresh`]) -- separate from keeping a *working* fetch going,
+    /// which is [`direct`]'s job.
     async fn start_tail(&self) -> Result<tail::TailHandle, YouTubeDlError> {
         let meta = self.fetch_metadata().await?;
-        match self.open_tail(source::classify_source(&meta)).await {
+        match self.open_tail(source::classify_source(&meta), None).await {
             Ok(handle) => Ok(handle),
+            Err(err @ YouTubeDlError::UnsupportedStream(_)) => Err(err),
             Err(err) => {
                 tracing::warn!(error = %err, "byte open failed; re-extracting for a fresh url");
                 self.start_tail_fresh().await
@@ -270,15 +272,18 @@ impl YouTubeDl {
     /// The URL-expiry retry, tried once: re-extract past the session caches, then open
     /// whatever the fresh metadata names -- possibly a different byte path entirely.
     async fn start_tail_fresh(&self) -> Result<tail::TailHandle, YouTubeDlError> {
-        let (meta, _) = self.re_extract().await?;
-        self.open_tail(source::classify_source(&meta)).await
+        let (meta, info) = self.re_extract().await?;
+        self.open_tail(source::classify_source(&meta), Some(info))
+            .await
     }
 
-    /// Spawn the producer for one classified byte source. Only the direct-HTTP one has a
-    /// recovery loop: it alone holds a URL that expires *and* knows where to resume.
+    /// Spawn the producer for one classified byte source. `info` is the dict the sidecar
+    /// path downloads from; [`None`] takes the session cache. Only the direct-HTTP source
+    /// has a recovery loop: it alone holds a URL that expires *and* knows where to resume.
     async fn open_tail(
         &self,
         source: source::ByteSource,
+        info: Option<Arc<serde_json::Value>>,
     ) -> Result<tail::TailHandle, YouTubeDlError> {
         let cancel = self.inner.cancel.clone();
         match source {
@@ -292,17 +297,18 @@ impl YouTubeDl {
                 })?)
             }
             source::ByteSource::Hls(req) => {
-                let (fetch, reporter) = hls::HlsFetch::open(req, cancel.clone())
-                    .await
-                    .map_err(|err| YouTubeDlError::Stream(err.into()))?;
+                let (fetch, reporter) = hls::HlsFetch::open(req, cancel.clone()).await?;
                 Ok(tail::spawn_tail(cancel, Some(reporter), move |tail| {
                     fetch.run(tail)
                 })?)
             }
             // No URL-expiry guard needed: the sidecar re-extracts from `webpage_url`
-            // itself. Reuse the cached info dict.
+            // itself.
             source::ByteSource::Sidecar => {
-                let info = self.fetch_info().await?;
+                let info = match info {
+                    Some(info) => info,
+                    None => self.fetch_info().await?,
+                };
                 let resp = sidecar::download(&info).await?;
                 Ok(tail::spawn_sidecar_tail(cancel, resp)?)
             }
@@ -330,4 +336,18 @@ pub enum YouTubeDlError {
     Sidecar(#[from] sidecar::SidecarError),
     #[error("audio stream error: {0}")]
     Stream(Box<dyn std::error::Error + Send + Sync>),
+    /// A property of the stream itself, so any extract of this track fails the same way
+    /// and the URL-expiry retry is skipped.
+    #[error("unsupported audio stream: {0}")]
+    UnsupportedStream(Box<dyn std::error::Error + Send + Sync>),
+}
+
+impl From<hls::HlsError> for YouTubeDlError {
+    fn from(err: hls::HlsError) -> Self {
+        if err.is_stream_property() {
+            Self::UnsupportedStream(err.into())
+        } else {
+            Self::Stream(err.into())
+        }
+    }
 }

@@ -5,7 +5,10 @@
 //! learns its ephemeral port, health-checks it, and exposes a typed [`extract`]
 //! client used by [`crate::ytdl`].
 
-use crate::deps::{bun::get_bun_arg, uv::get_uv_python};
+use crate::{
+    deps::{bun::get_bun_arg, uv::get_uv_python},
+    models::config::YtdlpConfig,
+};
 use arc_swap::ArcSwap;
 use base64::{Engine, prelude::BASE64_STANDARD};
 use std::{
@@ -52,6 +55,10 @@ static UPDATE_LOCK: Mutex<()> = Mutex::const_new(());
 /// base64-encoded cookies.txt content, loaded once at startup.
 /// [`None`] = no cookies configured.
 static COOKIES_B64: OnceLock<Option<String>> = OnceLock::new();
+
+/// Configured cap on the sidecar's simultaneous extractions and downloads, kept for
+/// the respawn in [`update`] as well as the first spawn.
+static MAX_CONCURRENCY: OnceLock<u32> = OnceLock::new();
 
 /// Load the current sidecar handle as a full `Arc` (safe to hold across awaits,
 /// unlike an `ArcSwap` guard).
@@ -148,12 +155,14 @@ pub enum SidecarError {
 
 /// Bring the sidecar up for the whole process:
 ///
-/// 1. Load and validate the cookies file
-/// 2. Spawn the sidecar process
-/// 3. Learn the sidecar's port
-/// 4. Wait until it's healthy.
-pub async fn init(cookies_path: Option<&str>) -> Result<(), SidecarError> {
-    init_cookies(cookies_path).await?;
+/// 1. Record the settings a later respawn needs too
+/// 2. Load and validate the cookies file
+/// 3. Spawn the sidecar process
+/// 4. Learn the sidecar's port
+/// 5. Wait until it's healthy.
+pub async fn init(config: &YtdlpConfig) -> Result<(), SidecarError> {
+    MAX_CONCURRENCY.set(config.max_concurrency).ok();
+    init_cookies(config.cookies_path.as_deref()).await?;
     let (sidecar, child) = spawn_instance().await?;
     tracing::info!(base = %sidecar.base, "yt-dlp sidecar ready");
     CURRENT.set(ArcSwap::from_pointee(sidecar)).ok();
@@ -167,6 +176,9 @@ async fn spawn_instance() -> Result<(Sidecar, Child), SidecarError> {
     let python = get_uv_python();
     let bun_arg = get_bun_arg();
     let secret = Uuid::new_v4().simple().to_string();
+    let concurrency = MAX_CONCURRENCY
+        .get()
+        .expect("init must run before spawning a sidecar");
 
     // `-` makes Python read the program from stdin; config is passed as argv,
     let mut cmd = Command::new(python);
@@ -175,6 +187,8 @@ async fn spawn_instance() -> Result<(Sidecar, Child), SidecarError> {
         .arg(&secret)
         .arg("--bun")
         .arg(bun_arg)
+        .arg("--max-concurrency")
+        .arg(concurrency.to_string())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -409,9 +423,9 @@ pub async fn update(nightly: bool) -> Result<bool, SidecarError> {
 }
 
 /// Whether two version strings name the same yt-dlp release
-/// 
-/// Comparing dot-separated components as numbers: yt-dlp's own `__version__` 
-/// keeps its release tag's zero padding (`2026.07.04`) where `uv pip show` 
+///
+/// Comparing dot-separated components as numbers: yt-dlp's own `__version__`
+/// keeps its release tag's zero padding (`2026.07.04`) where `uv pip show`
 /// reports the PEP 440 normalization (`2026.7.4`). A version with a non-numeric
 /// component is compared as text.
 fn same_version(a: &str, b: &str) -> bool {

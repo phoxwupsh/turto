@@ -71,6 +71,13 @@ pub(super) enum HlsError {
     Encrypted(String),
 }
 
+impl HlsError {
+    /// Whether this is a property of the stream itself, which no re-extract can change.
+    pub(super) fn is_stream_property(&self) -> bool {
+        matches!(self, Self::Encrypted(_) | Self::Playlist(_))
+    }
+}
+
 impl From<HlsError> for io::Error {
     fn from(err: HlsError) -> Self {
         io::Error::other(err)
