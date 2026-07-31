@@ -9,8 +9,7 @@
 //! completed, or again later for a replay. That is what lets one download serve both a
 //! prefetch nobody is listening to yet and the playback that arrives later.
 //! [`spawn_tail`] is the entry point, taking the producer for whichever byte path is in
-//! play: [`spawn_sidecar_tail`] and [`spawn_hls_tail`] wrap the two thin ones, and
-//! [`super::direct`] supplies its own.
+//! play.
 //!
 //! Stopping the producer is *not* a reader's decision (readers come and go, and
 //! songbird disposes a finished one asynchronously, possibly after its replacement
@@ -31,7 +30,7 @@ use std::{
     },
     task::{Context, Poll},
 };
-use symphonia::core::io::{MediaSource, MediaSourceStream, MediaSourceStreamOptions};
+use symphonia::core::io::{MediaSourceStream, MediaSourceStreamOptions};
 use tempfile::NamedTempFile;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWriteExt, ReadBuf};
 use tracing::Instrument;
@@ -40,7 +39,7 @@ use tracing::Instrument;
 mod test;
 
 /// Ring-buffer size for the async→sync bridge feeding tail downloads into
-/// playback. Matches songbird's own `HttpRequest`/`HlsRequest` sources.
+/// playback. Matches songbird's own `HttpRequest` source.
 const ADAPTER_BUF: usize = 64 * 1024;
 
 /// Start the sidecar `/download` tail: a background task drains the response into a
@@ -52,23 +51,10 @@ pub(super) fn spawn_sidecar_tail(
     spawn_tail(cancel, None, move |tail| drain_response(resp, tail))
 }
 
-/// Start the HLS tail. songbird's `HlsRequest` only hands out a *sync* `MediaSource`
-/// (its async half is private), so this one is bridged off a blocking thread.
-pub(super) fn spawn_hls_tail(
-    cancel: Arc<Cancel>,
-    source: Box<dyn MediaSource>,
-) -> std::io::Result<TailHandle> {
-    spawn_tail(cancel, None, move |tail| drain_blocking(source, tail))
-}
-
 /// Spawn `producer` to fill a fresh tail file, returning the handle readers are
 /// minted from. `producer` returns `Ok(())` on a clean EOF or `Err` on failure --
 /// surfaced to readers as a read error, never a truncated EOF, so a partial download
 /// is never played.
-///
-/// The direct-HTTP path supplies its own producer ([`super::direct`]), since it is the
-/// one with a recovery loop; the two here are thin enough to live beside the
-/// machinery.
 pub(super) fn spawn_tail<P, Fut>(
     cancel: Arc<Cancel>,
     pace: Option<chunked::PaceReporter>,
@@ -164,8 +150,8 @@ impl TailWriter {
 }
 
 /// An [`AsyncMediaSource`] over a temp file being (or already) written by a
-/// background download producer (the sidecar `/download` or the direct-HTTP chunked
-/// path). Minted by [`TailHandle::reader`], at any point in the download.
+/// background download producer, whichever byte path it came from. Minted by
+/// [`TailHandle::reader`], at any point in the download.
 ///
 /// When the reader catches up to the writer:
 ///
@@ -179,8 +165,8 @@ pub(super) struct TailReader {
     file: std::fs::File,
     pos: u64,
     state: Arc<TailState>,
-    /// The chunked path's pacer: reports consumption so the fetcher can stay ~one
-    /// chunk ahead. `None` on the sidecar path.
+    /// The piece-wise paths' pacer: reports consumption so the fetcher stays within
+    /// one window of us. `None` on the sidecar path, which cannot be paced.
     pace: Option<chunked::PaceReporter>,
 }
 
@@ -210,8 +196,8 @@ impl AsyncRead for TailReader {
                 }
                 buf.advance(n);
                 this.pos += n as u64;
-                // Report consumption so the fetcher's pace gate can stay ~one
-                // chunk ahead of us (no-op on the sidecar path).
+                // Report consumption so the fetcher's pace gate stays within one
+                // window of us (no-op on the sidecar path).
                 if let Some(pace) = this.pace.as_ref() {
                     pace.advance(this.pos);
                 }
@@ -393,49 +379,6 @@ async fn drain_response(mut resp: reqwest::Response, mut tail: TailWriter) -> st
             Some(bytes) => tail.write(&bytes).await?,
             None => break,
         }
-    }
-    Ok(())
-}
-
-/// Bytes per read on the blocking bridge. Matches the other producers' buffer.
-const BLOCKING_CHUNK: usize = 64 * 1024;
-
-/// Drain a *sync* [`MediaSource`] into `tail` from a blocking thread, bridged over a
-/// small channel. songbird's `HlsRequest` keeps its async source private, so HLS
-/// bytes can only be pulled by a blocking read; doing it on the runtime would stall a
-/// worker for the length of a segment fetch.
-///
-/// The bridge is also what makes the path interruptible: the blocking side checks the
-/// track's cancel between reads, so a stop lands within one read instead of at the end
-/// of the track.
-async fn drain_blocking(
-    mut src: Box<dyn MediaSource>,
-    mut tail: TailWriter,
-) -> std::io::Result<()> {
-    let cancel = tail.cancel.clone();
-    let (tx, mut rx) = tokio::sync::mpsc::channel::<std::io::Result<Vec<u8>>>(4);
-
-    tokio::task::spawn_blocking(move || {
-        let mut buf = vec![0u8; BLOCKING_CHUNK];
-        while !cancel.is_cancelled() {
-            match src.read(&mut buf) {
-                Ok(0) => break,
-                // A closed receiver means the consumer went away: stop reading.
-                Ok(n) => {
-                    if tx.blocking_send(Ok(buf[..n].to_vec())).is_err() {
-                        break;
-                    }
-                }
-                Err(err) => {
-                    let _ = tx.blocking_send(Err(err));
-                    break;
-                }
-            }
-        }
-    });
-
-    while let Some(chunk) = rx.recv().await {
-        tail.write(&chunk?).await?;
     }
     Ok(())
 }

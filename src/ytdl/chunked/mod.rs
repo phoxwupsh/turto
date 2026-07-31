@@ -130,11 +130,11 @@ pub(super) struct PaceGate {
 }
 
 impl PaceGate {
-    /// Resolve once it is OK to fetch the next chunk (playback is within the
+    /// Resolve once it is OK to fetch the next piece (playback is within the
     /// effective window of `produced`), returning `true`; or `false` once the track is
-    /// cancelled. Called only at a chunk boundary, so a park here never holds a
-    /// response open.
-    async fn await_room(&self, produced: u64) -> bool {
+    /// cancelled. Called only at a piece boundary, so a park never holds a response
+    /// open.
+    pub(super) async fn await_room(&self, produced: u64) -> bool {
         loop {
             // Until something reads, the window is *closed*: the chunk already in
             // hand is the whole read-ahead a queued track wants. Once a reader

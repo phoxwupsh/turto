@@ -7,6 +7,7 @@ use url::Url;
 mod cancel;
 mod chunked;
 mod direct;
+mod hls;
 pub mod playlist;
 pub mod sidecar;
 mod source;
@@ -207,15 +208,16 @@ impl YouTubeDl {
     /// multi-second, and where the failures live -- plus one chunk of bytes on the
     /// direct-HTTP path, whose producer then parks at the boundary.
     ///
-    /// HLS and the sidecar `/download` have no boundary to park at, so they get the
-    /// extract alone rather than a whole download of a track that may never play.
+    /// HLS and the sidecar `/download` get the extract alone: a live playlist's window
+    /// slides past anything primed at queue time, and `/download` has no boundary to
+    /// park at.
     ///
     /// Returns once the first bytes are moving, not once they have landed;
     /// [`Self::play`] attaches to the same download either way.
     pub async fn prefetch(&self) -> Result<(), YouTubeDlError> {
         let meta = self.fetch_metadata().await?;
         if !source::is_direct(&meta) {
-            tracing::debug!("byte path cannot be bounded; primed the extract only");
+            tracing::debug!("byte path is not worth priming; primed the extract only");
             return Ok(());
         }
         self.tail().await?;
@@ -289,9 +291,13 @@ impl YouTubeDl {
                     fetch.run(tail)
                 })?)
             }
-            source::ByteSource::Hls(compose) => {
-                let raw = source::open_byte_stream(compose).await?;
-                Ok(tail::spawn_hls_tail(cancel, raw)?)
+            source::ByteSource::Hls(req) => {
+                let (fetch, reporter) = hls::HlsFetch::open(req, cancel.clone())
+                    .await
+                    .map_err(|err| YouTubeDlError::Stream(err.into()))?;
+                Ok(tail::spawn_tail(cancel, Some(reporter), move |tail| {
+                    fetch.run(tail)
+                })?)
             }
             // No URL-expiry guard needed: the sidecar re-extracts from `webpage_url`
             // itself. Reuse the cached info dict.

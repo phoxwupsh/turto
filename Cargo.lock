@@ -1453,6 +1453,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hls_m3u8"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb594d4791abe0396469f972ce0f633c5f435e2a47c72f631d0115dc3dcccd5e"
+dependencies = [
+ "stable-vec",
+]
+
+[[package]]
 name = "hmac"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3827,7 +3836,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-util",
- "hls_m3u8",
+ "hls_m3u8 0.4.2",
  "patricia_tree",
  "reqwest",
  "tokio",
@@ -4691,6 +4700,7 @@ dependencies = [
  "dotenvy",
  "flate2",
  "futures",
+ "hls_m3u8 0.7.0",
  "lazy-regex",
  "paste",
  "poise",

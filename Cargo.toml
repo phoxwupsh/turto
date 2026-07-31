@@ -42,6 +42,7 @@ async-trait = "0.1.89"
 futures = "0.3.32"
 base64 = "0.22.1"
 bytes = "1"
+hls_m3u8 = "0.7"
 
 [dependencies.serenity]
 version = "0.12.5"
