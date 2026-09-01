@@ -78,7 +78,7 @@ Options:
       --config <FILE>     path to config file [default: config.toml]
       --guilds <FILE>     path to guilds data file [default: guilds.json]
       --help <FILE>       path to help messages file [default: help.toml]
-      --tempaltes <FILE>  path to message templates file [default: templates.toml]
+      --templates <FILE>  path to message templates file [default: templates.toml]
 ```
 
 你可以用像 `--config path/to/your/config.toml` 或 `--guilds path/to/your/guilds.json` 這種方式指定要使用的設定/資料檔。
@@ -194,7 +194,7 @@ docker run \
   ghcr.io/phoxwupsh/turto:latest
 ```
 
-其中 `/path/to/your/config.toml` 是宿主機上的 `config.toml`，`help.toml` 與 `tempaltes.toml` 同理；
+其中 `/path/to/your/config.toml` 是宿主機上的 `config.toml`，`help.toml` 與 `templates.toml` 同理；
 你只要在宿主機編輯它們，Docker 容器啟動後就會套用。
 
 你也可以把資料存放在宿主機上，只要掛載 `guilds.json`：

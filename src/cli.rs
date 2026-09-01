@@ -27,8 +27,11 @@ pub struct Cli {
     #[arg(long, value_name = "FILE", value_hint = clap::ValueHint::FilePath, default_value = "help.toml", help = "path to help messages file")]
     help: PathBuf,
 
-    #[arg(long, value_name = "FILE", value_hint = clap::ValueHint::FilePath, default_value = "templates.toml", help = "path to message templates file")]
-    tempaltes: PathBuf,
+    // `alias` keeps the original misspelled `--tempaltes` flag working for
+    // anyone who scripted it before the spelling was fixed. (A `///` doc comment
+    // here would feed clap's help text.)
+    #[arg(long, alias = "tempaltes", value_name = "FILE", value_hint = clap::ValueHint::FilePath, default_value = "templates.toml", help = "path to message templates file")]
+    templates: PathBuf,
 }
 
 impl Cli {
@@ -79,7 +82,7 @@ impl Cli {
             }
         };
 
-        let templates = match Templates::load(&self.tempaltes) {
+        let templates = match Templates::load(&self.templates) {
             Ok(templates) => templates,
             Err(err) => {
                 error!(error = ?err, "failed to load templates");

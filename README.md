@@ -78,7 +78,7 @@ Options:
       --config <FILE>     path to config file [default: config.toml]
       --guilds <FILE>     path to guilds data file [default: guilds.json]
       --help <FILE>       path to help messages file [default: help.toml]
-      --tempaltes <FILE>  path to message templates file [default: templates.toml]
+      --templates <FILE>  path to message templates file [default: templates.toml]
 ```
 
 > [!NOTE]
@@ -193,7 +193,7 @@ docker run \
   ghcr.io/phoxwupsh/turto:latest
 ```
 
-That `/path/to/your/config.toml` is  the `config.toml` in your host, the same goes for `help.toml` and `tempaltes.toml`, 
+That `/path/to/your/config.toml` is  the `config.toml` in your host, the same goes for `help.toml` and `templates.toml`, 
 then you can edit them in your host, which will be applied after the Docker container starts.
 
 You can also store the data in your host, by mounting `guilds.json`
