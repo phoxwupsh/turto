@@ -18,16 +18,26 @@ pub async fn playwhat(ctx: Context<'_>) -> Result<(), CommandError> {
 
     let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;
 
-    let playing_map = ctx.data().playing.read().await;
-    let Some(playing) = playing_map.get(&guild_id) else {
+    // Clone out and release the guard before awaiting: `playing` is one map shared by
+    // every guild, and holding it read-locked across an extract and a Discord
+    // round-trip blocks the write `player::spawn_playback` needs to start a track
+    // anywhere.
+    let current = ctx
+        .data()
+        .playing
+        .read()
+        .await
+        .get(&guild_id)
+        .map(|playing| (playing.ytdlfile.clone(), playing.track_handle.clone()));
+    let Some((ytdlfile, track_handle)) = current else {
         turto_say(ctx, NotPlaying).await?;
         return Ok(());
     };
 
-    let meta = playing.ytdlfile.fetch_metadata().await?;
+    let meta = ytdlfile.fetch_metadata().await?;
     // `PlayMode` is `#[non_exhaustive]`: anything songbird adds later is treated as
     // "not playing" rather than panicking (the release profile aborts on panic).
-    let play_state = match playing.track_handle.get_info().await?.playing {
+    let play_state = match track_handle.get_info().await?.playing {
         PlayMode::Play => PlayState::Play,
         PlayMode::Pause => PlayState::Pause,
         PlayMode::Stop | PlayMode::End | PlayMode::Errored(_) => {
@@ -40,7 +50,6 @@ pub async fn playwhat(ctx: Context<'_>) -> Result<(), CommandError> {
             return Ok(());
         }
     };
-    drop(playing_map);
 
     let response = create_playing_embed(ctx, Some(play_state), &meta);
     ctx.send(CreateReply::default().embed(response)).await?;
