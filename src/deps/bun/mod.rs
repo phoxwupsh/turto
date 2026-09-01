@@ -52,7 +52,8 @@ pub async fn setup_bun(
             .get(&url)
             .header(USER_AGENT, "phoxwupsh/turto")
             .send()
-            .await?;
+            .await?
+            .error_for_status()?;
 
         let archive_path = bun_dir.join(archive_name);
 
@@ -69,8 +70,13 @@ pub async fn setup_bun(
             archive.write_all(&chunk).await?;
         }
 
-        extract_to(&archive_path, bun_dir)?;
+        // Flush and close before extracting: `tokio::fs::File` buffers, and its
+        // writes complete asynchronously, so extracting from a still-open handle
+        // can read a truncated archive.
+        archive.flush().await?;
         drop(archive);
+
+        extract_to(&archive_path, bun_dir)?;
         std::fs::remove_file(archive_path)?;
     } else {
         tracing::info!("found local bun");
@@ -84,14 +90,25 @@ pub async fn setup_bun(
 
 fn check_need_fetch_bun(path: &Path) -> std::io::Result<bool> {
     if path.is_file() {
+        // `--version` explicitly: invoking bun with no arguments prints whatever
+        // its current help banner happens to be, and can wait on inherited stdin.
         let child = std::process::Command::new(path)
+            .arg("--version")
             .env("NO_COLOR", "1")
+            .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()?;
         let output = child.wait_with_output()?;
-        let stdout = output.stdout;
-        return Ok(!stdout.trim_ascii_start().starts_with(b"Bun"));
+        // `bun --version` prints a bare version number; anything else (or a
+        // non-zero exit) means the binary on disk is not usable.
+        let usable = output.status.success()
+            && output
+                .stdout
+                .trim_ascii_start()
+                .first()
+                .is_some_and(u8::is_ascii_digit);
+        return Ok(!usable);
     }
     Ok(true)
 }
