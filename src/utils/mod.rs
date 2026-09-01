@@ -13,6 +13,7 @@ use songbird::Call;
 use std::{
     future::Future,
     sync::{Arc, OnceLock},
+    time::Duration,
 };
 use tokio::sync::Mutex;
 
@@ -23,8 +24,34 @@ pub mod queue;
 
 static HTTP_CLIENT: OnceLock<Client> = OnceLock::new();
 
+/// Ceiling on establishing a connection to a media host.
+const HTTP_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Ceiling on the gap between two reads of one response -- the headers, and then each
+/// body chunk. It **resets after every successful read**, so a slow but live download
+/// runs as long as it likes; only a connection that has gone silent trips it.
+///
+/// The byte paths need this rather than a whole-request timeout: a range request is up
+/// to 10 MB and a playlist segment arrives in pieces, so any total bound would either
+/// be uselessly large or cut a healthy fetch short. Without it a black-holed
+/// connection parks [`crate::ytdl`]'s producer forever -- the track never plays, never
+/// fails, and cannot even be skipped, since the cancel signal is only observed between
+/// chunks.
+const HTTP_READ_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// The shared client for every outbound fetch except the sidecar's, which builds its
+/// own (a `/download` streams for minutes at yt-dlp's pace and is bounded by the child
+/// process instead).
 pub fn get_http_client() -> Client {
-    HTTP_CLIENT.get_or_init(Client::new).clone()
+    HTTP_CLIENT
+        .get_or_init(|| {
+            Client::builder()
+                .connect_timeout(HTTP_CONNECT_TIMEOUT)
+                .read_timeout(HTTP_READ_TIMEOUT)
+                .build()
+                .expect("the default http client must build")
+        })
+        .clone()
 }
 
 pub async fn join_voice_channel(
