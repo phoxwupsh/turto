@@ -63,6 +63,7 @@ pub async fn play(
         // If a valid url is provided then play the url
         if Url::parse(&query).is_err() {
             turto_say(ctx, InvalidUrl(None)).await?;
+            return Ok(());
         }
 
         ctx.defer().await?;
