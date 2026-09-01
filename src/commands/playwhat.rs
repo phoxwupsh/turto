@@ -25,14 +25,20 @@ pub async fn playwhat(ctx: Context<'_>) -> Result<(), CommandError> {
     };
 
     let meta = playing.ytdlfile.fetch_metadata().await?;
+    // `PlayMode` is `#[non_exhaustive]`: anything songbird adds later is treated as
+    // "not playing" rather than panicking (the release profile aborts on panic).
     let play_state = match playing.track_handle.get_info().await?.playing {
+        PlayMode::Play => PlayState::Play,
+        PlayMode::Pause => PlayState::Pause,
         PlayMode::Stop | PlayMode::End | PlayMode::Errored(_) => {
             turto_say(ctx, NotPlaying).await?;
             return Ok(());
         }
-        PlayMode::Play => PlayState::Play,
-        PlayMode::Pause => PlayState::Pause,
-        _ => unreachable!(),
+        other => {
+            tracing::warn!(?other, "unrecognized play mode; reporting as not playing");
+            turto_say(ctx, NotPlaying).await?;
+            return Ok(());
+        }
     };
     drop(playing_map);
 
