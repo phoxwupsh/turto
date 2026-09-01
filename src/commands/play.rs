@@ -76,26 +76,34 @@ pub async fn play(
         ctx.send(CreateReply::default().embed(embed)).await?;
         return Ok(());
     } else {
-        // If no url provided, check if there is a paused track or there is any song in the playlist
-        let playing_map = data.playing.read().await;
+        // If no url provided, check if there is a paused track or there is any song in
+        // the playlist. Clone out and release the guard before awaiting: `playing` is
+        // one map shared by every guild, and holding it read-locked across a Discord
+        // round-trip blocks the write `player::spawn_playback` needs to start a track
+        // anywhere.
+        let current = data
+            .playing
+            .read()
+            .await
+            .get(&guild_id)
+            .map(|playing| (playing.ytdlfile.clone(), playing.track_handle.clone()));
 
-        if let Some(playing) = playing_map.get(&guild_id)
-            && let Ok(current_track_state) = playing.track_handle.get_info().await
+        if let Some((ytdlfile, track_handle)) = current
+            && let Ok(current_track_state) = track_handle.get_info().await
             && current_track_state.playing == PlayMode::Pause
         {
             // If there is a paused song then play it
-            playing.track_handle.play()?;
+            track_handle.play()?;
 
-            let metadata = playing.ytdlfile.fetch_metadata().await?;
+            let metadata = ytdlfile.fetch_metadata().await?;
 
-            tracing::info!(url = playing.ytdlfile.url(), "resume");
+            tracing::info!(url = ytdlfile.url(), "resume");
 
             let resp = create_playing_embed(ctx, Some(PlayState::Play), &metadata);
             ctx.send(CreateReply::default().embed(resp)).await?;
 
             return Ok(());
         }
-        drop(playing_map);
 
         ctx.defer().await?;
 
