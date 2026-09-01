@@ -61,6 +61,9 @@ pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), CommandE
         .get(&guild_id)
         .map(|playing| (playing.ytdlfile.clone(), playing.track_handle.clone()));
     let Some((ytdlfile, track_handle)) = current else {
+        // A slash command that returns without replying leaves the user staring at
+        // "the application did not respond"; every other command answers `NotPlaying`.
+        turto_say(ctx, NotPlaying).await?;
         return Ok(());
     };
 
