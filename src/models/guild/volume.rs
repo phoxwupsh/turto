@@ -1,6 +1,6 @@
 use crate::{models::error::CommandError, utils::misc::ToEmoji};
 use serde::{Deserialize, Serialize};
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct GuildVolume(f32);
@@ -11,16 +11,13 @@ impl Default for GuildVolume {
     }
 }
 
+/// Read-only: no `DerefMut`, since `&mut f32` would let any caller store a value
+/// outside `0.0..=1.0` and bypass the [`TryFrom`] range check that is this
+/// newtype's whole purpose.
 impl Deref for GuildVolume {
     type Target = f32;
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl DerefMut for GuildVolume {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 
