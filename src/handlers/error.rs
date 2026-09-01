@@ -28,7 +28,7 @@ async fn handle_error(
         FrameworkError::Command { ctx, error, .. } => {
             let command = ctx.invocation_string();
             let user = ctx.author().id;
-            tracing::error!(?error, command, %user, "error occured in command");
+            tracing::error!(?error, command, %user, "error occurred in command");
 
             let mentions = CreateAllowedMentions::new()
                 .everyone(false)
@@ -184,7 +184,7 @@ async fn handle_error(
         // these two error occurs only when someone try to call prefix command
         // ignore them since we don't use prefix commands
         FrameworkError::DynamicPrefix { msg, .. } => {
-            tracing::debug!(?msg, "ignore unknonwn command");
+            tracing::debug!(?msg, "ignore unknown command");
         }
         FrameworkError::UnknownCommand { msg, .. } => {
             tracing::debug!(?msg, "ignore unknown command");

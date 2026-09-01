@@ -48,8 +48,8 @@ async fn fetch_github_latest(repo_slug: &str) -> Result<String, reqwest::Error> 
     Ok(resp.tag_name)
 }
 
-pub fn extract_to(arhive: impl AsRef<Path>, target: impl AsRef<Path>) -> Result<(), DepsError> {
-    let file = std::fs::OpenOptions::new().read(true).open(arhive)?;
+pub fn extract_to(archive: impl AsRef<Path>, target: impl AsRef<Path>) -> Result<(), DepsError> {
+    let file = std::fs::OpenOptions::new().read(true).open(archive)?;
     let rdr = std::io::BufReader::new(file);
     ZipArchive::new(rdr)
         .and_then(|mut zip_file| zip_file.extract(target))

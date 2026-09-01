@@ -16,7 +16,7 @@ impl Templates {
         let templates_str = match std::fs::read_to_string(path) {
             Ok(s) => s,
             Err(error) => {
-                tracing::warn!(%error, path = %path.display(), "failed to read tempaltes, will use default templates");
+                tracing::warn!(%error, path = %path.display(), "failed to read templates, will use default templates");
                 return Ok(Templates::default());
             }
         };
@@ -252,7 +252,7 @@ mod test {
         let default = Templates::build_default();
 
         for template_name in TemplateName::iter() {
-            assert!(default.get(&template_name).is_some());
+            assert!(default.contains_key(&template_name));
         }
     }
 }
