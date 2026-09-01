@@ -2681,31 +2681,21 @@ dependencies = [
 
 [[package]]
 name = "poise"
-version = "0.6.1"
-source = "git+https://github.com/serenity-rs/poise.git#32ba94539e7834bbed4186c07f7ef9287129c7b7"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "711433114bca9ff68582aa58af5cbcf573e83250a8714c2dca1c36f453cad3ae"
 dependencies = [
  "async-trait",
  "derivative",
  "futures-util",
  "indexmap",
  "parking_lot 0.12.5",
- "poise_macros",
  "regex",
  "serenity",
+ "serenity_poise_macros",
  "tokio",
  "tracing",
  "trim-in-place",
-]
-
-[[package]]
-name = "poise_macros"
-version = "0.6.1"
-source = "git+https://github.com/serenity-rs/poise.git#32ba94539e7834bbed4186c07f7ef9287129c7b7"
-dependencies = [
- "darling 0.20.11",
- "proc-macro2",
- "quote",
- "syn 2.0.117",
 ]
 
 [[package]]
@@ -3582,6 +3572,18 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_repr",
+]
+
+[[package]]
+name = "serenity_poise_macros"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9bc8407893be0d973a7bb48325e10e0160a0db44f4099467c83179688220e5f5"
+dependencies = [
+ "darling 0.20.11",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
 ]
 
 [[package]]

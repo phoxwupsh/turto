@@ -76,7 +76,7 @@ default-features = false
 features = ["charset", "http2", "rustls-tls", "json"]
 
 [dependencies.poise]
-git = "https://github.com/serenity-rs/poise.git"
+version = "0.6.2"
 features = ["chrono"]
 
 [profile.release]
