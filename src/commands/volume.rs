@@ -1,10 +1,15 @@
 use crate::{
     message::TurtoMessageKind::SetVolume,
     models::{alias::Context, error::CommandError, guild::volume::GuildVolume},
+    turto_command,
     utils::turto_say,
 };
 use tracing::{Span, instrument};
 
+#[turto_command(
+    short = "Adjust the volume",
+    long = "Adjust the volume to `value`, which can range from 0 (mute) to 100. The volume setting is shared across the entire server."
+)]
 #[poise::command(slash_command, guild_only)]
 #[instrument(
     name = "volume",
@@ -14,6 +19,7 @@ use tracing::{Span, instrument};
 )]
 pub async fn volume(
     ctx: Context<'_>,
+    #[description = "The value of volume, range from 0 to 100"]
     #[min = 0]
     #[max = 100]
     value: Option<usize>,

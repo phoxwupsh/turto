@@ -1,5 +1,6 @@
 pub mod alias;
 pub mod autoleave;
+pub mod command;
 pub mod config;
 pub mod data;
 pub mod error;

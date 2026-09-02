@@ -4,6 +4,7 @@ use crate::{
         SeekNotLongEnough, SeekSuccess,
     },
     models::{alias::Context, error::CommandError},
+    turto_command,
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         turto_say,
@@ -13,6 +14,10 @@ use songbird::tracks::PlayMode;
 use std::time::Duration;
 use tracing::{Span, instrument};
 
+#[turto_command(
+    short = "Seek the currently playing item to certain time",
+    long = "If there is a currently playing or paused item, jump to the specified `time` in seconds."
+)]
 #[poise::command(slash_command, guild_only)]
 #[instrument(
     name = "seek",
@@ -20,7 +25,12 @@ use tracing::{Span, instrument};
     parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
     fields(time)
 )]
-pub async fn seek(ctx: Context<'_>, #[min = 0] time: u64) -> Result<(), CommandError> {
+pub async fn seek(
+    ctx: Context<'_>,
+    #[description = "The time to seek, denoted in second"]
+    #[min = 0]
+    time: u64,
+) -> Result<(), CommandError> {
     tracing::info!("invoked");
 
     let config = ctx.data().config.clone();

@@ -1,6 +1,7 @@
 use crate::{
     message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying},
     models::{alias::Context, error::CommandError, playing::PlayState},
+    turto_command,
     utils::{
         create_playing_embed,
         guild::{GuildUtil, VoiceChannelState},
@@ -10,6 +11,10 @@ use crate::{
 use poise::CreateReply;
 use tracing::{Span, instrument};
 
+#[turto_command(
+    short = "Pause the currently playing item.",
+    long = "Pause the currently playing item."
+)]
 #[poise::command(slash_command, guild_only)]
 #[instrument(
     name = "pause",

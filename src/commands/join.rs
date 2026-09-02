@@ -1,6 +1,7 @@
 use crate::{
     message::TurtoMessageKind::{DifferentVoiceChannel, UserNotInVoiceChannel},
     models::{alias::Context, error::CommandError},
+    turto_command,
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         join_voice_channel, turto_say,
@@ -8,6 +9,10 @@ use crate::{
 };
 use tracing::{Span, instrument};
 
+#[turto_command(
+    short = "Let turto join the voice channel you are in.",
+    long = "Let turto join the voice channel you are in. It has no effect if turto is already in another voice channel."
+)]
 #[poise::command(slash_command, guild_only)]
 #[instrument(
     name = "join",

@@ -1,11 +1,16 @@
 use crate::{
     message::TurtoMessageKind::{AdministratorOnly, Ban},
     models::{alias::Context, error::CommandError},
+    turto_command,
     utils::turto_say,
 };
 use serenity::all::{Permissions, UserId};
 use tracing::{Span, instrument};
 
+#[turto_command(
+    short = "Ban a user",
+    long = "Ban a user, then the banned user won't be able to use any command."
+)]
 #[poise::command(slash_command, guild_only)]
 #[instrument(
     name = "ban",
@@ -13,7 +18,10 @@ use tracing::{Span, instrument};
     parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
     fields(target = %user)
 )]
-pub async fn ban(ctx: Context<'_>, user: UserId) -> Result<(), CommandError> {
+pub async fn ban(
+    ctx: Context<'_>,
+    #[description = "The user to be banned"] user: UserId,
+) -> Result<(), CommandError> {
     tracing::info!("invoked");
 
     let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;

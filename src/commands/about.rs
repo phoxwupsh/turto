@@ -1,5 +1,6 @@
 use crate::{
     models::{alias::Context, error::CommandError},
+    turto_command,
     utils::misc::sha256_now,
 };
 use serenity::{
@@ -8,6 +9,10 @@ use serenity::{
 };
 use tracing::{Span, instrument};
 
+#[turto_command(
+    short = "Display the information about this bot.",
+    long = "Display the information about this bot."
+)]
 #[poise::command(slash_command, guild_only)]
 #[instrument(
     name = "about",

@@ -1,3 +1,5 @@
+pub(crate) use turto_macros::turto_command;
+
 pub mod bot;
 pub mod cli;
 pub mod commands;

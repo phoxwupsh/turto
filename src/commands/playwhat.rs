@@ -1,12 +1,17 @@
 use crate::{
     message::TurtoMessageKind::NotPlaying,
     models::{alias::Context, error::CommandError, playing::PlayState},
+    turto_command,
     utils::{create_playing_embed, turto_say},
 };
 use poise::CreateReply;
 use songbird::tracks::PlayMode;
 use tracing::{Span, instrument};
 
+#[turto_command(
+    short = "Display the currently playing item.",
+    long = "Display the currently playing item."
+)]
 #[poise::command(slash_command, guild_only)]
 #[instrument(
     name = "playwhat",
