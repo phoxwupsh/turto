@@ -1,10 +1,12 @@
 use crate::{
     message::TurtoMessageKind::RemoveAll,
     models::{alias::Context, error::CommandError},
+    turto_command,
     utils::turto_say,
 };
 use tracing::{Span, instrument};
 
+#[turto_command(short = "Clear the playlist.", long = "Clear the playlist.")]
 #[poise::command(slash_command, prefix_command, guild_only)]
 #[instrument(
     name = "clear",

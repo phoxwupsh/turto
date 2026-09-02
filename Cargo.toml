@@ -10,7 +10,11 @@ description = "turto is a simple, easy-to-use and customizable Discord music bot
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[workspace]
+members = ["turto-macros"]
+
 [dependencies]
+turto-macros = { path = "turto-macros" }
 dotenvy = "0.15.7"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
@@ -43,6 +47,7 @@ futures = "0.3.32"
 base64 = "0.22.1"
 bytes = "1"
 hls_m3u8 = "0.7"
+inventory = "0.3.24"
 
 [dependencies.serenity]
 version = "0.12.5"

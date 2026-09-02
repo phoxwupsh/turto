@@ -2,11 +2,11 @@ use crate::{
     message::TurtoMessageKind::{DifferentVoiceChannel, InvalidUrl, UserNotInVoiceChannel},
     models::{alias::Context, error::CommandError, playing::PlayState},
     player::{self, PlayContext},
+    turto_command,
     utils::{
         create_playing_embed,
         guild::{GuildUtil, VoiceChannelState},
-        join_voice_channel,
-        turto_say,
+        join_voice_channel, turto_say,
     },
     ytdl::YouTubeDl,
 };
@@ -15,6 +15,13 @@ use songbird::tracks::PlayMode;
 use tracing::{Span, instrument};
 use url::Url;
 
+#[turto_command(
+    short = "Start playback.",
+    long = "Start playback. If turto is not in another voice channel, it will join your current one. Depending on the situation, there are several possibilities:\n\
+            1. If `url` is provided, it will interrupt the currently playing item, and start playing it. Supported sources include YouTube, Bilibili videos and Soundcloud music (you can try other platform, as long as it's supported by yt-dlp).\n\
+            2. If no `url` is provided and there is a paused item, it will resume playing that item.\n\
+            3. If no `url` is provided and there is no paused item, it will start playing the playlist from the beginning."
+)]
 #[poise::command(slash_command, guild_only)]
 #[instrument(
     name = "play",
@@ -24,7 +31,9 @@ use url::Url;
 )]
 pub async fn play(
     ctx: Context<'_>,
-    #[rename = "url"] query: Option<String>,
+    #[description = "Optional, the link to what you want to play"]
+    #[rename = "url"]
+    query: Option<String>,
 ) -> Result<(), CommandError> {
     tracing::info!("invoke");
 

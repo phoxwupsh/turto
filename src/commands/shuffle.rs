@@ -1,10 +1,12 @@
 use crate::{
     message::TurtoMessageKind::{EmptyPlaylist, Shuffle},
     models::{alias::Context, error::CommandError},
+    turto_command,
     utils::turto_say,
 };
 use tracing::{Span, instrument};
 
+#[turto_command(short = "Shuffle the playlist.", long = "Shuffle the playlist.")]
 #[poise::command(slash_command, guild_only)]
 #[instrument(
     name = "shuffle",

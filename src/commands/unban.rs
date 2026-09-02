@@ -1,11 +1,16 @@
 use crate::{
     message::TurtoMessageKind::{AdministratorOnly, Unban},
     models::{alias::Context, error::CommandError},
+    turto_command,
     utils::turto_say,
 };
 use serenity::all::{Permissions, UserId};
 use tracing::{Span, instrument};
 
+#[turto_command(
+    short = "Unban a user",
+    long = "Unban a user (if banned), then the user will be able to use all commands."
+)]
 #[poise::command(slash_command, guild_only)]
 #[instrument(
     name = "unban",
@@ -13,7 +18,10 @@ use tracing::{Span, instrument};
     parent = ctx.invocation_data::<Span>().await.as_deref().unwrap_or(&Span::none())
     fields(target = %user)
 )]
-pub async fn unban(ctx: Context<'_>, user: UserId) -> Result<(), CommandError> {
+pub async fn unban(
+    ctx: Context<'_>,
+    #[description = "The user to be unbanned"] user: UserId,
+) -> Result<(), CommandError> {
     tracing::info!(target = %user, "command invoked");
 
     let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;

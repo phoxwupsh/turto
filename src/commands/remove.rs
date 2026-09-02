@@ -6,6 +6,7 @@ use crate::{
         TurtoMessageKind::{InvalidRangeRemove, InvalidRemove, Remove, RemoveMany},
     },
     models::{alias::Context, error::CommandError},
+    turto_command,
     utils::turto_say,
 };
 
@@ -14,6 +15,12 @@ enum RemoveType {
     Range { from: usize, to: usize },
 }
 
+#[turto_command(
+    short = "Delete items from the playlist.",
+    long = "Delete certain items from the playlist, there are two ways to use it:\n\
+            1. You can delete the item at position `which` in the playlist, by specifying the `which` parameter.\n\
+            2. You can delete all items between positions `which` and `to_which` in the playlist, by specifying both `which` and `to_which` parameters."
+)]
 #[poise::command(slash_command, guild_only)]
 #[instrument(
     name = "remove",
@@ -26,8 +33,12 @@ enum RemoveType {
 )]
 pub async fn remove(
     ctx: Context<'_>,
-    #[min = 1] which: usize,
-    #[min = 1] to_which: Option<usize>,
+    #[description = "Which item to remove"]
+    #[min = 1]
+    which: usize,
+    #[description = "Optional, if specified, remove all items within the range `which` to `to_which`"]
+    #[min = 1]
+    to_which: Option<usize>,
 ) -> Result<(), CommandError> {
     tracing::info!("invoked");
 

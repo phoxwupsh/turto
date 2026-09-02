@@ -1,6 +1,7 @@
 use crate::{
     message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, Leave},
     models::{alias::Context, error::CommandError},
+    turto_command,
     utils::{
         guild::{GuildUtil, VoiceChannelState},
         turto_say,
@@ -8,6 +9,10 @@ use crate::{
 };
 use tracing::{Span, instrument};
 
+#[turto_command(
+    short = "Let turto leave the current voice channel.",
+    long = "Let turto leave the current voice channel."
+)]
 #[poise::command(slash_command, guild_only)]
 #[instrument(
     name = "leave",

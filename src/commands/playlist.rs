@@ -4,6 +4,7 @@ use crate::{
         TurtoMessageKind::{EmptyPlaylist, InvalidPlaylistPage},
     },
     models::{alias::Context, error::CommandError, playlist::Playlist},
+    turto_command,
     utils::{misc::ToEmoji, turto_say},
     ytdl::YouTubeDl,
 };
@@ -24,6 +25,10 @@ const NEXT_CUSTOM_ID: &str = "next";
 const SELECT_MENU_PAGE_SIZE: usize = 25;
 const PLAYLIST_PAGE_SIZE: usize = 10;
 
+#[turto_command(
+    short = "Display the playlist.",
+    long = "Display the current playlist, which is shared across the entire server. You can specify `page` for the page number to directly display certain page, or use the select menu."
+)]
 #[poise::command(slash_command, guild_only)]
 #[instrument(
     name = "playlist",
@@ -33,7 +38,9 @@ const PLAYLIST_PAGE_SIZE: usize = 10;
 )]
 pub async fn playlist(
     ctx: Context<'_>,
-    #[min = 1] page: Option<usize>,
+    #[description = "Optional, the page to display"]
+    #[min = 1]
+    page: Option<usize>,
 ) -> Result<(), CommandError> {
     tracing::info!("invoked");
 

@@ -2,6 +2,7 @@ use crate::{
     message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Skip},
     models::{alias::Context, error::CommandError, playing::PlayState},
     player::{self, PlayContext},
+    turto_command,
     utils::{
         create_playing_embed,
         guild::{GuildUtil, VoiceChannelState},
@@ -11,6 +12,10 @@ use crate::{
 use poise::CreateReply;
 use tracing::{Span, instrument};
 
+#[turto_command(
+    short = "Skip the currently playing item.",
+    long = "Skip the currently playing item, and start playing the next item in the playlist."
+)]
 #[poise::command(slash_command, guild_only)]
 #[instrument(
     name = "skip",

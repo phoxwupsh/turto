@@ -11,14 +11,17 @@ use tracing::warn;
 /// - Define function returning default value for each field
 /// - Implement [`Default`] for it
 /// - Let serde to use the default function
+/// - Forward outer attributes (doc comments included) on the struct and on each field
 macro_rules! define_config {
-    ($name:ident {
-        $($v:vis $field:ident: $typ:ty = $def:expr),* $(,)?
+    ($(#[$meta:meta])* $vis:vis struct $name:ident {
+        $($(#[$field_meta:meta])* $v:vis $field:ident: $typ:ty = $def:expr),* $(,)?
     }) => {
         paste! {
+            $(#[$meta])*
             #[derive(Debug, Serialize, Deserialize)]
-            pub struct $name {
+            $vis struct $name {
                 $(
+                    $(#[$field_meta])*
                     #[serde(default = $name "::default_" $field)]
                     $v $field: $typ,
                 )*
@@ -46,24 +49,39 @@ macro_rules! define_config {
 }
 
 define_config! {
-    TurtoConfig {
+    /// The config of the bot, loaded from `config.toml`
+    pub struct TurtoConfig {
+        /// Whether seeking is allowed, seeking can be "expensive" and cause the bot lagging
         pub allow_seek: bool = true,
+        /// Whether backward seeking is allowed, it is usually more "expensive" than forward seeking
         pub allow_backward_seek: bool = false,
+        /// The duration limitation of seeking, denoted by seconds
         pub seek_limit: u64 = 600,
+        /// Only one command can be invoked in this amount of seconds, counted per guild
         pub command_delay: u64 = 1,
+        /// The owner of this bot, denoted by a Discord user id
         pub owner: Option<UserId> = None,
+        /// Whether the data is saved at intervals, otherwise it is only saved on shutdown
         pub auto_save: bool = true,
+        /// The interval of auto saving, denoted by seconds
         pub auto_save_interval: u64 = 3600,
+        /// The config of the yt-dlp sidecar
         pub ytdlp: Arc<YtdlpConfig> = Arc::new(YtdlpConfig::default()),
     }
 }
 
 define_config! {
-    YtdlpConfig {
-        pub use_nightly: bool =false,
+    /// The config of the yt-dlp sidecar, corresponding to the `[ytdlp]` table of `config.toml`
+    pub struct YtdlpConfig {
+        /// Use nightly builds of yt-dlp
+        pub use_nightly: bool = false,
+        /// Use the bun that is already in the environment as the yt-dlp JS runtime
         pub use_system_bun: bool = false,
+        /// Use the uv that is already in the environment
         pub use_system_uv: bool = false,
+        /// The path to the YouTube cookies in Netscape format
         pub cookies_path: Option<String> = None,
+        /// How many extractions and downloads the yt-dlp sidecar may run at once, the rest queue up
         pub max_concurrency: u32 = 8,
     }
 }
