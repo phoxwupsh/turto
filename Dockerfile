@@ -1,13 +1,14 @@
-FROM rust:alpine3.22 AS builder
+FROM rust:alpine AS builder
 WORKDIR /build
 
-RUN apk update && apk add git make cmake musl-dev openssl-dev openssl-libs-static
+RUN apk update && apk add git cmake make musl-dev
 
 COPY Cargo.toml Cargo.lock ./
+COPY turto-macros ./turto-macros
 COPY src ./src
 RUN cargo build --release
 
-FROM alpine:3.22
+FROM alpine:latest
 WORKDIR /app
 
 RUN apk add --no-cache ca-certificates libstdc++ libgcc
