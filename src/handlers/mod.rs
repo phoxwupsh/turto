@@ -1,20 +1,16 @@
-use crate::models::{autoleave::AutoleaveType, guild::Guilds, playing::Playing};
-use dashmap::DashMap;
+use crate::{
+    models::{guild::Guilds, playing::Playing},
+    player,
+};
 use serenity::{
     all::{ChannelId, GuildId},
     async_trait,
     model::{prelude::Ready, voice::VoiceState},
     prelude::{Context, EventHandler},
 };
-use std::{
-    collections::HashMap,
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    },
-};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
-use tracing::{error, info};
+use tracing::{Instrument, error, info, info_span};
 
 pub mod before;
 pub mod error;
@@ -25,7 +21,6 @@ pub mod track_error;
 pub struct SerenityEventHandler {
     pub playing: Arc<RwLock<HashMap<GuildId, Playing>>>,
     pub guild_data: Arc<Guilds>,
-    pub voice_channel_counts: DashMap<ChannelId, AtomicUsize>,
 }
 
 #[async_trait]
@@ -42,93 +37,71 @@ impl EventHandler for SerenityEventHandler {
         );
     }
 
-    async fn cache_ready(&self, ctx: Context, guilds: Vec<GuildId>) {
-        // calculate the user counts of every voice channel
-        let bot_id = ctx.cache.current_user().id;
-        for guild_id in guilds {
-            let Some(guild) = guild_id.to_guild_cached(&ctx) else {
-                continue;
-            };
-            for voice_state in guild
-                .voice_states
-                .values()
-                .filter(|voice_state| voice_state.user_id != bot_id)
-            {
-                if let Some(channel_id) = voice_state.channel_id {
-                    self.voice_channel_add(channel_id);
-                }
-            }
-        }
-    }
-
-    async fn voice_state_update(&self, ctx: Context, old: Option<VoiceState>, new: VoiceState) {
+    async fn voice_state_update(&self, ctx: Context, _old: Option<VoiceState>, new: VoiceState) {
         let Some(guild_id) = new.guild_id else {
             return;
         };
+        self.on_voice_state(ctx, new, guild_id)
+            .instrument(info_span!("voice_update", guild = %guild_id))
+            .await;
+    }
+}
 
-        if new.user_id == ctx.cache.current_user().id {
-            // if the bot is manually disconnected by the user instead using command,
-            // then remove the current track handle (if there is one)
-            if let Some(removed) = self.playing.write().await.remove(&guild_id) {
+impl SerenityEventHandler {
+    /// The body of [`EventHandler::voice_state_update`], under the `voice_update`
+    /// span. Handles a manual bot disconnect (tear down the current track) and,
+    /// for another user's move, auto-leaves a channel they left the bot alone in.
+    async fn on_voice_state(&self, ctx: Context, new: VoiceState, guild_id: GuildId) {
+        let bot_id = ctx.cache.current_user().id;
+        if new.user_id == bot_id {
+            // A disconnect only. The same event also carries mutes, suppression and
+            // channel moves, which leave the track playing.
+            if new.channel_id.is_none()
+                && let Some(removed) = self.playing.write().await.remove(&guild_id)
+            {
                 if let Err(error) = removed.track_handle.stop() {
                     error!(?error, "failed to stop track");
                 }
                 drop(removed);
             }
-        } else {
-            // update the user count in both old and new voice channels
-            if let Some(new_channel) = new.channel_id {
-                self.voice_channel_add(new_channel);
-            }
-            if let Some(old_channel) = old.and_then(|old| old.channel_id) {
-                self.voice_channel_sub(old_channel);
-            }
-            // check if there are other users in the channel that the bot currently in,
-            // and leave if autoleave if enabled
-            let autoleave = self
-                .guild_data
-                .entry(guild_id)
-                .or_default()
-                .config
-                .auto_leave;
-            if autoleave == AutoleaveType::Empty || autoleave == AutoleaveType::On {
-                let Some(call) = songbird::get(&ctx).await.unwrap().get(guild_id) else {
-                    return;
-                };
-                let mut call = call.lock().await;
-                let Some(bot_channel) = call.current_channel() else {
-                    return;
-                };
-                if self
-                    .voice_channel_counts
-                    .entry(bot_channel.0.into())
-                    .or_default()
-                    .load(Ordering::Acquire)
-                    == 0
-                    && let Err(error) = call.leave().await
-                {
-                    error!(
-                        ?error, %bot_channel,
-                        "failed to leave voice channel"
-                    );
-                }
-            }
+            return;
         }
-    }
-}
 
-impl SerenityEventHandler {
-    fn voice_channel_add(&self, channel_id: ChannelId) {
-        self.voice_channel_counts
-            .entry(channel_id)
+        let autoleave = self
+            .guild_data
+            .entry(guild_id)
             .or_default()
-            .fetch_add(1, Ordering::Relaxed);
-    }
+            .config
+            .auto_leave;
+        if !autoleave.leaves_on_empty_channel() {
+            return;
+        }
+        let Some(call) = songbird::get(&ctx).await.unwrap().get(guild_id) else {
+            return;
+        };
+        let mut call = call.lock().await;
+        let Some(bot_channel) = call.current_channel() else {
+            return;
+        };
+        let bot_channel = ChannelId::from(bot_channel.0);
 
-    fn voice_channel_sub(&self, channel_id: ChannelId) {
-        self.voice_channel_counts
-            .entry(channel_id)
-            .or_default()
-            .fetch_sub(1, Ordering::Relaxed);
+        // Serenity applies the cache update before dispatching the event, so the
+        // guild's voice states already reflect `new`: reading them is authoritative
+        // where a maintained counter drifts (a guild joined after startup was never
+        // counted, a gateway resume replays or drops updates) and can never
+        // underflow into "never empty".
+        let others_present = {
+            let Some(guild) = guild_id.to_guild_cached(&ctx) else {
+                return;
+            };
+            guild
+                .voice_states
+                .values()
+                .any(|state| state.user_id != bot_id && state.channel_id == Some(bot_channel))
+            // the cache guard must drop before the await below
+        };
+        if !others_present {
+            player::leave(&mut call, guild_id).await;
+        }
     }
 }

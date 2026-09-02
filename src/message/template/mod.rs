@@ -16,7 +16,7 @@ impl Templates {
         let templates_str = match std::fs::read_to_string(path) {
             Ok(s) => s,
             Err(error) => {
-                tracing::warn!(%error, path = %path.display(), "failed to read tempaltes, will use default templates");
+                tracing::warn!(%error, path = %path.display(), "failed to read templates, will use default templates");
                 return Ok(Templates::default());
             }
         };
@@ -111,17 +111,16 @@ impl Template {
                     last_left = pos;
                     has_left = true;
                 }
-                '}' => {
-                    if has_left {
-                        let text = template[start..last_left].to_string();
-                        let arg = template[last_left + 1..pos].to_string();
-                        tokens.push(Token::Text(text));
-                        tokens.push(Token::Arg(arg));
-                        start = pos + 1;
-                        last_left = start;
-                        has_left = false;
-                    }
+                '}' if has_left => {
+                    let text = template[start..last_left].to_string();
+                    let arg = template[last_left + 1..pos].to_string();
+                    tokens.push(Token::Text(text));
+                    tokens.push(Token::Arg(arg));
+                    start = pos + 1;
+                    last_left = start;
+                    has_left = false;
                 }
+
                 _ => (),
             }
             pos += c.len_utf8();
@@ -253,7 +252,7 @@ mod test {
         let default = Templates::build_default();
 
         for template_name in TemplateName::iter() {
-            assert!(default.get(&template_name).is_some());
+            assert!(default.contains_key(&template_name));
         }
     }
 }

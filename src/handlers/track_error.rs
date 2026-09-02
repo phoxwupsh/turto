@@ -14,7 +14,7 @@ impl EventHandler for TrackErrorHandler {
         let PlayMode::Errored(err) = &state.playing else {
             return None;
         };
-        error!(error = ?err, ?handle, "track error occured");
+        error!(error = ?err, ?handle, "track error occurred");
         None
     }
 }

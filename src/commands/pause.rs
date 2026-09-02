@@ -39,19 +39,25 @@ pub async fn pause(ctx: Context<'_>) -> Result<(), CommandError> {
         VoiceChannelState::Same(_) => (),
     }
 
-    let playing_map = ctx.data().playing.read().await;
-    let Some(playing) = playing_map.get(&guild_id) else {
+    // Clone out and release the guard before awaiting: `playing` is one map shared
+    // by every guild, and holding it read-locked across a Discord round-trip blocks
+    // the write `player::spawn_playback` needs to start a track anywhere.
+    let current = ctx
+        .data()
+        .playing
+        .read()
+        .await
+        .get(&guild_id)
+        .map(|playing| (playing.ytdlfile.clone(), playing.track_handle.clone()));
+    let Some((ytdlfile, track_handle)) = current else {
         turto_say(ctx, NotPlaying).await?;
         return Ok(());
     };
 
-    playing.track_handle.pause()?;
-    tracing::info!(paused = playing.ytdlfile.url(), "pause success");
+    track_handle.pause()?;
+    tracing::info!(paused = ytdlfile.url(), "pause success");
 
-    let meta = playing
-        .ytdlfile
-        .fetch_metadata(ctx.data().config.ytdlp.clone())
-        .await?;
+    let meta = ytdlfile.fetch_metadata().await?;
 
     let resp = create_playing_embed(ctx, Some(PlayState::Pause), &meta);
     ctx.send(CreateReply::default().embed(resp)).await?;

@@ -35,9 +35,8 @@ pub async fn enqueue(
 
     let title = match queue_item_kind {
         QueueItemKind::Single(playlist_item) => {
-            let ytdlp_config = ctx.data().config.ytdlp.clone();
             let title = playlist_item
-                .fetch_metadata(ytdlp_config.clone())
+                .fetch_metadata()
                 .await?
                 .title
                 .clone()
@@ -47,12 +46,8 @@ pub async fn enqueue(
             let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
 
             match queue_type {
-                QueueType::Front => guild_data
-                    .playlist
-                    .push_front_prefetch(playlist_item, ytdlp_config),
-                QueueType::Back => guild_data
-                    .playlist
-                    .push_back_prefetch(playlist_item, ytdlp_config),
+                QueueType::Front => guild_data.playlist.push_front(playlist_item),
+                QueueType::Back => guild_data.playlist.push_back(playlist_item),
             }
             drop(guild_data);
 
@@ -65,17 +60,14 @@ pub async fn enqueue(
 
             let guild_id = ctx.guild_id().ok_or(CommandError::GuildOnly)?;
             let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
-            let ytdlp_config = ctx.data().config.ytdlp.clone();
 
             match queue_type {
                 QueueType::Front => {
                     let new_playlist = yt_playlist.to_playlist();
                     let tail = replace(&mut guild_data.playlist, new_playlist);
-                    guild_data.playlist.extend_prefetch(tail, ytdlp_config);
+                    guild_data.playlist.extend(tail);
                 }
-                QueueType::Back => guild_data
-                    .playlist
-                    .extend_prefetch(yt_playlist, ytdlp_config),
+                QueueType::Back => guild_data.playlist.extend(yt_playlist),
             }
             drop(guild_data);
 

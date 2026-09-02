@@ -39,21 +39,20 @@ pub async fn stop(ctx: Context<'_>) -> Result<(), CommandError> {
         VoiceChannelState::Same(_) => (),
     }
 
-    let mut playing_map = ctx.data().playing.write().await;
-    let Some(playing) = playing_map.remove(&guild_id) else {
+    // Take it out and release the guard in the one statement: `playing` is one map
+    // shared by every guild, and the `NotPlaying` reply below is a Discord round-trip
+    // that must not be made holding its *write* lock.
+    let removed = ctx.data().playing.write().await.remove(&guild_id);
+    let Some(playing) = removed else {
         turto_say(ctx, NotPlaying).await?;
         return Ok(());
     };
-    drop(playing_map);
 
     playing.track_handle.stop()?;
 
     tracing::info!(stopped = playing.ytdlfile.url(), "stop success");
 
-    let meta = playing
-        .ytdlfile
-        .fetch_metadata(ctx.data().config.ytdlp.clone())
-        .await?;
+    let meta = playing.ytdlfile.fetch_metadata().await?;
 
     let resp = create_playing_embed(ctx, Some(PlayState::Stop), &meta);
     ctx.send(CreateReply::default().embed(resp)).await?;

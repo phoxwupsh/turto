@@ -33,5 +33,9 @@ where
         .truncate(true)
         .open(path)?;
     let res = serde_json::to_string(value)?;
-    f.write(res.as_bytes())
+    // `write_all`, not `write`: a short write would leave truncated JSON on disk
+    // and still report success (with a smaller byte count) to the caller.
+    let bytes = res.len();
+    f.write_all(res.as_bytes())?;
+    Ok(bytes)
 }

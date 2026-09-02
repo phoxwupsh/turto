@@ -32,3 +32,6 @@ use_system_bun = false
 
 # The path to your YouTube cookies in Netscape format, you can use extension like "Get cookies.txt LOCALLY" to get it
 #cookies_path = ""
+
+# How many extractions and downloads the yt-dlp sidecar may run at once, the rest queue up
+max_concurrency = 8

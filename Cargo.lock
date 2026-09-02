@@ -1045,6 +1045,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
 
 [[package]]
+name = "filetime"
+version = "0.2.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c287a33c7f0a620c38e641e7f60827713987b3c0f26e8ddc9462cc69cf75759"
+dependencies = [
+ "cfg-if",
+ "libc",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1440,6 +1450,15 @@ dependencies = [
  "stable-vec",
  "strum 0.17.1",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "hls_m3u8"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb594d4791abe0396469f972ce0f633c5f435e2a47c72f631d0115dc3dcccd5e"
+dependencies = [
+ "stable-vec",
 ]
 
 [[package]]
@@ -2662,31 +2681,21 @@ dependencies = [
 
 [[package]]
 name = "poise"
-version = "0.6.1"
-source = "git+https://github.com/serenity-rs/poise.git#32ba94539e7834bbed4186c07f7ef9287129c7b7"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "711433114bca9ff68582aa58af5cbcf573e83250a8714c2dca1c36f453cad3ae"
 dependencies = [
  "async-trait",
  "derivative",
  "futures-util",
  "indexmap",
  "parking_lot 0.12.5",
- "poise_macros",
  "regex",
  "serenity",
+ "serenity_poise_macros",
  "tokio",
  "tracing",
  "trim-in-place",
-]
-
-[[package]]
-name = "poise_macros"
-version = "0.6.1"
-source = "git+https://github.com/serenity-rs/poise.git#32ba94539e7834bbed4186c07f7ef9287129c7b7"
-dependencies = [
- "darling 0.20.11",
- "proc-macro2",
- "quote",
- "syn 2.0.117",
 ]
 
 [[package]]
@@ -3566,6 +3575,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "serenity_poise_macros"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9bc8407893be0d973a7bb48325e10e0160a0db44f4099467c83179688220e5f5"
+dependencies = [
+ "darling 0.20.11",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "sha1"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3817,7 +3838,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-util",
- "hls_m3u8",
+ "hls_m3u8 0.4.2",
  "patricia_tree",
  "reqwest",
  "tokio",
@@ -4144,6 +4165,17 @@ name = "tagptr"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b2093cf4c8eb1e67749a6762251bc9cd836b6fc171623bd0a9d324d37af2417"
+
+[[package]]
+name = "tar"
+version = "0.4.46"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f6221d9a6003c78398e3b239969f352578258df48c8eb051caadae0015bc840"
+dependencies = [
+ "filetime",
+ "libc",
+ "xattr",
+]
 
 [[package]]
 name = "tempfile"
@@ -4661,10 +4693,16 @@ name = "turto"
 version = "2.0.4"
 dependencies = [
  "arc-swap",
+ "async-trait",
+ "base64",
+ "bytes",
  "chrono",
  "clap",
  "dashmap 6.1.0",
  "dotenvy",
+ "flate2",
+ "futures",
+ "hls_m3u8 0.7.0",
  "lazy-regex",
  "paste",
  "poise",
@@ -4679,12 +4717,12 @@ dependencies = [
  "songbird",
  "strum 0.27.2",
  "symphonia",
+ "tar",
  "tempfile",
  "thiserror 2.0.18",
  "time",
  "tokio",
  "tokio-cron-scheduler",
- "tokio-util",
  "toml",
  "tracing",
  "tracing-appender",
@@ -5517,6 +5555,16 @@ dependencies = [
  "rand_core 0.6.4",
  "serde",
  "zeroize",
+]
+
+[[package]]
+name = "xattr"
+version = "1.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32e45ad4206f6d2479085147f02bc2ef834ac85886624a23575ae137c8aa8156"
+dependencies = [
+ "libc",
+ "rustix 1.1.4",
 ]
 
 [[package]]

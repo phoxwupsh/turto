@@ -16,7 +16,7 @@ use std::{
     sync::Arc,
 };
 use tokio_cron_scheduler::JobScheduler;
-use tracing::{error, info};
+use tracing::{Instrument, error, info, info_span};
 use uuid::Uuid;
 
 pub struct Turto {
@@ -44,7 +44,6 @@ impl Turto {
         let serenity_event_handler = SerenityEventHandler {
             playing: data.playing.clone(),
             guild_data: data.guilds.clone(),
-            voice_channel_counts: Default::default(),
         };
         let framework = Framework::builder()
             .setup(|ctx, _ready, framework| {
@@ -93,14 +92,17 @@ impl Turto {
         move |_uuid, _job_scheduler| {
             let data_path = data_path.clone();
             let guilds = guilds.clone();
-            Box::pin(async move {
-                match guilds.save(&data_path) {
-                    Ok(bytes) => info!(bytes, path = %data_path.display(), "data auto saved"),
-                    Err(err) => {
-                        error!(error = ?err, path = %data_path.display(), "failed to auto save data")
+            Box::pin(
+                async move {
+                    match guilds.save(&data_path) {
+                        Ok(bytes) => info!(bytes, path = %data_path.display(), "data auto saved"),
+                        Err(err) => {
+                            error!(error = ?err, path = %data_path.display(), "failed to auto save data")
+                        }
                     }
                 }
-            })
+                .instrument(info_span!("job", kind = "auto_save")),
+            )
         }
     }
 }

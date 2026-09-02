@@ -33,6 +33,9 @@ impl CommandError {
             Self::YouTubeDl(ytdl_err) => match ytdl_err {
                 YouTubeDlError::Io(_) => "ytdl",
                 YouTubeDlError::Json(_) => "ytdl json",
+                YouTubeDlError::Sidecar(_) => "ytdl sidecar",
+                YouTubeDlError::Stream(_) => "ytdl stream",
+                YouTubeDlError::UnsupportedStream(_) => "unsupported stream",
             },
             Self::GuildOnly => "guild only",
             Self::InvalidOperation { cause: _ } => "invalid operation",

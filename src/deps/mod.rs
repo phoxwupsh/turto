@@ -4,13 +4,16 @@ use std::path::Path;
 use zip::ZipArchive;
 
 pub mod bun;
+pub mod uv;
 
-pub mod ytdlp;
-use ytdlp::version::YtdlpVersion;
-
+/// Install the external tools the sidecar runs on: bun (the JS runtime for nsig
+/// solving) and uv (the managed Python venv + yt-dlp). This owns *only* the
+/// external deps; bringing the sidecar itself up is a separate step driven from
+/// the bot's startup, so the dependency runs one way -- the sidecar uses these
+/// deps, not the reverse.
 pub async fn setup_ext_deps(config: &YtdlpConfig) -> Result<(), DepsError> {
-    ytdlp::setup_ytdlp(config, "yt-dlp").await?;
     bun::setup_bun(config, "bun").await?;
+    uv::setup_uv(config, "uv").await?;
     Ok(())
 }
 
@@ -45,12 +48,24 @@ async fn fetch_github_latest(repo_slug: &str) -> Result<String, reqwest::Error> 
     Ok(resp.tag_name)
 }
 
-pub fn extract_to(arhive: impl AsRef<Path>, target: impl AsRef<Path>) -> Result<(), DepsError> {
-    let file = std::fs::OpenOptions::new().read(true).open(arhive)?;
+pub fn extract_to(archive: impl AsRef<Path>, target: impl AsRef<Path>) -> Result<(), DepsError> {
+    let file = std::fs::OpenOptions::new().read(true).open(archive)?;
     let rdr = std::io::BufReader::new(file);
     ZipArchive::new(rdr)
         .and_then(|mut zip_file| zip_file.extract(target))
         .map_err(Into::into)
+}
+
+pub fn extract_targz_to(
+    archive: impl AsRef<Path>,
+    target: impl AsRef<Path>,
+) -> Result<(), DepsError> {
+    let file = std::fs::OpenOptions::new().read(true).open(archive)?;
+    let decoder = flate2::read::GzDecoder::new(std::io::BufReader::new(file));
+    let mut ar = tar::Archive::new(decoder);
+    ar.set_preserve_permissions(true);
+    ar.unpack(target)?;
+    Ok(())
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -61,15 +76,15 @@ pub enum DepsError {
     #[error("error from reqwest: {0}")]
     Reqwest(#[from] reqwest::Error),
 
-    #[error("yt-dlp version mismatch, expect {expect}, got {actual}")]
-    YtdlpVersionMismatch {
-        expect: YtdlpVersion,
-        actual: YtdlpVersion,
-    },
-
-    #[error("failed to parse version: {0}")]
-    Version(#[from] time::error::Parse),
-
     #[error("failed to process zip file: {0}")]
     Archive(#[from] zip::result::ZipError),
+
+    #[error("uv command failed: {0}")]
+    Uv(String),
+
+    #[error("uv command timed out after {0:?}")]
+    UvTimeout(std::time::Duration),
+
+    #[error("uv binary not found after extraction")]
+    UvNotFound,
 }

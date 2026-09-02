@@ -27,8 +27,11 @@ pub struct Cli {
     #[arg(long, value_name = "FILE", value_hint = clap::ValueHint::FilePath, default_value = "help.toml", help = "path to help messages file")]
     help: PathBuf,
 
-    #[arg(long, value_name = "FILE", value_hint = clap::ValueHint::FilePath, default_value = "templates.toml", help = "path to message templates file")]
-    tempaltes: PathBuf,
+    // `alias` keeps the original misspelled `--tempaltes` flag working for
+    // anyone who scripted it before the spelling was fixed. (A `///` doc comment
+    // here would feed clap's help text.)
+    #[arg(long, alias = "tempaltes", value_name = "FILE", value_hint = clap::ValueHint::FilePath, default_value = "templates.toml", help = "path to message templates file")]
+    templates: PathBuf,
 }
 
 impl Cli {
@@ -40,7 +43,17 @@ impl Cli {
             .block_on(self.main());
     }
 
+    /// Runs the bot, then retires the sidecar however that ended -- a shutdown
+    /// signal, a gateway failure, or a startup step that gave up. The sidecar
+    /// outlives its parent otherwise, it is in its own process group.
     async fn main(&self) {
+        self.serve().await;
+        crate::ytdl::sidecar::shutdown().await;
+    }
+
+    /// Load the config files, bring the external deps and the sidecar up, then run
+    /// the bot alongside the scheduler until either ends.
+    async fn serve(&self) {
         if let Err(err) = dotenvy::dotenv() {
             warn!(error = ?err, "Failed to load .env file");
         }
@@ -69,7 +82,7 @@ impl Cli {
             }
         };
 
-        let templates = match Templates::load(&self.tempaltes) {
+        let templates = match Templates::load(&self.templates) {
             Ok(templates) => templates,
             Err(err) => {
                 error!(error = ?err, "failed to load templates");
@@ -79,6 +92,11 @@ impl Cli {
 
         if let Err(err) = setup_ext_deps(&config.ytdlp).await {
             error!(error = ?err, "failed to setup yt-dlp");
+            return;
+        }
+
+        if let Err(err) = crate::ytdl::sidecar::init(&config.ytdlp).await {
+            error!(error = ?err, "failed to start yt-dlp sidecar");
             return;
         }
 
@@ -115,7 +133,7 @@ impl Cli {
         };
 
         let auto_save_job_factory = bot.auto_save_job();
-        let auto_update_job_factory = auto_update_ytdlp("yt-dlp", config.ytdlp.clone());
+        let auto_update_job_factory = auto_update_ytdlp(config.ytdlp.clone());
         let scheduler = async move {
             let scheduler = JobScheduler::new().await?;
             scheduler
@@ -150,11 +168,14 @@ impl Cli {
         };
 
         tokio::select! {
-            _ = wait_shutdown_signal() => {
-                bot.shutdown().await;
-                let _ = scheduler.shutdown().await;
+            _ = wait_shutdown_signal() => (),
+            result = bot.start() => {
+                if let Err(err) = result {
+                    error!(error = ?err, "bot client stopped");
+                }
             }
-            _ = bot.start() => ()
         }
+        bot.shutdown().await;
+        let _ = scheduler.shutdown().await;
     }
 }

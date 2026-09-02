@@ -6,6 +6,7 @@ pub mod handlers;
 pub mod log;
 pub mod message;
 pub mod models;
+pub mod player;
 pub mod sched;
 pub mod signal;
 pub mod utils;

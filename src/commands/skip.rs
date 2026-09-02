@@ -1,10 +1,10 @@
 use crate::{
     message::TurtoMessageKind::{BotNotInVoiceChannel, DifferentVoiceChannel, NotPlaying, Skip},
-    models::{alias::Context, autoleave::AutoleaveType, error::CommandError, playing::PlayState},
+    models::{alias::Context, error::CommandError, playing::PlayState},
+    player::{self, PlayContext},
     utils::{
         create_playing_embed,
         guild::{GuildUtil, VoiceChannelState},
-        play::{PlayContext, play_ytdlfile_meta},
         turto_say,
     },
 };
@@ -58,16 +58,13 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), CommandError> {
     ctx.defer().await?;
 
     let mut guild_data = ctx.data().guilds.entry(guild_id).or_default();
-    let next = guild_data
-        .playlist
-        .pop_front_prefetch(ctx.data().config.ytdlp.clone());
+    let next = guild_data.playlist.pop_front();
     drop(guild_data);
 
     if let Some(next) = next {
         tracing::info!(next = next.url(), "play next");
 
-        let meta_fut = play_ytdlfile_meta(PlayContext::try_from(ctx)?, call, next).await?;
-        let metadata = meta_fut.await?;
+        let metadata = player::play_track(PlayContext::try_from(ctx)?, call, next).await?;
 
         let resp = create_playing_embed(ctx, Some(PlayState::Skip), &metadata);
         ctx.send(CreateReply::default().embed(resp)).await?;
@@ -79,10 +76,9 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), CommandError> {
             .or_default()
             .config
             .auto_leave;
-        let should_leave = auto_leave == AutoleaveType::On || auto_leave == AutoleaveType::Silent;
-        if should_leave {
+        if auto_leave.leaves_on_empty_queue() {
             let mut call = call.lock().await;
-            call.leave().await?;
+            player::leave(&mut call, guild_id).await;
         }
         turto_say(ctx, Skip { title: None }).await?;
     }

@@ -1,27 +1,20 @@
-use crate::{
-    deps::{bun::get_bun_arg, ytdlp::get_ytdlp_path},
-    models::config::YtdlpConfig,
-    ytdl::playlist::{YouTubeDlPlaylistOutput, YouTubePlaylist},
-};
-use songbird::input::{AudioStream, Input, LiveInput};
-use std::{
-    collections::HashMap,
-    future::Future,
-    io::{Seek, SeekFrom},
-    pin::Pin,
-    process::Stdio,
-    sync::Arc,
-};
-use symphonia::core::io::{MediaSourceStream, MediaSourceStreamOptions, ReadOnlySource};
-use tempfile::tempfile;
-use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
-    process::Command,
-};
-use tracing::instrument;
+use crate::ytdl::playlist::{YouTubeDlPlaylistOutput, YouTubePlaylist};
+use serde::Deserialize;
+use songbird::input::Input;
+use std::{collections::HashMap, sync::Arc};
 use url::Url;
 
+mod cancel;
+mod chunked;
+mod direct;
+mod hls;
 pub mod playlist;
+pub mod sidecar;
+mod source;
+mod tail;
+
+#[cfg(test)]
+mod test_support;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct YouTubeDl {
@@ -54,13 +47,36 @@ pub struct YouTubeDlMetadata {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct YoutubeDlFileInner {
     url: String,
-    #[serde(skip)]
-    file: tokio::sync::OnceCell<std::fs::File>,
     #[serde(
         serialize_with = "serialize_oncecell_arc",
         deserialize_with = "deserialize_oncecell_arc"
     )]
     metadata: tokio::sync::OnceCell<std::sync::Arc<YouTubeDlMetadata>>,
+    /// Full yt-dlp info dict from `/extract`, cached for this session
+    /// only so the `/download` fallback can reuse it.
+    #[serde(skip)]
+    info: tokio::sync::OnceCell<std::sync::Arc<serde_json::Value>>,
+    /// This track's stop signal, handed to every byte producer it starts. Session
+    /// state, so a deserialized queue entry gets a fresh one.
+    #[serde(skip)]
+    cancel: Arc<cancel::Cancel>,
+    /// The tail this track's bytes land in, once something has asked for them -- also the
+    /// replay cache, since a completed tail keeps its file.
+    ///
+    /// Held across the extract and the first-byte open, which is what makes "one producer
+    /// per track" true. It cannot deadlock against [`Drop`](Self::drop): holding the lock
+    /// requires holding an `Arc`, so the refcount cannot reach zero.
+    #[serde(skip)]
+    bytes: tokio::sync::Mutex<Option<tail::TailHandle>>,
+}
+
+impl Drop for YoutubeDlFileInner {
+    /// The last handle to this track is gone -- removed from the queue, or replaced in the
+    /// playing slot -- so nobody can read its bytes again: stop fetching them. Producers
+    /// hold nothing of this struct, so this really does fire mid-download.
+    fn drop(&mut self) {
+        self.cancel.cancel();
+    }
 }
 
 fn serialize_oncecell_arc<S, T>(
@@ -94,22 +110,24 @@ impl YouTubeDl {
         Self {
             inner: Arc::new(YoutubeDlFileInner {
                 url: url.into(),
-                file: tokio::sync::OnceCell::new(),
                 metadata: tokio::sync::OnceCell::new(),
+                info: tokio::sync::OnceCell::new(),
+                cancel: Arc::default(),
+                bytes: tokio::sync::Mutex::new(None),
             }),
         }
     }
 
-    pub fn new_with(
-        url: impl Into<String>,
-        file: Option<std::fs::File>,
-        metadata: YouTubeDlMetadata,
-    ) -> Self {
+    /// A track whose metadata is already known (a playlist entry), so the first
+    /// display does not need an extract.
+    pub fn new_with(url: impl Into<String>, metadata: YouTubeDlMetadata) -> Self {
         Self {
             inner: Arc::new(YoutubeDlFileInner {
                 url: url.into(),
-                file: tokio::sync::OnceCell::new_with(file),
                 metadata: tokio::sync::OnceCell::new_with(Some(Arc::new(metadata))),
+                info: tokio::sync::OnceCell::new(),
+                cancel: Arc::default(),
+                bytes: tokio::sync::Mutex::new(None),
             }),
         }
     }
@@ -128,15 +146,8 @@ impl YouTubeDl {
     }
 
     pub async fn fetch_yt_playlist(&self) -> Result<YouTubePlaylist, YouTubeDlError> {
-        let args = vec![self.inner.url.as_str(), "--flat-playlist", "-J"];
-
-        let output = Command::new(get_ytdlp_path().as_path())
-            .args(args)
-            .stdout(Stdio::piped())
-            .output()
-            .await?;
-
-        let output = serde_json::from_slice::<YouTubeDlPlaylistOutput>(&output.stdout)?;
+        let info = sidecar::extract(self.inner.url.as_str(), true).await?;
+        let output = serde_json::from_value::<YouTubeDlPlaylistOutput>(info)?;
         let yt_playlist = YouTubePlaylist {
             id: output.id,
             title: output.title,
@@ -155,214 +166,163 @@ impl YouTubeDl {
         self.inner.url.as_str()
     }
 
-    pub async fn fetch_file(&self, config: Arc<YtdlpConfig>) -> Result<Input, YouTubeDlError> {
-        let file = self
-            .inner
-            .file
-            .get_or_try_init(|| async {
-                let mut args = vec![
-                    "--js-runtimes",
-                    get_bun_arg(),
-                    "-q",
-                    "--no-warnings",
-                    self.inner.url.as_str(),
-                    "-f",
-                    "ba[abr>0][vcodec=none]/best",
-                    "--no-playlist",
-                    "-o",
-                    "-",
-                ];
-
-                if let Some(cookie_path) = config.cookies_path.as_deref() {
-                    args.extend(["--cookies", cookie_path]);
-                }
-
-                let mut child = tokio::process::Command::new(get_ytdlp_path().as_path())
-                    .args(args)
-                    .stdout(Stdio::piped())
-                    .spawn()?;
-                let mut stdout = child.stdout.take().unwrap();
-
-                let tmp = tokio::fs::File::from_std(tempfile::tempfile()?);
-                let mut writer = tokio::io::BufWriter::new(tmp);
-                tokio::io::copy(&mut stdout, &mut writer).await?;
-
-                let mut file = writer.into_inner().into_std().await;
-                file.seek(std::io::SeekFrom::Start(0))?;
-
-                std::io::Result::<std::fs::File>::Ok(file)
-            })
-            .await?;
-
-        let mut res = file.try_clone()?;
-        res.seek(SeekFrom::Start(0))?;
-
-        let input = Input::Live(
-            LiveInput::Wrapped(AudioStream {
-                input: MediaSourceStream::new(Box::new(res), MediaSourceStreamOptions::default()),
-            }),
-            None,
-        );
-
-        Ok(input)
-    }
-
-    pub async fn fetch_metadata(
-        &self,
-        config: Arc<YtdlpConfig>,
-    ) -> Result<Arc<YouTubeDlMetadata>, YouTubeDlError> {
+    /// Extract (once) the full yt-dlp info dict, caching it for the session so the
+    /// `/download` fallback can reuse it.
+    async fn fetch_info(&self) -> Result<Arc<serde_json::Value>, YouTubeDlError> {
         let val = self
             .inner
-            .metadata
+            .info
             .get_or_try_init(|| async {
-                let mut args = vec![
-                    "--js-runtimes",
-                    get_bun_arg(),
-                    "-q",
-                    "--no-warnings",
-                    "-j",
-                    self.inner.url.as_str(),
-                    "-f",
-                    "ba[abr>0][vcodec=none]/best",
-                    "--no-playlist",
-                ];
-
-                if let Some(cookie_path) = config.cookies_path.as_deref() {
-                    args.extend(["--cookies", cookie_path]);
-                }
-
-                let mut child = tokio::process::Command::new(get_ytdlp_path().as_path())
-                    .args(args)
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::piped())
-                    .spawn()?;
-                let stdout = child.stdout.take().unwrap();
-                let mut line = String::new();
-                let mut reader = tokio::io::BufReader::new(stdout);
-                reader.read_line(&mut line).await?;
-
-                let ytdlp_data = serde_json::from_str::<YouTubeDlMetadata>(&line)?;
-                std::io::Result::Ok(Arc::new(ytdlp_data))
+                let info = sidecar::extract(self.inner.url.as_str(), false).await?;
+                Ok::<_, YouTubeDlError>(Arc::new(info))
             })
             .await?;
         Ok(val.clone())
     }
 
-    #[instrument(skip_all, fields(url = self.inner.url))]
-    pub async fn play(
-        &self,
-        config: Arc<YtdlpConfig>,
-    ) -> Result<
-        (
-            Pin<Box<dyn Future<Output = Result<Arc<YouTubeDlMetadata>, YouTubeDlError>> + Send>>,
-            Input,
-        ),
-        YouTubeDlError,
-    > {
-        if let Some(file) = self.inner.file.get() {
-            let mut file = file.try_clone()?;
-            file.seek(SeekFrom::Start(0))?;
+    pub async fn fetch_metadata(&self) -> Result<Arc<YouTubeDlMetadata>, YouTubeDlError> {
+        let val = self
+            .inner
+            .metadata
+            .get_or_try_init(|| async {
+                let info = self.fetch_info().await?;
+                let ytdlp_data = YouTubeDlMetadata::deserialize(&*info)?;
+                Ok::<_, YouTubeDlError>(Arc::new(ytdlp_data))
+            })
+            .await?;
+        Ok(val.clone())
+    }
 
-            let input = Input::Live(
-                LiveInput::Wrapped(AudioStream {
-                    input: MediaSourceStream::new(
-                        Box::new(file),
-                        MediaSourceStreamOptions::default(),
-                    ),
-                }),
-                None,
-            );
-            let self_inner = self.clone();
-            let meta_fut = async move { self_inner.fetch_metadata(config.clone()).await };
-            return Ok((Box::pin(meta_fut), input));
+    /// Start playing this track: its metadata, and an `Input` reading the bytes.
+    ///
+    /// Never waits for the whole download -- the returned `Input` tails the tail file,
+    /// so playback starts as soon as the first bytes land (instantly if the track was
+    /// already warmed or played once).
+    pub async fn play(&self) -> Result<(Arc<YouTubeDlMetadata>, Input), YouTubeDlError> {
+        let handle = self.tail().await?;
+        let meta = self.fetch_metadata().await?;
+        Ok((meta, handle.input()?))
+    }
+
+    /// Prime this track for its turn, without downloading it: the `/extract` always --
+    /// multi-second, and where the failures live -- plus one chunk of bytes on the
+    /// direct-HTTP path, whose producer then parks at the boundary.
+    ///
+    /// HLS and the sidecar `/download` get the extract alone: a live playlist's window
+    /// slides past anything primed at queue time, and `/download` has no boundary to
+    /// park at.
+    ///
+    /// Returns once the first bytes are moving, not once they have landed;
+    /// [`Self::play`] attaches to the same download either way.
+    pub async fn prefetch(&self) -> Result<(), YouTubeDlError> {
+        let meta = self.fetch_metadata().await?;
+        if !source::is_direct(&meta) {
+            tracing::debug!("byte path is not worth priming; primed the extract only");
+            return Ok(());
         }
+        self.tail().await?;
+        Ok(())
+    }
 
-        let mut args = vec![
-            "--js-runtimes",
-            get_bun_arg(),
-            "-q",
-            "--no-warnings",
-            "-j",
-            "--no-simulate",
-            self.inner.url.as_str(),
-            "-f",
-            "ba[abr>0][vcodec=none]/best",
-            "--no-playlist",
-            "-o",
-            "-",
-        ];
+    /// Fetch this track's bytes in full, resolving once they are all local. Not what the
+    /// queue does (see [`Self::prefetch`]) -- it is how the drain-to-the-end path is
+    /// exercised without a voice connection.
+    pub async fn warm(&self) -> Result<(), YouTubeDlError> {
+        let handle = self.tail().await?;
+        handle.warm().await?;
+        Ok(())
+    }
 
-        if let Some(cookie_path) = config.cookies_path.as_deref() {
-            args.extend(["--cookies", cookie_path]);
+    /// The single way bytes are acquired -- and the point is that the first case is the
+    /// common one, so a prefetch and the playback after it are the *same* download:
+    ///
+    /// - a live or completed tail: attach, fetching nothing.
+    /// - no tail: extract, open the byte source, spawn a producer.
+    /// - a *failed* tail: discard it and start over from a fresh extract, since it can
+    ///   only ever hand its readers an error.
+    async fn tail(&self) -> Result<tail::TailHandle, YouTubeDlError> {
+        let mut slot = self.inner.bytes.lock().await;
+        match slot.as_ref() {
+            Some(handle) if !handle.failed() => return Ok(handle.clone()),
+            Some(_) => tracing::info!("previous byte fetch failed; starting a fresh one"),
+            None => {}
         }
+        let handle = self.start_tail().await?;
+        *slot = Some(handle.clone());
+        Ok(handle)
+    }
 
-        let mut child = tokio::process::Command::new(get_ytdlp_path().as_path())
-            .args(args)
-            .stderr(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()?;
-        let stderr = child.stderr.take().unwrap();
-        let mut stdout = child.stdout.take().unwrap();
-
-        let mut line = String::new();
-        let mut reader = tokio::io::BufReader::new(stderr);
-
-        let self_inner = self.inner.clone();
-        let meta_fut = async move {
-            reader.read_line(&mut line).await?;
-            let output = serde_json::from_str::<YouTubeDlMetadata>(&line)?;
-            let meta = Arc::new(output);
-            let _ = self_inner.metadata.set(meta.clone());
-            Result::Ok(meta)
-        };
-
-        let self_inner = self.inner.clone();
-        let (mut tx, rx) = tokio::io::duplex(32 * 1024);
-        tokio::spawn(async move {
-            let mut buf = vec![0u8; 32 * 1024];
-            let file = tokio::fs::File::from_std(tempfile()?);
-            let mut writer = tokio::io::BufWriter::new(file);
-            let complete = loop {
-                let n = stdout.read(&mut buf).await?;
-                if n == 0 {
-                    break true;
-                }
-
-                if let Err(err) = tx.write_all(&buf[..n]).await {
-                    if err.kind() == std::io::ErrorKind::BrokenPipe {
-                        break false;
-                    } else {
-                        return Err(err);
-                    }
-                } else {
-                    writer.write_all(&buf[..n]).await?;
-                }
-            };
-            let _ = tx.shutdown().await;
-            writer.flush().await?;
-            if complete {
-                let mut file = writer.into_inner();
-                file.seek(SeekFrom::Start(0)).await?;
-                let _ = self_inner.file.set(file.into_std().await);
-                tracing::info!("write file complete");
-            } else {
-                tracing::warn!("write file incomplete");
+    /// Open this track's byte source and spawn the producer that drains it into a fresh
+    /// tail. The eager first fetch means an unplayable track fails *here*, where a command
+    /// can report it, and a failure a fresh URL could fix gets one re-extract
+    /// ([`Self::start_tail_fresh`]) -- separate from keeping a *working* fetch going,
+    /// which is [`direct`]'s job.
+    async fn start_tail(&self) -> Result<tail::TailHandle, YouTubeDlError> {
+        let meta = self.fetch_metadata().await?;
+        match self.open_tail(source::classify_source(&meta), None).await {
+            Ok(handle) => Ok(handle),
+            Err(err @ YouTubeDlError::UnsupportedStream(_)) => Err(err),
+            Err(err) => {
+                tracing::warn!(error = %err, "byte open failed; re-extracting for a fresh url");
+                self.start_tail_fresh().await
             }
+        }
+    }
 
-            Ok(())
-        });
+    /// The URL-expiry retry, tried once: re-extract past the session caches, then open
+    /// whatever the fresh metadata names -- possibly a different byte path entirely.
+    async fn start_tail_fresh(&self) -> Result<tail::TailHandle, YouTubeDlError> {
+        let (meta, info) = self.re_extract().await?;
+        self.open_tail(source::classify_source(&meta), Some(info))
+            .await
+    }
 
-        let reader = tokio_util::io::SyncIoBridge::new(rx);
-        let input = Input::Live(
-            LiveInput::Wrapped(AudioStream {
-                input: MediaSourceStream::new(
-                    Box::new(ReadOnlySource::new(reader)),
-                    MediaSourceStreamOptions::default(),
-                ),
-            }),
-            None,
-        );
-        Ok((Box::pin(meta_fut), input))
+    /// Spawn the producer for one classified byte source. `info` is the dict the sidecar
+    /// path downloads from; [`None`] takes the session cache. Only the direct-HTTP source
+    /// has a recovery loop: it alone holds a URL that expires *and* knows where to resume.
+    async fn open_tail(
+        &self,
+        source: source::ByteSource,
+        info: Option<Arc<serde_json::Value>>,
+    ) -> Result<tail::TailHandle, YouTubeDlError> {
+        let cancel = self.inner.cancel.clone();
+        match source {
+            source::ByteSource::Http(req) => {
+                let (fetch, reporter) =
+                    direct::DirectFetch::open(self.inner.url.clone(), req, cancel.clone())
+                        .await
+                        .map_err(|err| YouTubeDlError::Stream(err.into()))?;
+                Ok(tail::spawn_tail(cancel, Some(reporter), move |tail| {
+                    fetch.run(tail)
+                })?)
+            }
+            source::ByteSource::Hls(req) => {
+                let (fetch, reporter) = hls::HlsFetch::open(req, cancel.clone()).await?;
+                Ok(tail::spawn_tail(cancel, Some(reporter), move |tail| {
+                    fetch.run(tail)
+                })?)
+            }
+            // No URL-expiry guard needed: the sidecar re-extracts from `webpage_url`
+            // itself.
+            source::ByteSource::Sidecar => {
+                let info = match info {
+                    Some(info) => info,
+                    None => self.fetch_info().await?,
+                };
+                let resp = sidecar::download(&info).await?;
+                Ok(tail::spawn_sidecar_tail(cancel, resp)?)
+            }
+        }
+    }
+
+    /// Re-extract the info dict + typed metadata straight from the sidecar,
+    /// bypassing the (possibly-expired) session caches.
+    async fn re_extract(
+        &self,
+    ) -> Result<(Arc<YouTubeDlMetadata>, Arc<serde_json::Value>), YouTubeDlError> {
+        let info = sidecar::extract(self.inner.url.as_str(), false).await?;
+        let meta = YouTubeDlMetadata::deserialize(&info)?;
+        Ok((Arc::new(meta), Arc::new(info)))
     }
 }
 
@@ -372,4 +332,22 @@ pub enum YouTubeDlError {
     Io(#[from] std::io::Error),
     #[error("json error: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("sidecar error: {0}")]
+    Sidecar(#[from] sidecar::SidecarError),
+    #[error("audio stream error: {0}")]
+    Stream(Box<dyn std::error::Error + Send + Sync>),
+    /// A property of the stream itself, so any extract of this track fails the same way
+    /// and the URL-expiry retry is skipped.
+    #[error("unsupported audio stream: {0}")]
+    UnsupportedStream(Box<dyn std::error::Error + Send + Sync>),
+}
+
+impl From<hls::HlsError> for YouTubeDlError {
+    fn from(err: hls::HlsError) -> Self {
+        if err.is_stream_property() {
+            Self::UnsupportedStream(err.into())
+        } else {
+            Self::Stream(err.into())
+        }
+    }
 }
