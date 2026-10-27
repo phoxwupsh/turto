@@ -4779,7 +4779,7 @@ dependencies = [
 
 [[package]]
 name = "turto"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "arc-swap",
  "async-trait",
