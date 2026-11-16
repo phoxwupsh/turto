@@ -21,14 +21,14 @@ auto_save_interval = 3600
 
 
 [ytdlp]
-# Use the yt-dlp that already in your environment
-use_system = false
-
-# Use nightly builds of yt-dlp
+# Use nightly (pre-release) builds of yt-dlp
 use_nightly = false
 
-# Use bun that already in your environment for yt-dlp JS runtime
+# Use the bun that is already in your environment (found on PATH) as the yt-dlp JS runtime, instead of downloading one
 use_system_bun = false
+
+# Use the uv that is already in your environment (found on PATH), instead of downloading one
+use_system_uv = false
 
 # The path to your YouTube cookies in Netscape format, you can use extension like "Get cookies.txt LOCALLY" to get it
 # turto saves refreshed cookies back to this file (only for domains already in it), rewriting it and dropping comments,
