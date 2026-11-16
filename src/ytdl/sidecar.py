@@ -7,8 +7,13 @@ in Rust.
 Protocol:
   - On startup, prints ``PORT=<n>`` as the first stdout line, then serves.
   - ``GET  /health``   -> 200 {"ok": true}                (unauthenticated)
-  - ``POST /extract``  -> 200 <yt-dlp info dict as JSON>  (X-Turto-Secret gated)
+  - ``POST /extract``  -> 200 {"info": <yt-dlp info dict>, "cookies_b64": str|null}
+                                                          (X-Turto-Secret gated)
         request body: {"url": str, "flat_playlist": bool, "cookies_b64": str|null}
+        ``cookies_b64`` in the reply is the cookie file yt-dlp wrote back on
+        close, base64-encoded, or null when it is byte-identical to the one sent
+        (or no cookies were sent, or reading it back failed). The Rust side
+        merges it into its jar.
         errors come back as {"error": str, "type"?: str} with a non-2xx status.
   - ``POST /download`` -> 200 streamed media bytes        (X-Turto-Secret gated)
         request body: {"info": <yt-dlp info dict from /extract>, "cookies_b64": str|null}
@@ -18,7 +23,9 @@ Protocol:
 
 ``cookies_b64`` is the base64-encoded *content* of a Netscape cookies.txt (the
 client sends bytes, not a path, so the sidecar never touches the caller's
-filesystem). It is decoded into a per-request throwaway file for yt-dlp.
+filesystem). It is decoded into a per-request throwaway file for yt-dlp; after
+a successful /extract the file yt-dlp wrote back is returned as content too, so
+the client can keep refreshed cookies without the sidecar ever writing its file.
 
 Configuration is passed entirely on the command line (no environment):
   --secret <s>           shared secret required on /extract and /download
@@ -116,7 +123,8 @@ def cookiefile_from_b64(cookies_b64: str | None) -> Iterator[str | None]:
     non-atomic truncate + rewrite). Handing each request its own copy means those
     write-backs can never race and corrupt a shared file under concurrency. The
     file is written and closed before being yielded (so yt-dlp can open it on
-    every platform, incl. Windows) and removed on exit.
+    every platform, incl. Windows) and removed on exit; ``do_extract`` reads the
+    written-back copy before that (see ``read_back_cookies``).
     """
     if not cookies_b64:
         yield None
@@ -132,7 +140,34 @@ def cookiefile_from_b64(cookies_b64: str | None) -> Iterator[str | None]:
             os.remove(path)
 
 
-def do_extract(url: str, flat: bool, cookies_b64: str | None) -> dict[str, Any]:
+def read_back_cookies(path: str, cookies_b64: str) -> str | None:
+    """The cookie file yt-dlp left at ``path``, base64-encoded, or None if it is
+    byte-identical to what was sent or cannot be read.
+
+    Works on raw bytes only (never decodes them as text), and swallows every
+    error: a failed read-back costs the refresh, never the extraction.
+    """
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read()
+        if data == base64.b64decode(cookies_b64):
+            return None
+        # base64 output is pure ASCII; this decodes the encoding, not the cookies.
+        return base64.b64encode(data).decode("ascii")
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def do_extract(
+    url: str, flat: bool, cookies_b64: str | None
+) -> tuple[dict[str, Any], str | None]:
+    """Run one extraction; returns ``(info, cookies_b64 | None)``.
+
+    yt-dlp saves its (possibly refreshed) cookie jar to ``cookiefile`` when the
+    ``YoutubeDL`` closes, so the file is read back after that context exits and
+    before ``cookiefile_from_b64`` removes it. A failed extraction raises before
+    the read-back, so only successful ones report cookies.
+    """
     opts = {
         "quiet": True,
         "no_warnings": True,
@@ -144,12 +179,15 @@ def do_extract(url: str, flat: bool, cookies_b64: str | None) -> dict[str, Any]:
         opts["noplaylist"] = True
         opts["format"] = FORMAT
 
+    cookies_out = None
     with cookiefile_from_b64(cookies_b64) as cookiefile:
         if cookiefile:
             opts["cookiefile"] = cookiefile
         with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            return ydl.sanitize_info(info)
+            info = ydl.sanitize_info(ydl.extract_info(url, download=False))
+        if cookiefile and cookies_b64:
+            cookies_out = read_back_cookies(cookiefile, cookies_b64)
+    return info, cookies_out
 
 
 @app.get("/health")
@@ -178,7 +216,7 @@ async def extract(
 
     try:
         async with EXTRACT_SEM:
-            info = await run_in_threadpool(
+            info, cookies_out = await run_in_threadpool(
                 do_extract, req.url, req.flat_playlist, req.cookies_b64
             )
     except Exception as exc:  # noqa: BLE001
@@ -186,7 +224,7 @@ async def extract(
             status_code=502,
             content={"error": str(exc), "type": type(exc).__name__},
         )
-    return JSONResponse(content=info)
+    return JSONResponse(content={"info": info, "cookies_b64": cookies_out})
 
 
 def run_download(

@@ -24,13 +24,22 @@ const PLAYLIST_URL: &str =
 #[tokio::test]
 #[ignore = "downloads uv + managed python + yt-dlp; needs network"]
 async fn sidecar_end_to_end() {
-    // A minimal valid Netscape cookies.txt makes the whole suite run "with cookies"
-    // (0 cookies == harmless for public videos), and lets us assert at the end that the
-    // sidecar never wrote back to OUR file: yt-dlp rewrites its cookiefile on close, so
-    // it must target a private per-request copy, never the caller's.
-    let cookie_path = std::env::temp_dir().join("turto-cookies-e2e.txt");
-    let cookie_content: &[u8] = b"# Netscape HTTP Cookie File\n";
-    std::fs::write(&cookie_path, cookie_content).expect("write cookies file");
+    // A Netscape cookies.txt with one harmless cookie (the language preference, no
+    // account) makes the whole suite run "with cookies" and puts youtube.com on the
+    // refresh allowlist. yt-dlp rewrites only its private per-request copy; turto
+    // harvests that copy's changes and saves them back, which is asserted at the end.
+    // A private temp dir, not a fixed shared path.
+    let cookie_dir = tempfile::tempdir().expect("cookies temp dir");
+    let cookie_path = cookie_dir.path().join("cookies.txt");
+    let expiry = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock after epoch")
+        .as_secs()
+        + 365 * 24 * 60 * 60;
+    let cookie_content = format!(
+        "# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t{expiry}\tPREF\thl=en\n"
+    );
+    std::fs::write(&cookie_path, &cookie_content).expect("write cookies file");
 
     let config = Arc::new(YtdlpConfig {
         cookies_path: Some(cookie_path.to_str().expect("utf8 cookie path").to_owned()),
@@ -200,18 +209,63 @@ async fn sidecar_end_to_end() {
         "sidecar still resolves media after a blue/green update"
     );
 
-    // Cookies write-back isolation: after a whole suite of extractions/downloads
-    // (each of which had yt-dlp rewrite its per-request cookiefile copy on close),
-    // the caller's cookies file must be byte-for-byte untouched.
-    assert_eq!(
-        std::fs::read(&cookie_path).expect("reread cookies file"),
-        cookie_content,
-        "the sidecar must not write back to the caller's cookies file"
-    );
-    std::fs::remove_file(&cookie_path).ok();
-
+    // shutdown() flushes the jar to disk before stopping the sidecar.
     sidecar::shutdown().await;
+
+    // Cookie harvest: the refreshes yt-dlp made during the suite's extractions went
+    // read-back -> cookies_b64 -> Rust merge -> persist. The seed PREF is still
+    // there (by key only: yt-dlp's YouTube extractor rewrites its value and expiry),
+    // and at least one more youtube.com cookie was added (e.g. SOCS from yt-dlp's
+    // consent setup, or YSC from YouTube's Set-Cookie).
+    let saved = std::fs::read_to_string(&cookie_path).expect("reread cookies file");
+    let keys = cookie_keys(&saved);
+    assert!(
+        keys.iter()
+            .any(|(d, p, n)| d == ".youtube.com" && p == "/" && n == "PREF"),
+        "the seed PREF cookie must survive the harvest ({} cookies saved)",
+        keys.len()
+    );
+    let extra = keys
+        .iter()
+        .filter(|(d, p, n)| {
+            let host = d.strip_prefix('.').unwrap_or(d);
+            (host == "youtube.com" || host.ends_with(".youtube.com"))
+                && !(d == ".youtube.com" && p == "/" && n == "PREF")
+        })
+        .count();
+    assert!(
+        extra >= 1,
+        "expected at least one harvested youtube.com cookie besides PREF ({} cookies saved)",
+        keys.len()
+    );
+    drop(cookie_dir);
     // uv_dir is intentionally kept as a reusable cache for fast reruns.
+}
+
+/// The `(domain, path, name)` of every cookie in a Netscape cookies file,
+/// asserting the file is well formed. Never prints cookie values.
+fn cookie_keys(text: &str) -> Vec<(String, String, String)> {
+    assert!(
+        text.starts_with("# Netscape HTTP Cookie File\n"),
+        "saved cookies file must keep the Netscape header"
+    );
+    text.lines()
+        .filter(|line| !line.is_empty())
+        .filter_map(|line| match line.strip_prefix("#HttpOnly_") {
+            Some(rest) => Some(rest),
+            None if line.starts_with('#') => None,
+            None => Some(line),
+        })
+        .map(|line| {
+            let fields: Vec<&str> = line.split('\t').collect();
+            assert_eq!(fields.len(), 7, "every saved cookie line has 7 fields");
+            (
+                fields[0].to_ascii_lowercase(),
+                fields[2].to_owned(),
+                fields[5].to_owned(),
+            )
+        })
+        .collect()
 }
 
 /// A resolved-format metadata whose media URL points at a dead loopback port,
