@@ -105,6 +105,10 @@ The purpose of each attribute is described in the comments within the file.
 
 > [!TIP]
 > - For `cookies_path`, you can get cookies by using extension like [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc), which should be a Netscape format text file.
+>   - turto keeps this file updated: when YouTube refreshes a cookie, turto saves the change back (only for domains already in the file). Saving rewrites the whole file, so comments, malformed lines and `#HttpOnly_` markers are dropped (yt-dlp drops those markers too).
+>   - This needs write access to the file. To opt out, make it read-only (`chmod a-w cookies.txt`, or mount it with `:ro` in Docker); turto then keeps refreshed cookies in memory only.
+>   - The file holds a login session: restrict it with `chmod 600`, and export it from a private/incognito window that you close right after, so the browser does not keep using the same session. On Windows, the saved file takes the permissions inherited from its folder.
+>   - Stop turto before editing or replacing the cookies file (for example, after re-exporting cookies). turto owns the file while it runs: it overwrites changes made from outside, and recreates the file if it is deleted.
 > - If `owner` is set, the owner has the ability to bypass admin permissions to use the `/ban` and `/unban` commands, and the `/about` command will display who turto belongs to.
 
 ### Multilingual Support

@@ -105,6 +105,10 @@ turto 可以在沒有設定檔的情況下運作，但你仍可以透過一些 T
 
 > [!TIP]
 > - `cookies_path` 可以使用像 [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) 之類的擴充功能取得 cookies（需為 Netscape 格式的文字檔）。
+>   - turto 會持續更新這個檔案：YouTube 更新 cookie 時，turto 會把變更存回檔案（只限檔案中原本就有的網域）。存檔時會重寫整個檔案，因此註解、格式錯誤的行與 `#HttpOnly_` 標記會被移除（yt-dlp 也會移除這些標記）。
+>   - turto 需要這個檔案的寫入權限。若不想讓 turto 寫入，請把檔案設為唯讀（`chmod a-w cookies.txt`，或在 Docker 中以 `:ro` 掛載），turto 就只會把更新後的 cookies 保留在記憶體中。
+>   - 這個檔案包含登入狀態：建議用 `chmod 600` 限制存取，並在無痕視窗中匯出、匯出後立即關閉該視窗，避免瀏覽器繼續使用同一個登入狀態。在 Windows 上，存回的檔案會沿用所在資料夾繼承的權限。
+>   - 編輯或替換 cookies 檔案前（例如重新匯出 cookies 時），請先停止 turto。turto 執行期間會接管這個檔案：外部所做的修改會被覆寫，檔案被刪除時也會重新建立。
 > - 若設定了 `owner`，owner 可以在不需要管理員權限的情況下使用 `/ban` 與 `/unban` 指令，且 `/about` 會顯示 turto 屬於誰。
 
 ### 多國語言支援

@@ -5,6 +5,7 @@
 //! learns its ephemeral port, health-checks it, and exposes a typed [`extract`]
 //! client used by [`crate::ytdl`].
 
+use super::cookies::{self, CookieStore, Snapshot};
 use crate::{
     deps::{bun::get_bun_arg, uv::get_uv_python},
     models::config::YtdlpConfig,
@@ -12,6 +13,8 @@ use crate::{
 use arc_swap::ArcSwap;
 use base64::{Engine, prelude::BASE64_STANDARD};
 use std::{
+    fmt,
+    path::PathBuf,
     process::Stdio,
     sync::{Arc, OnceLock},
     time::Duration,
@@ -52,9 +55,19 @@ static CHILD: OnceLock<Mutex<Option<Child>>> = OnceLock::new();
 /// Serializes [`update`] so two overlapping runs can't both spawn/swap.
 static UPDATE_LOCK: Mutex<()> = Mutex::const_new(());
 
-/// base64-encoded cookies.txt content, loaded once at startup.
+/// The live cookie jar, loaded from `cookies_path` at startup and kept up to
+/// date with the refreshes yt-dlp makes during extraction.
 /// [`None`] = no cookies configured.
-static COOKIES_B64: OnceLock<Option<String>> = OnceLock::new();
+static COOKIES: OnceLock<Option<CookieStore>> = OnceLock::new();
+
+/// How long after the first unsaved cookie refresh the jar is written to disk.
+const COOKIE_SAVE_DEBOUNCE: Duration = Duration::from_secs(30);
+
+/// How long [`shutdown`] waits for unsaved cookies to reach disk.
+const COOKIE_FLUSH_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// A returned `cookies_b64` longer than this is dropped before decoding.
+const MAX_RETURNED_COOKIES_B64: usize = 1024 * 1024;
 
 /// Configured cap on the sidecar's simultaneous extractions and downloads, kept for
 /// the respawn in [`update`] as well as the first spawn.
@@ -277,16 +290,41 @@ async fn spawn_instance() -> Result<(Sidecar, Child), SidecarError> {
     Ok((sidecar, child))
 }
 
+/// The `/extract` success body: the info dict, plus the cookie jar yt-dlp wrote
+/// back if it differs from the one sent. `cookies_b64` is taken as any JSON
+/// value so a malformed one can never fail the extraction itself.
+#[derive(serde::Deserialize)]
+struct ExtractResponse {
+    info: serde_json::Value,
+    #[serde(default)]
+    cookies_b64: Option<serde_json::Value>,
+}
+
+impl fmt::Debug for ExtractResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ExtractResponse")
+            .field("has_cookies", &self.cookies_b64.is_some())
+            .finish_non_exhaustive()
+    }
+}
+
 /// Run an extraction. `flat` requests a flat-playlist dump; otherwise a single
 /// processed video info dict (with format selection applied). Returns the
 /// yt-dlp info dict as JSON for the caller to deserialize.
+///
+/// When cookies are configured, the request carries the current jar and any
+/// refreshes yt-dlp made are merged back into it (see `harvest_cookies`);
+/// that never turns a successful extraction into an error.
 #[instrument(skip_all, fields(url = %url, flat))]
 pub async fn extract(url: &str, flat: bool) -> Result<serde_json::Value, SidecarError> {
     let sc = current()?;
+    let store = cookie_store();
+    // The base this request's jar is diffed against when it comes back.
+    let base = store.map(CookieStore::load);
     let body = serde_json::json!({
         "url": url,
         "flat_playlist": flat,
-        "cookies_b64": cookies_b64(),
+        "cookies_b64": base.as_deref().map(|snap| snap.b64.as_str()),
     });
 
     tracing::debug!("calling sidecar /extract");
@@ -305,9 +343,12 @@ pub async fn extract(url: &str, flat: bool) -> Result<serde_json::Value, Sidecar
     // the non-trivial tail of the call.
     let status = resp.status();
     if status.is_success() {
-        let info = resp.json::<serde_json::Value>().await?;
+        let ExtractResponse { info, cookies_b64 } = resp.json::<ExtractResponse>().await?;
         let elapsed_ms = started.elapsed().as_millis() as u64;
         tracing::info!(status = status.as_u16(), elapsed_ms, "extract succeeded");
+        if let (Some(store), Some(base)) = (store, base) {
+            harvest_cookies(store, base, cookies_b64);
+        }
         Ok(info)
     } else {
         let err = error_from_response("/extract", resp).await;
@@ -325,7 +366,12 @@ pub async fn extract(url: &str, flat: bool) -> Result<serde_json::Value, Sidecar
 #[instrument(skip_all)]
 pub async fn download(info: &serde_json::Value) -> Result<reqwest::Response, SidecarError> {
     let sc = current()?;
-    let body = serde_json::json!({ "info": info, "cookies_b64": cookies_b64() });
+    // Uses the current jar; refreshes are only harvested from /extract.
+    let snap = cookie_store().map(CookieStore::load);
+    let body = serde_json::json!({
+        "info": info,
+        "cookies_b64": snap.as_deref().map(|snap| snap.b64.as_str()),
+    });
 
     tracing::debug!("calling sidecar /download");
     let resp = sc
@@ -347,9 +393,49 @@ pub async fn download(info: &serde_json::Value) -> Result<reqwest::Response, Sid
     }
 }
 
-/// Load, validate, and cache the cookies file for the whole process.
+/// Merge the jar an extraction from `base` came back with into the store.
+///
+/// Every failure is logged (never with cookie data) and swallowed: a bad or
+/// missing jar costs the refresh, never the extraction.
+fn harvest_cookies(store: &CookieStore, base: Arc<Snapshot>, returned: Option<serde_json::Value>) {
+    let encoded = match returned {
+        None | Some(serde_json::Value::Null) => return,
+        Some(serde_json::Value::String(encoded)) => encoded,
+        Some(_) => {
+            tracing::warn!("sidecar returned cookies of an unexpected type; ignoring them");
+            return;
+        }
+    };
+    if encoded.len() > MAX_RETURNED_COOKIES_B64 {
+        tracing::warn!(
+            len = encoded.len(),
+            limit = MAX_RETURNED_COOKIES_B64,
+            "sidecar returned an oversized cookie jar; ignoring it"
+        );
+        return;
+    }
+    // The decode error is not logged: it would quote a byte of the payload.
+    let Ok(bytes) = BASE64_STANDARD.decode(encoded.as_bytes()) else {
+        tracing::warn!(
+            len = encoded.len(),
+            "sidecar returned cookies that are not valid base64; ignoring them"
+        );
+        return;
+    };
+    let (jar, skipped) = cookies::parse(&bytes);
+    if skipped > 0 {
+        tracing::debug!(
+            skipped,
+            "skipped malformed lines in the returned cookie jar"
+        );
+    }
+    store.submit(base, jar);
+}
+
+/// Load, validate, and cache the cookies file for the whole process, and start
+/// the task that keeps it updated.
 async fn init_cookies(cookies_path: Option<&str>) -> Result<(), SidecarError> {
-    let encoded = match cookies_path {
+    let store = match cookies_path {
         Some(path) => {
             let bytes = tokio::fs::read(path)
                 .await
@@ -357,26 +443,51 @@ async fn init_cookies(cookies_path: Option<&str>) -> Result<(), SidecarError> {
                     path: path.to_string(),
                     source,
                 })?;
-            tracing::info!(path = %path, bytes = bytes.len(), "loaded cookies file");
-            Some(BASE64_STANDARD.encode(bytes))
+            let (jar, skipped) = cookies::parse(&bytes);
+            tracing::info!(path = %path, bytes = bytes.len(), cookies = jar.len(), "loaded cookies file");
+            if skipped > 0 {
+                tracing::warn!(
+                    path = %path,
+                    skipped,
+                    "skipped malformed lines in the cookies file; they are dropped when turto saves it"
+                );
+            }
+            warn_if_shared(path);
+            let (store, updater) =
+                CookieStore::new(PathBuf::from(path), jar, bytes, COOKIE_SAVE_DEBOUNCE);
+            tokio::spawn(updater);
+            Some(store)
         }
         None => None,
     };
-    COOKIES_B64.set(encoded).ok();
+    COOKIES.set(store).ok();
     Ok(())
 }
 
-/// The cached base64 cookies (or [`None`] if unconfigured).
-///
-/// # Panics
-///
-/// Panics if [`init_cookies`] has not run, that is a wiring bug,
-/// not a runtime state.
-fn cookies_b64() -> Option<&'static str> {
-    COOKIES_B64
-        .get()
-        .expect("init_cookies must run before serving requests")
-        .as_deref()
+/// Advise when the cookies file (a login session) is readable by other users.
+fn warn_if_shared(path: &str) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(meta) = std::fs::metadata(path) {
+            let mode = meta.permissions().mode() & 0o777;
+            if mode & 0o077 != 0 {
+                tracing::warn!(
+                    path = %path,
+                    mode = format_args!("{mode:o}"),
+                    "cookies file is accessible to other users; consider `chmod 600`"
+                );
+            }
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = path;
+}
+
+/// The cookie store, or [`None`] if no cookies are configured (or
+/// [`init_cookies`] has not run).
+fn cookie_store() -> Option<&'static CookieStore> {
+    COOKIES.get().and_then(Option::as_ref)
 }
 
 /// Check for a newer yt-dlp and, if found, recycle the sidecar blue/green:
@@ -515,8 +626,12 @@ async fn error_from_response(endpoint: &'static str, resp: reqwest::Response) ->
     }
 }
 
-/// Terminate the sidecar process. Safe to call when never started.
+/// Save any unsaved cookie refreshes (waiting at most [`COOKIE_FLUSH_TIMEOUT`]),
+/// then terminate the sidecar process. Safe to call when never started.
 pub async fn shutdown() {
+    if let Some(store) = cookie_store() {
+        store.flush(COOKIE_FLUSH_TIMEOUT).await;
+    }
     if let Some(lock) = CHILD.get()
         && let Some(mut child) = lock.lock().await.take()
     {
@@ -595,7 +710,7 @@ mod tests {
 
     /// A configured-but-unreadable cookies file is a misconfiguration: it must
     /// error rather than silently serving cookieless.
-    /// Errors before `COOKIES_B64` is set, so it does not disturb the global
+    /// Errors before `COOKIES` is set, so it does not disturb the global
     /// for other tests.
     #[tokio::test]
     async fn init_cookies_errors_on_unreadable_path() {

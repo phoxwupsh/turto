@@ -6,6 +6,7 @@ use url::Url;
 
 mod cancel;
 mod chunked;
+mod cookies;
 mod direct;
 mod hls;
 pub mod playlist;
