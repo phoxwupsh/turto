@@ -23,7 +23,7 @@ serde = { version = "1.0.229", features = ["rc"] }
 serde_json = "1.0.154"
 regex = "1.13.1"
 toml = "1.2.1"
-rand = "0.8.5"
+rand = "0.10.4"
 sha256 = "1.6.0"
 which = "8.0.6"
 tracing-appender = "0.2.5"

@@ -1,5 +1,5 @@
 use crate::ytdl::YouTubeDl;
-use rand::{seq::SliceRandom, thread_rng};
+use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{VecDeque, vec_deque::IntoIter},
@@ -56,7 +56,7 @@ impl Playlist {
 
     /// Shuffle the queue in place, priming whatever lands at the front.
     pub fn shuffle(&mut self) {
-        self.0.make_contiguous().shuffle(&mut thread_rng());
+        self.0.make_contiguous().shuffle(&mut rand::rng());
         self.prefetch_front();
     }
 

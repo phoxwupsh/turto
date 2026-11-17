@@ -4907,7 +4907,7 @@ dependencies = [
  "lazy-regex",
  "paste",
  "poise",
- "rand 0.8.8",
+ "rand 0.10.4",
  "regex",
  "reqwest",
  "serde",
