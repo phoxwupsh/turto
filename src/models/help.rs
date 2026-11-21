@@ -101,7 +101,7 @@ impl HelpConfig {
                 return Ok(HelpConfig::default());
             }
         };
-        let de = toml::Deserializer::new(&help_str);
+        let de = toml::Deserializer::parse(&help_str)?;
         let raw: RawHelpConfig = serde_ignored::deserialize(de, |path| {
             tracing::warn!(field = %path, "unknown help field ignored");
         })?;

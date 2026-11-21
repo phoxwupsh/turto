@@ -97,7 +97,7 @@ impl TurtoConfig {
             }
         };
 
-        let de = toml::Deserializer::new(&config_str);
+        let de = toml::Deserializer::parse(&config_str)?;
         let config: TurtoConfig = serde_ignored::deserialize(de, |attribute| {
             tracing::warn!(
                 %attribute,
