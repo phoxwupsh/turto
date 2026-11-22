@@ -201,7 +201,7 @@ async fn ensure_runtime(uv_exec: &Path, uv_dir: &Path) -> Result<PathBuf, DepsEr
             OsStr::new("--cache-dir"),
             cache_dir.as_os_str(),
             OsStr::new("-U"),
-            OsStr::new("yt-dlp"),
+            OsStr::new("yt-dlp[default]"),
             OsStr::new("fastapi"),
             OsStr::new("uvicorn"),
         ],
@@ -225,7 +225,7 @@ async fn ensure_runtime(uv_exec: &Path, uv_dir: &Path) -> Result<PathBuf, DepsEr
     Ok(get_venv_python(&venv_abs))
 }
 
-/// Upgrade yt-dlp in the sidecar venv in place (`uv pip install -U yt-dlp`;
+/// Upgrade yt-dlp in the sidecar venv in place (`uv pip install -U "yt-dlp[default]"`;
 /// `--pre` selects the nightly channel). Only the on-disk package changes -- the
 /// warm sidecar keeps running its already-imported yt-dlp until it is recycled.
 pub async fn upgrade_ytdlp(nightly: bool) -> Result<(), DepsError> {
@@ -245,7 +245,7 @@ pub async fn upgrade_ytdlp(nightly: bool) -> Result<(), DepsError> {
     if nightly {
         args.push(OsStr::new("--pre"));
     }
-    args.push(OsStr::new("yt-dlp"));
+    args.push(OsStr::new("yt-dlp[default]"));
     run_uv(uv_exec, args).await
 }
 
